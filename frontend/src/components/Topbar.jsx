@@ -1,0 +1,1 @@
+export default function Topbar({company,companies,onCompany}){return <header className="topbar"><div><span className="eyebrow">SUPPLY CHAIN COMMAND CENTER</span><h1>{company?.name||'SupplyIQ'}</h1></div><select value={company?.id||''} onChange={e=>onCompany(Number(e.target.value))}>{companies.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></header>}

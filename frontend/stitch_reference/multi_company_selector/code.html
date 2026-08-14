@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>SupplyIQ - Multi-company Selector</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "primary": "#4648d4",
+                      "background": "#f8f9ff",
+                      "tertiary": "#904900",
+                      "on-primary-container": "#fffbff",
+                      "surface-variant": "#d3e4fe",
+                      "secondary-fixed": "#dae2fd",
+                      "error-container": "#ffdad6",
+                      "surface-container-highest": "#d3e4fe",
+                      "on-primary-fixed-variant": "#2f2ebe",
+                      "tertiary-fixed-dim": "#ffb783",
+                      "on-secondary-fixed-variant": "#3f465c",
+                      "on-background": "#0b1c30",
+                      "on-surface": "#0b1c30",
+                      "surface": "#f8f9ff",
+                      "inverse-primary": "#c0c1ff",
+                      "on-surface-variant": "#464554",
+                      "primary-fixed": "#e1e0ff",
+                      "error": "#ba1a1a",
+                      "on-tertiary-container": "#fffbff",
+                      "tertiary-container": "#b55d00",
+                      "surface-bright": "#f8f9ff",
+                      "on-secondary": "#ffffff",
+                      "on-tertiary-fixed-variant": "#703700",
+                      "on-primary": "#ffffff",
+                      "secondary": "#565e74",
+                      "outline": "#767586",
+                      "inverse-surface": "#213145",
+                      "tertiary-fixed": "#ffdcc5",
+                      "on-error-container": "#93000a",
+                      "on-secondary-container": "#5c647a",
+                      "surface-container-high": "#dce9ff",
+                      "on-error": "#ffffff",
+                      "secondary-container": "#dae2fd",
+                      "surface-container-low": "#eff4ff",
+                      "surface-container": "#e5eeff",
+                      "surface-dim": "#cbdbf5",
+                      "secondary-fixed-dim": "#bec6e0",
+                      "surface-tint": "#494bd6",
+                      "on-primary-fixed": "#07006c",
+                      "on-tertiary-fixed": "#301400",
+                      "primary-container": "#6063ee",
+                      "on-secondary-fixed": "#131b2e",
+                      "primary-fixed-dim": "#c0c1ff",
+                      "inverse-on-surface": "#eaf1ff",
+                      "on-tertiary": "#ffffff",
+                      "surface-container-lowest": "#ffffff",
+                      "outline-variant": "#c7c4d7"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "stack-lg": "32px",
+                      "container-margin": "24px",
+                      "unit": "4px",
+                      "stack-md": "16px",
+                      "gutter": "16px",
+                      "stack-sm": "8px"
+              },
+              "fontFamily": {
+                      "title-md": [
+                              "Inter"
+                      ],
+                      "headline-lg-mobile": [
+                              "Inter"
+                      ],
+                      "headline-lg": [
+                              "Inter"
+                      ],
+                      "body-md": [
+                              "Inter"
+                      ],
+                      "label-sm": [
+                              "JetBrains Mono"
+                      ],
+                      "display-lg": [
+                              "Inter"
+                      ],
+                      "data-table": [
+                              "Inter"
+                      ],
+                      "body-lg": [
+                              "Inter"
+                      ]
+              },
+              "fontSize": {
+                      "title-md": [
+                              "20px",
+                              {
+                                      "lineHeight": "28px",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "headline-lg-mobile": [
+                              "24px",
+                              {
+                                      "lineHeight": "32px",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "headline-lg": [
+                              "32px",
+                              {
+                                      "lineHeight": "40px",
+                                      "letterSpacing": "-0.01em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "body-md": [
+                              "14px",
+                              {
+                                      "lineHeight": "20px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "label-sm": [
+                              "12px",
+                              {
+                                      "lineHeight": "16px",
+                                      "letterSpacing": "0.02em",
+                                      "fontWeight": "500"
+                              }
+                      ],
+                      "display-lg": [
+                              "48px",
+                              {
+                                      "lineHeight": "56px",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "data-table": [
+                              "13px",
+                              {
+                                      "lineHeight": "18px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "body-lg": [
+                              "16px",
+                              {
+                                      "lineHeight": "24px",
+                                      "fontWeight": "400"
+                              }
+                      ]
+              }
+      },
+          },
+        }
+      </script>
+</head>
+<body class="bg-surface text-on-surface font-body-md min-h-screen">
+<!-- TopNavBar -->
+<header class="fixed top-0 w-full z-50 flex justify-between items-center px-container-margin h-16 bg-surface dark:bg-on-background border-b border-outline-variant dark:border-outline shadow-sm dark:shadow-none">
+<div class="flex items-center gap-4">
+<span class="text-title-md font-title-md font-bold text-primary dark:text-primary-fixed">SupplyIQ</span>
+</div>
+<div class="flex-1 max-w-xl mx-8">
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
+<input class="w-full h-10 pl-10 pr-4 bg-surface-container-lowest border border-outline-variant rounded-lg focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all font-body-md text-body-md text-on-surface placeholder:text-on-surface-variant" placeholder="Search companies..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="w-10 h-10 flex items-center justify-center rounded-full text-on-surface-variant hover:bg-surface-container-low transition-colors cursor-pointer active:opacity-80">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="w-10 h-10 flex items-center justify-center rounded-full text-on-surface-variant hover:bg-surface-container-low transition-colors cursor-pointer active:opacity-80">
+<span class="material-symbols-outlined">apps</span>
+</button>
+<div class="w-8 h-8 rounded-full bg-primary-container overflow-hidden cursor-pointer border border-outline-variant">
+<img alt="User Profile" class="w-full h-full object-cover" data-alt="A professional corporate headshot of a business executive in a high-stakes B2B supply chain management setting. The lighting is bright and modern, conveying clarity and authority. The subject is wearing a tailored navy suit against a clean, minimalist light background. The overall aesthetic is precise, reliable, and intelligent, matching a modern enterprise dashboard." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCqKBRI2kBDQw0MztWjNZd7CeYbpWLEWIprOfILHcvcx55Ui-oL7EuwfUV9X2koiQE19fG7HS6YX1YGGkGuglYELcQMnvixwopRSpyowj8umo70idtFnzz5vobQlw1VB3fxgsdv53QRoYzfWfZCFAp2yq8U8VMdH45UVnah11lBMk_FKEl-JGEqLn_jGgWs30G7PlerWclrEkFd4UrRyuPtUeWJQh_LCwhSD-qXLyUpmz9J79z1eS0"/>
+</div>
+</div>
+</header>
+<!-- SideNavBar -->
+<nav class="hidden md:flex fixed left-0 top-0 h-full w-64 flex-col pt-16 pb-4 z-40 bg-surface dark:bg-on-background border-r border-outline-variant dark:border-outline flat no shadows">
+<div class="px-container-margin py-stack-md border-b border-outline-variant flex flex-col gap-2">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded bg-surface-container-high border border-outline-variant flex items-center justify-center">
+<img alt="Company Logo" class="w-6 h-6 object-contain" data-alt="A minimalist, modern corporate logo for a global supply chain enterprise. The design uses sharp geometric shapes and a high-contrast palette of crisp white and deep navy. The aesthetic is clean, professional, and authoritative, suitable for a high-stakes B2B application dashboard. It feels intelligent and agile rather than industrial." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCO3YcY5MPRs-fvACBw83gOtMCxcBTiDJRgblL25gamT0WcpvoHnlK7L9utqNrJYOy6hKVzc70vsigDo-Ye8RXhsL4sZEKoivR7iCdpgI7PgAL8k3WS6ukIyrI9R1Toonvq42UpOOgzc5yHYoMILD8xUW3aq5TONu1a5lzYtAhlReqky8dmg_SXulCNDPeinpKdEO9zY1EhBl_qfqL0GNp3T4e1KeEvslRZuR29o8U9WLH_rARiwoY"/>
+</div>
+<div>
+<h2 class="text-title-md font-title-md text-on-surface">Global Supply</h2>
+<p class="text-label-sm font-label-sm text-on-surface-variant">Enterprise Tier</p>
+</div>
+</div>
+<button class="mt-2 w-full py-2 px-3 border border-outline-variant rounded text-body-md font-body-md text-on-surface hover:bg-surface-container-low transition-colors flex items-center justify-between group">
+<span>Company Switcher</span>
+<span class="material-symbols-outlined text-[18px] text-on-surface-variant group-hover:text-primary transition-colors">swap_vert</span>
+</button>
+</div>
+<div class="flex-1 overflow-y-auto py-stack-md flex flex-col gap-1 px-3">
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-high dark:hover:bg-secondary-fixed-variant transition-all rounded-lg scale-95 active:scale-90 transition-transform" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="text-body-md font-body-md">Executive Overview</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-high dark:hover:bg-secondary-fixed-variant transition-all rounded-lg scale-95 active:scale-90 transition-transform" href="#">
+<span class="material-symbols-outlined">local_shipping</span>
+<span class="text-body-md font-body-md">Shipment Intelligence</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-high dark:hover:bg-secondary-fixed-variant transition-all rounded-lg scale-95 active:scale-90 transition-transform" href="#">
+<span class="material-symbols-outlined">trending_up</span>
+<span class="text-body-md font-body-md">Demand Forecasting</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-high dark:hover:bg-secondary-fixed-variant transition-all rounded-lg scale-95 active:scale-90 transition-transform" href="#">
+<span class="material-symbols-outlined">inventory_2</span>
+<span class="text-body-md font-body-md">Inventory Intelligence</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-high dark:hover:bg-secondary-fixed-variant transition-all rounded-lg scale-95 active:scale-90 transition-transform" href="#">
+<span class="material-symbols-outlined">precision_manufacturing</span>
+<span class="text-body-md font-body-md">Supplier Intelligence</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-high dark:hover:bg-secondary-fixed-variant transition-all rounded-lg scale-95 active:scale-90 transition-transform" href="#">
+<span class="material-symbols-outlined">warning</span>
+<span class="text-body-md font-body-md">Anomaly Detection</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-high dark:hover:bg-secondary-fixed-variant transition-all rounded-lg scale-95 active:scale-90 transition-transform" href="#">
+<span class="material-symbols-outlined">architecture</span>
+<span class="text-body-md font-body-md">What-If Simulator</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-high dark:hover:bg-secondary-fixed-variant transition-all rounded-lg scale-95 active:scale-90 transition-transform" href="#">
+<span class="material-symbols-outlined">psychology</span>
+<span class="text-body-md font-body-md">AI Recommendations</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-high dark:hover:bg-secondary-fixed-variant transition-all rounded-lg scale-95 active:scale-90 transition-transform" href="#">
+<span class="material-symbols-outlined">upload_file</span>
+<span class="text-body-md font-body-md">Data Upload</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-high dark:hover:bg-secondary-fixed-variant transition-all rounded-lg scale-95 active:scale-90 transition-transform" href="#">
+<span class="material-symbols-outlined">settings_suggest</span>
+<span class="text-body-md font-body-md">Model Center</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 bg-secondary-container dark:bg-on-secondary-fixed-variant text-on-secondary-container dark:text-secondary-fixed rounded-lg font-bold scale-95 active:scale-90 transition-transform" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="text-body-md font-body-md">Settings</span>
+</a>
+</div>
+<div class="px-3 border-t border-outline-variant pt-stack-sm flex flex-col gap-1">
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-high dark:hover:bg-secondary-fixed-variant transition-all rounded-lg scale-95 active:scale-90 transition-transform" href="#">
+<span class="material-symbols-outlined">support_agent</span>
+<span class="text-body-md font-body-md">Support</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-high dark:hover:bg-secondary-fixed-variant transition-all rounded-lg scale-95 active:scale-90 transition-transform" href="#">
+<span class="material-symbols-outlined">help</span>
+<span class="text-body-md font-body-md">Help Center</span>
+</a>
+</div>
+</nav>
+<!-- Main Content Canvas -->
+<main class="pt-16 md:pl-64 min-h-screen bg-background">
+<div class="max-w-7xl mx-auto p-container-margin md:p-stack-lg flex flex-col gap-stack-lg">
+<!-- Page Header -->
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+<div>
+<h1 class="text-headline-lg-mobile md:text-headline-lg font-headline-lg-mobile md:font-headline-lg text-on-surface">Company Management</h1>
+<p class="text-body-lg font-body-lg text-on-surface-variant mt-2">Global administration and environment switcher.</p>
+</div>
+<div class="flex items-center gap-3">
+<button class="px-4 py-2 border border-outline rounded bg-surface text-on-surface font-body-md hover:bg-surface-container-low transition-colors flex items-center gap-2">
+<span class="material-symbols-outlined text-[20px]">filter_list</span>
+                        Filter
+                    </button>
+<button class="px-4 py-2 bg-primary text-on-primary rounded font-body-md hover:bg-primary-container transition-colors flex items-center gap-2 shadow-sm">
+<span class="material-symbols-outlined text-[20px]">add</span>
+                        Add New Company
+                    </button>
+</div>
+</div>
+<!-- Bento Grid Layout -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-gutter">
+<!-- Card 1 -->
+<div class="bg-surface rounded-xl border border-outline-variant p-container-margin flex flex-col gap-4 hover:border-primary transition-colors cursor-pointer group shadow-[0px_4px_6px_rgba(15,23,42,0.05)] relative overflow-hidden">
+<div class="absolute inset-0 bg-gradient-to-br from-transparent to-surface-container-low opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+<div class="flex justify-between items-start z-10">
+<div class="flex items-center gap-3">
+<div class="w-12 h-12 rounded-lg bg-surface-container-highest border border-outline-variant flex items-center justify-center p-2">
+<img alt="Global Logistics Corp Logo" class="w-full h-full object-contain" data-alt="A modern, high-contrast B2B corporate logo for 'Global Logistics Corp'. The logo features a minimalist geometric design conveying speed and reliability, set against a pristine white background with subtle navy accents. It feels authoritative and intelligent, perfect for an enterprise dashboard." src="https://lh3.googleusercontent.com/aida-public/AB6AXuA-qv8fql8mfySoZ7hhF4aMW6toSrzzbQmtKYEY35UwqUC3yo_xtMZo7NpvKX075PLBQfNik2iymDZiT5cnvJD6oeZ737fOFVRktmpAo0Qm7v4LOSnM77qOFKObuf5BqgrHGRHOQki4kRuplXiD54duSX3SFQ8sKFtNv_CoSzoD_ocaeGqs5sJUwvmIjnfdXFamSGZazmkH4Wttb0JDud735noin7yha17kPmqPA7Op-q630DoqfZg"/>
+</div>
+<div>
+<h3 class="text-title-md font-title-md text-on-surface group-hover:text-primary transition-colors">Global Logistics Corp</h3>
+<p class="text-label-sm font-label-sm text-on-surface-variant font-data-table uppercase tracking-wider">Enterprise ID: GLC-902</p>
+</div>
+</div>
+<button class="text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</div>
+<div class="grid grid-cols-2 gap-4 mt-2 z-10">
+<div class="flex flex-col">
+<span class="text-label-sm font-label-sm text-on-surface-variant uppercase">Total Shipments</span>
+<span class="text-title-md font-title-md text-on-surface font-label-sm">1.2M</span>
+</div>
+<div class="flex flex-col">
+<span class="text-label-sm font-label-sm text-on-surface-variant uppercase">Health Score</span>
+<div class="flex items-center gap-2 mt-1">
+<div class="w-2 h-2 rounded-full bg-emerald-500"></div>
+<span class="text-body-md font-body-md font-medium text-emerald-700 dark:text-emerald-400">98/100</span>
+</div>
+</div>
+</div>
+<div class="mt-auto pt-4 border-t border-outline-variant z-10 flex justify-end">
+<span class="text-primary font-body-md font-medium flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                            Switch Environment <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+</span>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="bg-surface rounded-xl border border-outline-variant p-container-margin flex flex-col gap-4 hover:border-primary transition-colors cursor-pointer group shadow-[0px_4px_6px_rgba(15,23,42,0.05)] relative overflow-hidden">
+<div class="absolute inset-0 bg-gradient-to-br from-transparent to-surface-container-low opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+<div class="flex justify-between items-start z-10">
+<div class="flex items-center gap-3">
+<div class="w-12 h-12 rounded-lg bg-surface-container-highest border border-outline-variant flex items-center justify-center p-2">
+<img alt="Alpha Manufacturing Logo" class="w-full h-full object-contain" data-alt="A clean, authoritative logo for 'Alpha Manufacturing'. It uses strong, minimal lines and a precise structural design, reflecting a highly organized B2B environment. The color palette is restricted to sharp whites, slate, and a touch of deep blue, ensuring a premium analytical feel." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAItZZRWXOj01C0xJrZIHM8KyealhiRZdaP_-9OTI6nVKpuVhGyZbgY-xzEdzWGm9zuf-q4AlzRDNURpZqYaMxuZbgDY0S5CH8XX-0cCzEsdnDZkGaaGeZv2htbTYMHHefTnI_DQJ5CYHjO1tjSVdYO3to72mM5g-zr-AnrCnusq1QOwSTHp-QkGhL1m1_WtyvTfdfvyryYqMuvIEoM7boCYHQu1dodFPxy44wXVmIys_WHOxDWVTs"/>
+</div>
+<div>
+<h3 class="text-title-md font-title-md text-on-surface group-hover:text-primary transition-colors">Alpha Manufacturing</h3>
+<p class="text-label-sm font-label-sm text-on-surface-variant font-data-table uppercase tracking-wider">Enterprise ID: AM-441</p>
+</div>
+</div>
+<button class="text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</div>
+<div class="grid grid-cols-2 gap-4 mt-2 z-10">
+<div class="flex flex-col">
+<span class="text-label-sm font-label-sm text-on-surface-variant uppercase">Total Shipments</span>
+<span class="text-title-md font-title-md text-on-surface font-label-sm">845K</span>
+</div>
+<div class="flex flex-col">
+<span class="text-label-sm font-label-sm text-on-surface-variant uppercase">Health Score</span>
+<div class="flex items-center gap-2 mt-1">
+<div class="w-2 h-2 rounded-full bg-amber-500"></div>
+<span class="text-body-md font-body-md font-medium text-amber-700 dark:text-amber-400">72/100</span>
+</div>
+</div>
+</div>
+<div class="mt-auto pt-4 border-t border-outline-variant z-10 flex justify-end">
+<span class="text-primary font-body-md font-medium flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                            Switch Environment <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+</span>
+</div>
+</div>
+<!-- Card 3 -->
+<div class="bg-surface rounded-xl border border-outline-variant p-container-margin flex flex-col gap-4 hover:border-primary transition-colors cursor-pointer group shadow-[0px_4px_6px_rgba(15,23,42,0.05)] relative overflow-hidden">
+<div class="absolute inset-0 bg-gradient-to-br from-transparent to-surface-container-low opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+<div class="flex justify-between items-start z-10">
+<div class="flex items-center gap-3">
+<div class="w-12 h-12 rounded-lg bg-surface-container-highest border border-outline-variant flex items-center justify-center p-2">
+<img alt="TechFlow Inc Logo" class="w-full h-full object-contain" data-alt="A sophisticated, modern emblem for 'TechFlow Inc'. The logo is designed with crisp, high-contrast vector art that feels agile and intelligent. Set on a bright white background, it perfectly aligns with a sleek, minimalist supply chain management dashboard aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDEIteDdKZbX7YF7yycThaU1QEiR_r4vNO6B8ZbdphuQTWp8Gksp0NwgQCQKIjOZad_BpxY2nC--dF3Ir7D7AGRLXySMADrTgQgID9C37mrqRPKWnllx8ku-269TB2HCEBJdxMn_VB2c-gehcmrzT0dA6_kELBFYvuqvzuAdZPoLvD0KQBQP67JylJIpWpP1p-6VkVlcxhAer4uEc1WCBVfWpEzPqIbWBfO0KJusGKTQplQ51a2Dss"/>
+</div>
+<div>
+<h3 class="text-title-md font-title-md text-on-surface group-hover:text-primary transition-colors">TechFlow Inc</h3>
+<p class="text-label-sm font-label-sm text-on-surface-variant font-data-table uppercase tracking-wider">Enterprise ID: TFI-109</p>
+</div>
+</div>
+<button class="text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</div>
+<div class="grid grid-cols-2 gap-4 mt-2 z-10">
+<div class="flex flex-col">
+<span class="text-label-sm font-label-sm text-on-surface-variant uppercase">Total Shipments</span>
+<span class="text-title-md font-title-md text-on-surface font-label-sm">2.4M</span>
+</div>
+<div class="flex flex-col">
+<span class="text-label-sm font-label-sm text-on-surface-variant uppercase">Health Score</span>
+<div class="flex items-center gap-2 mt-1">
+<div class="w-2 h-2 rounded-full bg-red-500"></div>
+<span class="text-body-md font-body-md font-medium text-red-700 dark:text-red-400">45/100</span>
+</div>
+</div>
+</div>
+<div class="mt-auto pt-4 border-t border-outline-variant z-10 flex justify-end">
+<span class="text-primary font-body-md font-medium flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                            Switch Environment <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+</span>
+</div>
+</div>
+</div>
+</div>
+</main>
+</body></html>

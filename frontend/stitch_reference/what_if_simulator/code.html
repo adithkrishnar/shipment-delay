@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>What-If Simulator - SupplyIQ</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary": "#4648d4",
+                        "background": "#f8f9ff",
+                        "tertiary": "#904900",
+                        "on-primary-container": "#fffbff",
+                        "surface-variant": "#d3e4fe",
+                        "secondary-fixed": "#dae2fd",
+                        "error-container": "#ffdad6",
+                        "surface-container-highest": "#d3e4fe",
+                        "on-primary-fixed-variant": "#2f2ebe",
+                        "tertiary-fixed-dim": "#ffb783",
+                        "on-secondary-fixed-variant": "#3f465c",
+                        "on-background": "#0b1c30",
+                        "on-surface": "#0b1c30",
+                        "surface": "#f8f9ff",
+                        "inverse-primary": "#c0c1ff",
+                        "on-surface-variant": "#464554",
+                        "primary-fixed": "#e1e0ff",
+                        "error": "#ba1a1a",
+                        "on-tertiary-container": "#fffbff",
+                        "tertiary-container": "#b55d00",
+                        "surface-bright": "#f8f9ff",
+                        "on-secondary": "#ffffff",
+                        "on-tertiary-fixed-variant": "#703700",
+                        "on-primary": "#ffffff",
+                        "secondary": "#565e74",
+                        "outline": "#767586",
+                        "inverse-surface": "#213145",
+                        "tertiary-fixed": "#ffdcc5",
+                        "on-error-container": "#93000a",
+                        "on-secondary-container": "#5c647a",
+                        "surface-container-high": "#dce9ff",
+                        "on-error": "#ffffff",
+                        "secondary-container": "#dae2fd",
+                        "surface-container-low": "#eff4ff",
+                        "surface-container": "#e5eeff",
+                        "surface-dim": "#cbdbf5",
+                        "secondary-fixed-dim": "#bec6e0",
+                        "surface-tint": "#494bd6",
+                        "on-primary-fixed": "#07006c",
+                        "on-tertiary-fixed": "#301400",
+                        "primary-container": "#6063ee",
+                        "on-secondary-fixed": "#131b2e",
+                        "primary-fixed-dim": "#c0c1ff",
+                        "inverse-on-surface": "#eaf1ff",
+                        "on-tertiary": "#ffffff",
+                        "surface-container-lowest": "#ffffff",
+                        "outline-variant": "#c7c4d7"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "stack-lg": "32px",
+                        "container-margin": "24px",
+                        "unit": "4px",
+                        "stack-md": "16px",
+                        "gutter": "16px",
+                        "stack-sm": "8px"
+                    },
+                    "fontFamily": {
+                        "title-md": ["Inter"],
+                        "headline-lg-mobile": ["Inter"],
+                        "headline-lg": ["Inter"],
+                        "body-md": ["Inter"],
+                        "label-sm": ["JetBrains Mono"],
+                        "display-lg": ["Inter"],
+                        "data-table": ["Inter"],
+                        "body-lg": ["Inter"]
+                    },
+                    "fontSize": {
+                        "title-md": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+                        "headline-lg-mobile": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "label-sm": ["12px", { "lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "500" }],
+                        "display-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "data-table": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        /* Custom Range Slider Styling to match B2B aesthetic */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #4648d4; /* primary */
+            cursor: pointer;
+            margin-top: -6px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #c7c4d7; /* outline-variant */
+            border-radius: 2px;
+        }
+        input[type=range]:focus {
+            outline: none;
+        }
+        input[type=range]:focus::-webkit-slider-thumb {
+            outline: 2px solid #e1e0ff; /* primary-fixed */
+            outline-offset: 2px;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md antialiased overflow-hidden">
+<!-- TopNavBar -->
+<header class="fixed top-0 w-full z-50 flex justify-between items-center px-container-margin h-16 bg-surface border-b border-outline-variant shadow-sm transition-colors duration-200">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-primary cursor-pointer active:opacity-80 md:hidden" data-icon="menu">menu</span>
+<div class="text-title-md font-title-md font-bold text-primary flex items-center gap-2">
+<span class="material-symbols-outlined" data-icon="hub">hub</span>
+                SupplyIQ
+            </div>
+</div>
+<div class="hidden md:flex items-center bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-1.5 focus-within:border-primary focus-within:ring-1 focus-within:ring-primary w-64 transition-all">
+<span class="material-symbols-outlined text-outline text-sm mr-2" data-icon="search">search</span>
+<input class="bg-transparent border-none outline-none text-body-md font-body-md w-full text-on-surface placeholder:text-outline p-0 focus:ring-0" placeholder="Search parameters..." type="text"/>
+</div>
+<div class="flex items-center gap-4">
+<button class="text-on-surface-variant hover:bg-surface-container-low p-2 rounded-full transition-colors cursor-pointer active:opacity-80 flex items-center justify-center">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+<button class="text-on-surface-variant hover:bg-surface-container-low p-2 rounded-full transition-colors cursor-pointer active:opacity-80 flex items-center justify-center">
+<span class="material-symbols-outlined" data-icon="apps">apps</span>
+</button>
+<div class="h-8 w-8 rounded-full overflow-hidden border border-outline-variant cursor-pointer">
+<img alt="User Profile" class="w-full h-full object-cover" data-alt="A professional corporate headshot of a mid-30s executive with a neat haircut, wearing a dark navy blazer over a crisp white shirt, photographed against a neutral grey studio backdrop with soft, even lighting, conveying a sense of authoritative competence." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBT6g6vGJcyaBAN9NXAot9TUagbQNzUZtF60caMTJz0Tow_H1oontT92_bNBtGig_0rhSoJKjSV8RyZwI-gI6uBS-ivaZf8iU9k2j2M2-oOWiIWmA1YtB-4yA06Q4Vn4z6-NCz-m1KH6JoB4VWzimezyqvN0YJtXDlPAl44J6Zw4GlKmQWBto_XEshWOqtJM-znwLm_PWg4ZIDKztsYQE9mZWXGrRHc6Gpv-3LjEF_UtI1TdBOk-rc"/>
+</div>
+</div>
+</header>
+<!-- SideNavBar -->
+<nav class="fixed left-0 top-0 h-full w-64 flex flex-col pt-16 pb-4 z-40 bg-surface border-r border-outline-variant hidden md:flex transition-colors duration-200">
+<div class="px-container-margin py-stack-md border-b border-outline-variant">
+<div class="flex items-center gap-3 mb-4">
+<div class="h-10 w-10 rounded bg-primary-container text-on-primary-container flex items-center justify-center font-bold text-title-md">
+                    G
+                </div>
+<div>
+<h2 class="text-body-md font-body-md font-semibold text-on-surface">Global Supply</h2>
+<p class="text-label-sm font-label-sm text-on-surface-variant">Enterprise Tier</p>
+</div>
+</div>
+<button class="w-full flex items-center justify-between text-body-md font-body-md border border-outline-variant rounded p-2 hover:bg-surface-container-low transition-colors">
+<span>Company Switcher</span>
+<span class="material-symbols-outlined text-sm" data-icon="swap_vert">swap_vert</span>
+</button>
+</div>
+<div class="flex-1 overflow-y-auto py-stack-sm px-3 flex flex-col gap-1">
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-body-md font-body-md text-on-surface-variant hover:bg-surface-container-low transition-all group scale-95 active:scale-90" href="#">
+<span class="material-symbols-outlined group-hover:text-primary transition-colors" data-icon="dashboard">dashboard</span>
+                Executive Overview
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-body-md font-body-md text-on-surface-variant hover:bg-surface-container-low transition-all group scale-95 active:scale-90" href="#">
+<span class="material-symbols-outlined group-hover:text-primary transition-colors" data-icon="local_shipping">local_shipping</span>
+                Shipment Intelligence
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-body-md font-body-md text-on-surface-variant hover:bg-surface-container-low transition-all group scale-95 active:scale-90" href="#">
+<span class="material-symbols-outlined group-hover:text-primary transition-colors" data-icon="trending_up">trending_up</span>
+                Demand Forecasting
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-body-md font-body-md text-on-surface-variant hover:bg-surface-container-low transition-all group scale-95 active:scale-90" href="#">
+<span class="material-symbols-outlined group-hover:text-primary transition-colors" data-icon="inventory_2">inventory_2</span>
+                Inventory Intelligence
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-body-md font-body-md text-on-surface-variant hover:bg-surface-container-low transition-all group scale-95 active:scale-90" href="#">
+<span class="material-symbols-outlined group-hover:text-primary transition-colors" data-icon="precision_manufacturing">precision_manufacturing</span>
+                Supplier Intelligence
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-body-md font-body-md text-on-surface-variant hover:bg-surface-container-low transition-all group scale-95 active:scale-90" href="#">
+<span class="material-symbols-outlined group-hover:text-primary transition-colors" data-icon="warning">warning</span>
+                Anomaly Detection
+            </a>
+<!-- Active Tab -->
+<a class="flex items-center gap-3 px-3 py-2 bg-secondary-container text-on-secondary-container rounded-lg text-body-md font-body-md font-bold transition-all scale-95 active:scale-90" href="#">
+<span class="material-symbols-outlined" data-icon="architecture" style="font-variation-settings: 'FILL' 1;">architecture</span>
+                What-If Simulator
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-body-md font-body-md text-on-surface-variant hover:bg-surface-container-low transition-all group scale-95 active:scale-90" href="#">
+<span class="material-symbols-outlined group-hover:text-primary transition-colors" data-icon="psychology">psychology</span>
+                AI Recommendations
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-body-md font-body-md text-on-surface-variant hover:bg-surface-container-low transition-all group scale-95 active:scale-90" href="#">
+<span class="material-symbols-outlined group-hover:text-primary transition-colors" data-icon="upload_file">upload_file</span>
+                Data Upload
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-body-md font-body-md text-on-surface-variant hover:bg-surface-container-low transition-all group scale-95 active:scale-90" href="#">
+<span class="material-symbols-outlined group-hover:text-primary transition-colors" data-icon="settings_suggest">settings_suggest</span>
+                Model Center
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-body-md font-body-md text-on-surface-variant hover:bg-surface-container-low transition-all group scale-95 active:scale-90" href="#">
+<span class="material-symbols-outlined group-hover:text-primary transition-colors" data-icon="settings">settings</span>
+                Settings
+            </a>
+</div>
+<div class="px-3 border-t border-outline-variant pt-4 pb-2 flex flex-col gap-1">
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-body-md font-body-md text-on-surface-variant hover:bg-surface-container-low transition-all group scale-95 active:scale-90" href="#">
+<span class="material-symbols-outlined group-hover:text-primary transition-colors" data-icon="support_agent">support_agent</span>
+                Support
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-body-md font-body-md text-on-surface-variant hover:bg-surface-container-low transition-all group scale-95 active:scale-90" href="#">
+<span class="material-symbols-outlined group-hover:text-primary transition-colors" data-icon="help">help</span>
+                Help Center
+            </a>
+</div>
+</nav>
+<!-- Main Workspace -->
+<div class="md:ml-64 pt-16 h-screen flex flex-col md:flex-row overflow-hidden bg-background">
+<!-- Simulator Controls Panel (Inner Sidebar) -->
+<aside class="w-full md:w-80 h-full border-r border-outline-variant bg-surface-container-lowest flex flex-col shadow-[inset_-4px_0_12px_rgba(15,23,42,0.02)] z-10 shrink-0">
+<div class="p-container-margin border-b border-outline-variant flex justify-between items-center bg-surface">
+<h2 class="text-title-md font-title-md text-on-surface flex items-center gap-2">
+<span class="material-symbols-outlined text-primary" data-icon="tune">tune</span>
+                    Parameters
+                </h2>
+<button class="text-label-sm font-label-sm text-primary hover:underline" onclick="resetSliders()">Reset</button>
+</div>
+<div class="flex-1 overflow-y-auto p-container-margin flex flex-col gap-stack-lg">
+<!-- Control Group: Demand -->
+<div class="space-y-4">
+<div class="flex justify-between items-end">
+<label class="text-body-md font-body-md text-on-surface font-semibold">Demand Adjustment</label>
+<span class="text-label-sm font-label-sm font-label-sm text-primary bg-primary-fixed px-2 py-0.5 rounded" id="val-demand">+15%</span>
+</div>
+<input class="w-full" max="50" min="-50" oninput="document.getElementById('val-demand').innerText = (this.value &gt; 0 ? '+' : '') + this.value + '%'" type="range" value="15"/>
+<div class="flex justify-between text-label-sm font-label-sm text-outline">
+<span>-50%</span>
+<span>Baseline</span>
+<span>+50%</span>
+</div>
+</div>
+<!-- Control Group: Inventory Buffer -->
+<div class="space-y-4">
+<div class="flex justify-between items-end">
+<label class="text-body-md font-body-md text-on-surface font-semibold">Safety Stock Buffer</label>
+<span class="text-label-sm font-label-sm text-on-surface-variant font-label-sm" id="val-inventory">30 Days</span>
+</div>
+<input class="w-full" max="90" min="0" oninput="document.getElementById('val-inventory').innerText = this.value + ' Days'" type="range" value="30"/>
+<div class="flex justify-between text-label-sm font-label-sm text-outline">
+<span>0</span>
+<span>45</span>
+<span>90</span>
+</div>
+</div>
+<!-- Control Group: Delay Tolerance -->
+<div class="space-y-4">
+<div class="flex justify-between items-end">
+<label class="text-body-md font-body-md text-on-surface font-semibold">Port Delay Injection</label>
+<span class="text-label-sm font-label-sm font-label-sm text-error bg-error-container px-2 py-0.5 rounded" id="val-delay">10 Days</span>
+</div>
+<input class="w-full" max="30" min="0" oninput="document.getElementById('val-delay').innerText = this.value + ' Days'" type="range" value="10"/>
+<div class="flex justify-between text-label-sm font-label-sm text-outline">
+<span>None</span>
+<span>15</span>
+<span>30</span>
+</div>
+</div>
+<!-- Control Group: Supplier Reliability -->
+<div class="space-y-4">
+<div class="flex justify-between items-end">
+<label class="text-body-md font-body-md text-on-surface font-semibold">Supplier Reliability</label>
+<span class="text-label-sm font-label-sm text-on-surface-variant font-label-sm" id="val-supplier">85%</span>
+</div>
+<input class="w-full" max="100" min="50" oninput="document.getElementById('val-supplier').innerText = this.value + '%'" type="range" value="85"/>
+<div class="flex justify-between text-label-sm font-label-sm text-outline">
+<span>50%</span>
+<span>75%</span>
+<span>100%</span>
+</div>
+</div>
+</div>
+<div class="p-container-margin border-t border-outline-variant bg-surface">
+<button class="w-full bg-primary text-on-primary font-body-md text-body-md py-2.5 rounded-lg hover:bg-primary-container transition-colors flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-sm" data-icon="play_arrow">play_arrow</span>
+                    Run Simulation
+                </button>
+</div>
+</aside>
+<!-- Main Content Area (Results) -->
+<main class="flex-1 overflow-y-auto p-container-margin md:p-8 flex flex-col gap-stack-lg relative">
+<!-- Header -->
+<div class="flex justify-between items-end">
+<div>
+<h1 class="text-headline-lg font-headline-lg text-on-background mb-1">Impact Analysis</h1>
+<p class="text-body-md font-body-md text-on-surface-variant">Comparing Scenario "Q3 High Volatility" against Baseline.</p>
+</div>
+<div class="hidden lg:flex gap-3">
+<button class="px-4 py-2 border border-outline-variant rounded-lg text-body-md font-body-md text-on-surface hover:bg-surface-container-low transition-colors flex items-center gap-2">
+<span class="material-symbols-outlined text-sm" data-icon="ios_share">ios_share</span>
+                        Export
+                    </button>
+<button class="px-4 py-2 border border-outline-variant rounded-lg text-body-md font-body-md text-on-surface hover:bg-surface-container-low transition-colors flex items-center gap-2">
+<span class="material-symbols-outlined text-sm" data-icon="save">save</span>
+                        Save Scenario
+                    </button>
+</div>
+</div>
+<!-- Top Row: Metrics & AI -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-gutter">
+<!-- Comparison Metrics (Spans 2 columns) -->
+<div class="lg:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-gutter">
+<!-- Metric Card 1: Cost -->
+<div class="bg-surface-container-lowest rounded-xl border border-outline-variant p-5 shadow-[0_4px_6px_rgba(15,23,42,0.02)] flex flex-col justify-between">
+<div class="flex justify-between items-start mb-4">
+<span class="text-label-sm font-label-sm text-on-surface-variant uppercase tracking-wider">Projected Cost</span>
+<span class="material-symbols-outlined text-outline text-sm" data-icon="payments">payments</span>
+</div>
+<div class="flex justify-between items-end">
+<div>
+<div class="text-label-sm font-label-sm text-outline mb-1">Baseline</div>
+<div class="text-body-lg font-body-lg text-on-surface">$12.4M</div>
+</div>
+<div class="text-right">
+<div class="text-label-sm font-label-sm text-primary mb-1">Simulated</div>
+<div class="text-title-md font-title-md text-on-background">$13.1M</div>
+</div>
+</div>
+<div class="mt-3 pt-3 border-t border-outline-variant flex items-center gap-1 text-label-sm font-label-sm text-error">
+<span class="material-symbols-outlined text-sm" data-icon="arrow_upward">arrow_upward</span>
+                            +5.6% Variance
+                        </div>
+</div>
+<!-- Metric Card 2: Risk -->
+<div class="bg-surface-container-lowest rounded-xl border border-outline-variant p-5 shadow-[0_4px_6px_rgba(15,23,42,0.02)] flex flex-col justify-between">
+<div class="flex justify-between items-start mb-4">
+<span class="text-label-sm font-label-sm text-on-surface-variant uppercase tracking-wider">Total Risk Score</span>
+<span class="material-symbols-outlined text-outline text-sm" data-icon="speed">speed</span>
+</div>
+<div class="flex justify-between items-end">
+<div>
+<div class="text-label-sm font-label-sm text-outline mb-1">Baseline</div>
+<div class="text-body-lg font-body-lg text-on-surface">42/100</div>
+</div>
+<div class="text-right">
+<div class="text-label-sm font-label-sm text-primary mb-1">Simulated</div>
+<div class="text-title-md font-title-md text-on-background">68/100</div>
+</div>
+</div>
+<div class="mt-3 pt-3 border-t border-outline-variant flex items-center gap-1 text-label-sm font-label-sm text-error">
+<span class="material-symbols-outlined text-sm" data-icon="priority_high">priority_high</span>
+                            Elevated Exposure
+                        </div>
+</div>
+<!-- Metric Card 3: Stockout -->
+<div class="bg-surface-container-lowest rounded-xl border border-outline-variant p-5 shadow-[0_4px_6px_rgba(15,23,42,0.02)] flex flex-col justify-between">
+<div class="flex justify-between items-start mb-4">
+<span class="text-label-sm font-label-sm text-on-surface-variant uppercase tracking-wider">Stockout Prob.</span>
+<span class="material-symbols-outlined text-outline text-sm" data-icon="remove_shopping_cart">remove_shopping_cart</span>
+</div>
+<div class="flex justify-between items-end">
+<div>
+<div class="text-label-sm font-label-sm text-outline mb-1">Baseline</div>
+<div class="text-body-lg font-body-lg text-on-surface">2.1%</div>
+</div>
+<div class="text-right">
+<div class="text-label-sm font-label-sm text-primary mb-1">Simulated</div>
+<div class="text-title-md font-title-md text-on-background">8.4%</div>
+</div>
+</div>
+<div class="mt-3 pt-3 border-t border-outline-variant flex items-center gap-1 text-label-sm font-label-sm text-error">
+<span class="material-symbols-outlined text-sm" data-icon="trending_up">trending_up</span>
+                            Critical Increase
+                        </div>
+</div>
+</div>
+<!-- AI Recommendation Action (Spans 1 column) -->
+<div class="bg-surface-container-low rounded-xl border border-primary-fixed-dim p-5 relative overflow-hidden group">
+<div class="absolute -right-4 -top-4 w-24 h-24 bg-primary-fixed opacity-50 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700"></div>
+<div class="flex items-center gap-2 text-primary font-label-sm text-label-sm mb-3 relative z-10 uppercase tracking-wide font-semibold">
+<span class="material-symbols-outlined text-base" data-icon="psychology">psychology</span>
+                        AI Recommendation
+                    </div>
+<h3 class="text-body-lg font-body-lg font-semibold text-on-background mb-2 relative z-10">Mitigate 10-Day Port Delay</h3>
+<p class="text-body-md font-body-md text-on-surface-variant mb-5 relative z-10">
+                        To maintain service levels above 95% under simulated conditions, system suggests increasing safety stock across Tier 1 nodes.
+                    </p>
+<div class="bg-surface-container-lowest rounded border border-outline-variant p-3 mb-4 relative z-10 flex justify-between items-center">
+<span class="text-body-md font-body-md text-on-surface font-medium">Suggested Action</span>
+<span class="text-label-sm font-label-sm bg-primary-fixed text-primary px-2 py-1 rounded font-bold">+15% Inventory</span>
+</div>
+<button class="w-full bg-primary text-on-primary font-body-md text-body-md py-2 rounded-lg hover:bg-primary-container transition-colors relative z-10 shadow-sm">
+                        Apply to Plan
+                    </button>
+</div>
+</div>
+<!-- Bottom Row: Chart -->
+<div class="flex-1 min-h-[300px] bg-surface-container-lowest rounded-xl border border-outline-variant p-6 shadow-[0_4px_6px_rgba(15,23,42,0.02)] flex flex-col">
+<div class="flex justify-between items-center mb-6">
+<div>
+<h3 class="text-title-md font-title-md text-on-background">Cost Projection Over Time</h3>
+<p class="text-label-sm font-label-sm text-on-surface-variant">Baseline vs. Simulated (Next 12 Weeks)</p>
+</div>
+<div class="flex gap-4">
+<div class="flex items-center gap-2">
+<div class="w-3 h-0.5 bg-outline-variant"></div>
+<span class="text-label-sm font-label-sm text-on-surface-variant">Baseline</span>
+</div>
+<div class="flex items-center gap-2">
+<div class="w-3 h-0.5 bg-primary"></div>
+<span class="text-label-sm font-label-sm text-on-surface">Simulated</span>
+</div>
+</div>
+</div>
+<!-- SVG Chart Area -->
+<div class="flex-1 w-full relative">
+<!-- Y Axis Labels -->
+<div class="absolute left-0 top-0 bottom-6 w-12 flex flex-col justify-between text-label-sm font-label-sm text-outline text-right pr-2">
+<span>$15M</span>
+<span>$10M</span>
+<span>$5M</span>
+<span>$0M</span>
+</div>
+<!-- Graph Canvas -->
+<div class="absolute left-12 right-0 top-0 bottom-6 border-l border-b border-outline-variant relative">
+<!-- Grid lines -->
+<div class="absolute top-0 w-full border-t border-outline-variant/30 h-1/3"></div>
+<div class="absolute top-1/3 w-full border-t border-outline-variant/30 h-1/3"></div>
+<div class="absolute top-2/3 w-full border-t border-outline-variant/30 h-1/3"></div>
+<!-- SVG Lines -->
+<svg class="w-full h-full" preserveaspectratio="none" viewbox="0 0 100 100">
+<!-- Baseline (Slate) -->
+<path d="M 0 60 L 20 62 L 40 58 L 60 59 L 80 55 L 100 57" fill="none" stroke="#767586" stroke-dasharray="2 1" stroke-width="0.5" vector-effect="non-scaling-stroke"></path>
+<!-- Simulated (Primary) -->
+<!-- Starts same, spikes around week 6 due to delay, then stays higher -->
+<path d="M 0 60 L 20 62 L 30 65 L 45 35 L 60 40 L 80 38 L 100 35" fill="none" stroke="#4648d4" stroke-width="1.5" vector-effect="non-scaling-stroke"></path>
+<!-- Highlight node on spike -->
+<circle cx="45" cy="35" fill="#f8f9ff" r="1.5" stroke="#4648d4" stroke-width="0.5" vector-effect="non-scaling-stroke"></circle>
+</svg>
+<!-- Tooltip anchor -->
+<div class="absolute left-[45%] top-[25%] bg-inverse-surface text-inverse-on-surface text-label-sm font-label-sm px-2 py-1 rounded shadow-lg transform -translate-x-1/2 whitespace-nowrap">
+                            Wk 6: Delay Impact
+                        </div>
+</div>
+<!-- X Axis Labels -->
+<div class="absolute left-12 right-0 bottom-0 h-6 flex justify-between items-end text-label-sm font-label-sm text-outline px-1">
+<span>W1</span>
+<span>W3</span>
+<span>W5</span>
+<span>W7</span>
+<span>W9</span>
+<span>W11</span>
+</div>
+</div>
+</div>
+</main>
+</div>
+<script>
+        // Simple script to reset sliders for interactive feel
+        function resetSliders() {
+            const inputs = document.querySelectorAll('input[type="range"]');
+            inputs.forEach(input => {
+                const defaultVal = input.getAttribute('value'); // getting initial html value
+                input.value = defaultVal;
+                // Dispatch event to trigger oninput updates
+                input.dispatchEvent(new Event('input'));
+            });
+        }
+    </script>
+</body></html>

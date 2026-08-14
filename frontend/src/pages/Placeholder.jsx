@@ -1,0 +1,1 @@
+export default function Placeholder({title,description}){return <div className="page"><div className="page-title"><span className="eyebrow">SUPPLYIQ</span><h2>{title}</h2><p>{description}</p></div></div>}

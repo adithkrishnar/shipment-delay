@@ -1,0 +1,1 @@
+export default function MetricCard({label,value,sub,tone=''}){return <div className={`metric ${tone}`}><span>{label}</span><strong>{value}</strong><small>{sub||'Live from analytics engine'}</small></div>}

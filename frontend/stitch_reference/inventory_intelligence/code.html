@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Inventory Intelligence - SupplyIQ</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary": "#4648d4",
+                        "background": "#f8f9ff",
+                        "tertiary": "#904900",
+                        "on-primary-container": "#fffbff",
+                        "surface-variant": "#d3e4fe",
+                        "secondary-fixed": "#dae2fd",
+                        "error-container": "#ffdad6",
+                        "surface-container-highest": "#d3e4fe",
+                        "on-primary-fixed-variant": "#2f2ebe",
+                        "tertiary-fixed-dim": "#ffb783",
+                        "on-secondary-fixed-variant": "#3f465c",
+                        "on-background": "#0b1c30",
+                        "on-surface": "#0b1c30",
+                        "surface": "#f8f9ff",
+                        "inverse-primary": "#c0c1ff",
+                        "on-surface-variant": "#464554",
+                        "primary-fixed": "#e1e0ff",
+                        "error": "#ba1a1a",
+                        "on-tertiary-container": "#fffbff",
+                        "tertiary-container": "#b55d00",
+                        "surface-bright": "#f8f9ff",
+                        "on-secondary": "#ffffff",
+                        "on-tertiary-fixed-variant": "#703700",
+                        "on-primary": "#ffffff",
+                        "secondary": "#565e74",
+                        "outline": "#767586",
+                        "inverse-surface": "#213145",
+                        "tertiary-fixed": "#ffdcc5",
+                        "on-error-container": "#93000a",
+                        "on-secondary-container": "#5c647a",
+                        "surface-container-high": "#dce9ff",
+                        "on-error": "#ffffff",
+                        "secondary-container": "#dae2fd",
+                        "surface-container-low": "#eff4ff",
+                        "surface-container": "#e5eeff",
+                        "surface-dim": "#cbdbf5",
+                        "secondary-fixed-dim": "#bec6e0",
+                        "surface-tint": "#494bd6",
+                        "on-primary-fixed": "#07006c",
+                        "on-tertiary-fixed": "#301400",
+                        "primary-container": "#6063ee",
+                        "on-secondary-fixed": "#131b2e",
+                        "primary-fixed-dim": "#c0c1ff",
+                        "inverse-on-surface": "#eaf1ff",
+                        "on-tertiary": "#ffffff",
+                        "surface-container-lowest": "#ffffff",
+                        "outline-variant": "#c7c4d7"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "stack-lg": "32px",
+                        "container-margin": "24px",
+                        "unit": "4px",
+                        "stack-md": "16px",
+                        "gutter": "16px",
+                        "stack-sm": "8px"
+                    },
+                    "fontFamily": {
+                        "title-md": ["Inter", "sans-serif"],
+                        "headline-lg-mobile": ["Inter", "sans-serif"],
+                        "headline-lg": ["Inter", "sans-serif"],
+                        "body-md": ["Inter", "sans-serif"],
+                        "label-sm": ["JetBrains Mono", "monospace"],
+                        "display-lg": ["Inter", "sans-serif"],
+                        "data-table": ["Inter", "sans-serif"],
+                        "body-lg": ["Inter", "sans-serif"]
+                    },
+                    "fontSize": {
+                        "title-md": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+                        "headline-lg-mobile": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "label-sm": ["12px", { "lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "500" }],
+                        "display-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "data-table": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined.fill-icon {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background antialiased min-h-screen font-body-md">
+<!-- TopNavBar -->
+<header class="bg-surface dark:bg-on-background border-b border-outline-variant dark:border-outline shadow-sm dark:shadow-none fixed top-0 w-full z-50 flex justify-between items-center px-container-margin h-16">
+<div class="flex items-center gap-stack-md">
+<!-- Mobile Menu Trigger -->
+<button class="md:hidden text-primary dark:text-primary-fixed cursor-pointer active:opacity-80">
+<span class="material-symbols-outlined">menu</span>
+</button>
+<div class="text-title-md font-title-md font-bold text-primary dark:text-primary-fixed">SupplyIQ</div>
+</div>
+<div class="flex items-center flex-1 max-w-md mx-container-margin">
+<div class="relative w-full">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-body-lg">search</span>
+<input class="w-full pl-10 pr-4 py-2 bg-surface-container-low border border-outline-variant rounded-lg text-body-md font-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors" placeholder="Search..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-stack-sm text-primary dark:text-primary-fixed">
+<button class="p-2 rounded-full hover:bg-surface-container-low dark:hover:bg-secondary-fixed-variant transition-colors cursor-pointer active:opacity-80">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+<button class="p-2 rounded-full hover:bg-surface-container-low dark:hover:bg-secondary-fixed-variant transition-colors cursor-pointer active:opacity-80">
+<span class="material-symbols-outlined" data-icon="apps">apps</span>
+</button>
+<img alt="User Profile" class="w-8 h-8 rounded-full border border-outline-variant object-cover ml-2" data-alt="A professional corporate headshot of a business user in a modern office setting. Bright, clear lighting, high resolution. Focused on a neutral, approachable expression." src="https://lh3.googleusercontent.com/aida-public/AB6AXuC-F6oyPdDIYVcsP2z8xr43tgfxIbvVIdGDILJozD94kPk9R7kZxleDwRR7Xli0H1H-eoZcfHgGYZ-h9P0x_qWlItDUG87UN8NEmWWZ5vgS_zCW57DUoKQA_0z1_b5MQwZzKeO-mDwVpxQoNCPjUtNyIlF5w9_F8J-wsZPDdig0PNipitLMtRAH4qSqW0_7sUNN8YJtw2cBv8sirYFTCT1y06bO1B_YrmNFTcAwMUkV2KZ4nzJSlGY"/>
+</div>
+</header>
+<!-- SideNavBar -->
+<nav class="hidden md:flex bg-surface dark:bg-on-background border-r border-outline-variant dark:border-outline flat no shadows fixed left-0 top-0 h-full w-64 flex-col pt-16 pb-4 z-40 overflow-y-auto">
+<div class="p-container-margin border-b border-outline-variant dark:border-outline mb-stack-sm">
+<div class="flex items-center gap-3">
+<img alt="Company Logo" class="w-10 h-10 rounded-DEFAULT bg-surface-container-low object-cover" data-alt="A minimalist geometric corporate logo design featuring interlocking shapes in brand primary blue and subtle grey tones. High contrast, sharp vector style on a white background." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAGHMuj0AHJl7lmlpTfkdVfqLT2QX0_1zwS8hqotYRxdonxWm8oPlBH_Mm8UonsGB5j4VXK7UfZNnVsoGviaZNe_h4IIHmc8ITzT86UU-dr3UAeMN0fcXdFsu2DBuL18tgktiwCTkPr7VLXGlbzW34tGEGLmZnfJ8becjPSHa3fcecikios3xX5V2d--LHDIEDdBRx94j_DS1JkoA41jXJNCJ7N2pZtJPVJQ8NPcMr7vFSaOBetvPw"/>
+<div>
+<div class="text-title-md font-title-md font-semibold text-on-surface">Global Supply</div>
+<div class="text-label-sm font-label-sm text-on-surface-variant">Enterprise Tier</div>
+</div>
+</div>
+<button class="mt-4 w-full flex items-center justify-between text-body-md font-body-md px-3 py-2 border border-outline-variant rounded-DEFAULT text-on-surface-variant hover:bg-surface-container-low transition-colors">
+                Company Switcher <span class="material-symbols-outlined text-[18px]">unfold_more</span>
+</button>
+</div>
+<div class="flex-1 px-3 space-y-1">
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-high dark:hover:bg-secondary-fixed-variant transition-all rounded-lg scale-95 active:scale-90 text-body-md font-body-md" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+                Executive Overview
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-high dark:hover:bg-secondary-fixed-variant transition-all rounded-lg scale-95 active:scale-90 text-body-md font-body-md" href="#">
+<span class="material-symbols-outlined" data-icon="local_shipping">local_shipping</span>
+                Shipment Intelligence
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-high dark:hover:bg-secondary-fixed-variant transition-all rounded-lg scale-95 active:scale-90 text-body-md font-body-md" href="#">
+<span class="material-symbols-outlined" data-icon="trending_up">trending_up</span>
+                Demand Forecasting
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 bg-secondary-container dark:bg-on-secondary-fixed-variant text-on-secondary-container dark:text-secondary-fixed rounded-lg font-bold transition-all scale-95 active:scale-90 text-body-md font-body-md" href="#">
+<span class="material-symbols-outlined fill-icon" data-icon="inventory_2" data-weight="fill">inventory_2</span>
+                Inventory Intelligence
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-high dark:hover:bg-secondary-fixed-variant transition-all rounded-lg scale-95 active:scale-90 text-body-md font-body-md" href="#">
+<span class="material-symbols-outlined" data-icon="precision_manufacturing">precision_manufacturing</span>
+                Supplier Intelligence
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-high dark:hover:bg-secondary-fixed-variant transition-all rounded-lg scale-95 active:scale-90 text-body-md font-body-md" href="#">
+<span class="material-symbols-outlined" data-icon="warning">warning</span>
+                Anomaly Detection
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-high dark:hover:bg-secondary-fixed-variant transition-all rounded-lg scale-95 active:scale-90 text-body-md font-body-md" href="#">
+<span class="material-symbols-outlined" data-icon="architecture">architecture</span>
+                What-If Simulator
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-high dark:hover:bg-secondary-fixed-variant transition-all rounded-lg scale-95 active:scale-90 text-body-md font-body-md" href="#">
+<span class="material-symbols-outlined" data-icon="psychology">psychology</span>
+                AI Recommendations
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-high dark:hover:bg-secondary-fixed-variant transition-all rounded-lg scale-95 active:scale-90 text-body-md font-body-md" href="#">
+<span class="material-symbols-outlined" data-icon="upload_file">upload_file</span>
+                Data Upload
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-high dark:hover:bg-secondary-fixed-variant transition-all rounded-lg scale-95 active:scale-90 text-body-md font-body-md" href="#">
+<span class="material-symbols-outlined" data-icon="settings_suggest">settings_suggest</span>
+                Model Center
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-high dark:hover:bg-secondary-fixed-variant transition-all rounded-lg scale-95 active:scale-90 text-body-md font-body-md" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+                Settings
+            </a>
+</div>
+<div class="px-3 pt-4 border-t border-outline-variant mt-auto space-y-1">
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant hover:bg-surface-container-high transition-all rounded-lg text-body-md font-body-md" href="#">
+<span class="material-symbols-outlined" data-icon="support_agent">support_agent</span>
+                Support
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant hover:bg-surface-container-high transition-all rounded-lg text-body-md font-body-md" href="#">
+<span class="material-symbols-outlined" data-icon="help">help</span>
+                Help Center
+            </a>
+</div>
+</nav>
+<!-- Main Content Canvas -->
+<main class="md:pl-64 pt-16 min-h-screen">
+<div class="p-container-margin max-w-7xl mx-auto space-y-stack-lg">
+<!-- Header Section -->
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-stack-md">
+<div>
+<h1 class="text-headline-lg-mobile md:text-headline-lg font-headline-lg-mobile md:font-headline-lg text-on-background">Inventory Intelligence</h1>
+<p class="text-body-lg font-body-lg text-on-surface-variant mt-2">Stock optimization and risk mitigation across global fulfillment centers.</p>
+</div>
+<div class="flex gap-3">
+<button class="px-4 py-2 border border-outline text-on-surface rounded-DEFAULT text-body-md font-body-md font-medium hover:bg-surface-container-low transition-colors">
+                        Export Report
+                    </button>
+<button class="px-4 py-2 bg-primary text-on-primary rounded-DEFAULT text-body-md font-body-md font-medium hover:bg-primary-container transition-colors shadow-sm">
+                        Run Optimization
+                    </button>
+</div>
+</div>
+<!-- Top Level Metrics & Risks (Bento Grid) -->
+<div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-gutter">
+<!-- Metric 1 -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-lg p-container-margin shadow-sm flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between mb-4">
+<span class="text-label-sm font-label-sm text-on-surface-variant uppercase tracking-wider">Current Inventory</span>
+<span class="material-symbols-outlined text-outline">warehouse</span>
+</div>
+<div class="text-display-lg font-display-lg text-on-background font-label-sm">4.2M</div>
+</div>
+<div class="mt-4 flex items-center text-body-md font-body-md">
+<span class="text-on-surface-variant">Units across 12 facilities</span>
+</div>
+</div>
+<!-- Metric 2 -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-lg p-container-margin shadow-sm flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between mb-4">
+<span class="text-label-sm font-label-sm text-on-surface-variant uppercase tracking-wider">Forecasted Demand</span>
+<span class="material-symbols-outlined text-outline">trending_up</span>
+</div>
+<div class="text-display-lg font-display-lg text-on-background font-label-sm">1.8M</div>
+</div>
+<div class="mt-4 flex items-center text-body-md font-body-md text-on-surface-variant">
+<span>Units expected (Next 30d)</span>
+</div>
+</div>
+<!-- Metric 3 -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-lg p-container-margin shadow-sm flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between mb-4">
+<span class="text-label-sm font-label-sm text-on-surface-variant uppercase tracking-wider">DOIR</span>
+<span class="material-symbols-outlined text-outline">calendar_month</span>
+</div>
+<div class="text-display-lg font-display-lg text-on-background font-label-sm">45</div>
+</div>
+<div class="mt-4 flex items-center text-body-md font-body-md">
+<span class="text-on-surface-variant">Days of Inventory Remaining</span>
+</div>
+</div>
+<!-- Risk Indicators Panel -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-lg p-container-margin shadow-sm md:col-span-3 lg:col-span-1 flex flex-col">
+<h3 class="text-label-sm font-label-sm text-on-surface-variant uppercase tracking-wider mb-4 border-b border-outline-variant pb-2">Risk Status</h3>
+<div class="space-y-4 flex-1 flex flex-col justify-center">
+<div class="flex items-center justify-between">
+<span class="text-body-md font-body-md text-on-surface font-medium">Stockout Probability</span>
+<span class="px-3 py-1 bg-error-container text-on-error-container rounded-full text-label-sm font-label-sm font-bold flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">warning</span> High (12%)
+                            </span>
+</div>
+<div class="flex items-center justify-between">
+<span class="text-body-md font-body-md text-on-surface font-medium">Overstock Risk</span>
+<span class="px-3 py-1 bg-tertiary-fixed-dim text-on-tertiary-fixed-variant rounded-full text-label-sm font-label-sm font-bold flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">info</span> Med (8%)
+                            </span>
+</div>
+</div>
+</div>
+</div>
+<!-- Optimization & Breakdown Section -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-gutter">
+<!-- Reorder Optimization -->
+<div class="lg:col-span-1 bg-surface-container-lowest border border-outline-variant rounded-lg p-container-margin shadow-sm">
+<div class="flex items-center gap-2 border-b border-outline-variant pb-3 mb-4">
+<span class="material-symbols-outlined text-primary">auto_fix_high</span>
+<h2 class="text-title-md font-title-md text-on-surface">Optimization</h2>
+</div>
+<div class="space-y-6">
+<div>
+<label class="block text-label-sm font-label-sm text-on-surface-variant mb-2 uppercase">Reorder Point Trigger</label>
+<div class="relative">
+<input class="w-full bg-surface border border-outline-variant rounded-DEFAULT py-2 px-3 text-body-lg font-label-sm text-on-background focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary font-medium" readonly="" type="text" value="850,000"/>
+<span class="absolute right-3 top-1/2 -translate-y-1/2 text-body-md font-body-md text-on-surface-variant">Units</span>
+</div>
+</div>
+<div>
+<label class="block text-label-sm font-label-sm text-on-surface-variant mb-2 uppercase">Recommended Reorder Qty</label>
+<div class="relative">
+<input class="w-full bg-surface border border-outline-variant rounded-DEFAULT py-2 px-3 text-body-lg font-label-sm text-on-background focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary font-medium" readonly="" type="text" value="1,200,000"/>
+<span class="absolute right-3 top-1/2 -translate-y-1/2 text-body-md font-body-md text-on-surface-variant">Units</span>
+</div>
+<p class="text-label-sm font-label-sm text-on-surface-variant mt-2 flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">check_circle</span> Optimized for minimum holding cost
+                            </p>
+</div>
+<button class="w-full py-2 border border-primary text-primary rounded-DEFAULT text-body-md font-body-md font-medium hover:bg-surface-container-low transition-colors mt-4">
+                            Review Policy Rules
+                        </button>
+</div>
+</div>
+<!-- Regional Breakdown Table -->
+<div class="lg:col-span-2 bg-surface-container-lowest border border-outline-variant rounded-lg p-0 shadow-sm overflow-hidden flex flex-col">
+<div class="p-container-margin border-b border-outline-variant flex justify-between items-center">
+<h2 class="text-title-md font-title-md text-on-surface">Regional Inventory Breakdown</h2>
+<button class="text-primary hover:text-primary-container text-body-md font-body-md font-medium transition-colors flex items-center gap-1">
+                            View All <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+</button>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-low border-b border-outline-variant">
+<th class="py-3 px-4 text-label-sm font-label-sm text-on-surface-variant uppercase tracking-wider font-medium">Region/Warehouse</th>
+<th class="py-3 px-4 text-label-sm font-label-sm text-on-surface-variant uppercase tracking-wider font-medium text-right">Current Stock</th>
+<th class="py-3 px-4 text-label-sm font-label-sm text-on-surface-variant uppercase tracking-wider font-medium text-right">Forecast (30d)</th>
+<th class="py-3 px-4 text-label-sm font-label-sm text-on-surface-variant uppercase tracking-wider font-medium">Status</th>
+</tr>
+</thead>
+<tbody class="text-data-table font-data-table divide-y divide-outline-variant">
+<tr class="hover:bg-surface-container-lowest transition-colors">
+<td class="py-3 px-4 font-medium text-on-surface">NA-East (NJ)</td>
+<td class="py-3 px-4 text-right font-label-sm">850,230</td>
+<td class="py-3 px-4 text-right font-label-sm">420,000</td>
+<td class="py-3 px-4">
+<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-[#e6f4ea] text-[#137333]">Healthy</span>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-lowest transition-colors">
+<td class="py-3 px-4 font-medium text-on-surface">NA-West (CA)</td>
+<td class="py-3 px-4 text-right font-label-sm">310,400</td>
+<td class="py-3 px-4 text-right font-label-sm">380,000</td>
+<td class="py-3 px-4">
+<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-error-container text-on-error-container">Critical Low</span>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-lowest transition-colors">
+<td class="py-3 px-4 font-medium text-on-surface">EU-Central (DE)</td>
+<td class="py-3 px-4 text-right font-label-sm">1,200,100</td>
+<td class="py-3 px-4 text-right font-label-sm">500,000</td>
+<td class="py-3 px-4">
+<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-tertiary-fixed-dim text-on-tertiary-fixed-variant">Overstock Warning</span>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-lowest transition-colors">
+<td class="py-3 px-4 font-medium text-on-surface">APAC (SG)</td>
+<td class="py-3 px-4 text-right font-label-sm">940,000</td>
+<td class="py-3 px-4 text-right font-label-sm">350,000</td>
+<td class="py-3 px-4">
+<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-[#e6f4ea] text-[#137333]">Healthy</span>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-lowest transition-colors">
+<td class="py-3 px-4 font-medium text-on-surface">LATAM (BR)</td>
+<td class="py-3 px-4 text-right font-label-sm">120,500</td>
+<td class="py-3 px-4 text-right font-label-sm">150,000</td>
+<td class="py-3 px-4">
+<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-error-container text-on-error-container">Stockout Risk</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</div>
+</main>
+</body></html>

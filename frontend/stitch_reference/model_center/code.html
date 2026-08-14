@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Model Center - SupplyIQ</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary": "#4648d4",
+                        "background": "#f8f9ff",
+                        "tertiary": "#904900",
+                        "on-primary-container": "#fffbff",
+                        "surface-variant": "#d3e4fe",
+                        "secondary-fixed": "#dae2fd",
+                        "error-container": "#ffdad6",
+                        "surface-container-highest": "#d3e4fe",
+                        "on-primary-fixed-variant": "#2f2ebe",
+                        "tertiary-fixed-dim": "#ffb783",
+                        "on-secondary-fixed-variant": "#3f465c",
+                        "on-background": "#0b1c30",
+                        "on-surface": "#0b1c30",
+                        "surface": "#f8f9ff",
+                        "inverse-primary": "#c0c1ff",
+                        "on-surface-variant": "#464554",
+                        "primary-fixed": "#e1e0ff",
+                        "error": "#ba1a1a",
+                        "on-tertiary-container": "#fffbff",
+                        "tertiary-container": "#b55d00",
+                        "surface-bright": "#f8f9ff",
+                        "on-secondary": "#ffffff",
+                        "on-tertiary-fixed-variant": "#703700",
+                        "on-primary": "#ffffff",
+                        "secondary": "#565e74",
+                        "outline": "#767586",
+                        "inverse-surface": "#213145",
+                        "tertiary-fixed": "#ffdcc5",
+                        "on-error-container": "#93000a",
+                        "on-secondary-container": "#5c647a",
+                        "surface-container-high": "#dce9ff",
+                        "on-error": "#ffffff",
+                        "secondary-container": "#dae2fd",
+                        "surface-container-low": "#eff4ff",
+                        "surface-container": "#e5eeff",
+                        "surface-dim": "#cbdbf5",
+                        "secondary-fixed-dim": "#bec6e0",
+                        "surface-tint": "#494bd6",
+                        "on-primary-fixed": "#07006c",
+                        "on-tertiary-fixed": "#301400",
+                        "primary-container": "#6063ee",
+                        "on-secondary-fixed": "#131b2e",
+                        "primary-fixed-dim": "#c0c1ff",
+                        "inverse-on-surface": "#eaf1ff",
+                        "on-tertiary": "#ffffff",
+                        "surface-container-lowest": "#ffffff",
+                        "outline-variant": "#c7c4d7"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "stack-lg": "32px",
+                        "container-margin": "24px",
+                        "unit": "4px",
+                        "stack-md": "16px",
+                        "gutter": "16px",
+                        "stack-sm": "8px"
+                    },
+                    "fontFamily": {
+                        "title-md": ["Inter"],
+                        "headline-lg-mobile": ["Inter"],
+                        "headline-lg": ["Inter"],
+                        "body-md": ["Inter"],
+                        "label-sm": ["JetBrains Mono"],
+                        "display-lg": ["Inter"],
+                        "data-table": ["Inter"],
+                        "body-lg": ["Inter"]
+                    },
+                    "fontSize": {
+                        "title-md": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+                        "headline-lg-mobile": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "label-sm": ["12px", { "lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "500" }],
+                        "display-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "data-table": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined.filled {
+            font-variation-settings: 'FILL' 1;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background antialiased h-screen overflow-hidden flex flex-col md:flex-row">
+<!-- TopNavBar (Mobile Only) -->
+<header class="md:hidden bg-surface text-primary border-b border-outline-variant shadow-sm fixed top-0 w-full z-50 flex justify-between items-center px-container-margin h-16">
+<div class="flex items-center gap-2">
+<span class="text-title-md font-title-md font-bold text-primary">SupplyIQ</span>
+</div>
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined cursor-pointer hover:bg-surface-container-low transition-colors" data-icon="notifications">notifications</span>
+<span class="material-symbols-outlined cursor-pointer hover:bg-surface-container-low transition-colors" data-icon="apps">apps</span>
+<img alt="User Profile" class="w-8 h-8 rounded-full object-cover border border-outline-variant" data-alt="A small, professional headshot of an executive in a modern corporate setting. Crisp lighting, white background, conveying trust and authority in a B2B supply chain platform context." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDcl_hYI0yAdHWMLboLL-E-bk-Oz4hPrIW4u7BX7POhRPJN9GcArUBp67vC7ZPJox6aDvooILthf1_tacBHZqyqgEVkyOnGnnxMbXsYTJpFMgTmA7hiIj5Kx3JUe52A6Zp8WJOavRbKBt89N2QvdQVz2i2_3KKNKl_nZkdiSJxFx6censJwVYiDq450_SoBUgmPRF-OTZEQWCBBwvCUOJMMrsy1GyxIz_d93wdMd7vek7l540Ddo6U"/>
+</div>
+</header>
+<!-- SideNavBar (Desktop Only) -->
+<nav class="hidden md:flex bg-surface fixed left-0 top-0 h-full w-64 flex-col pt-16 pb-4 z-40 border-r border-outline-variant">
+<div class="px-container-margin mb-8 flex flex-col items-center">
+<img alt="Company Logo" class="w-16 h-16 rounded-lg mb-4 object-cover" data-alt="A polished corporate logo mark suitable for an enterprise supply chain intelligence platform. Minimalist geometric design using a deep indigo and stark white color palette." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBhm0fY55KoS97nK88dmpbZlcYlbI2x6ofOzH9bkXYE-WIFSV_LTZr1FbbqxDHFwh67IWxoVCdQ5uKMpRQPFJkKSp64D8SlhJ_7oABg-1qKBen-3nozF08RFFubxK60_0r6ts-THrca6Vac_H35VliPRTQntGb0phTNr2SKzmfKRbYBv5bT-DrGJOEKydSKjlRMCbIxYrb0v5f6EmYp2QjTm-jAiZPfAGG3qq6IBUGRlLECovYF-O4"/>
+<div class="text-title-md font-title-md font-black text-primary text-center">Global Supply</div>
+<div class="text-label-sm font-label-sm text-on-surface-variant text-center mt-1">Enterprise Tier</div>
+<button class="mt-4 px-4 py-2 border border-outline text-on-surface text-body-md font-body-md rounded-lg w-full flex items-center justify-center gap-2 hover:bg-surface-container-low transition-colors">
+<span class="material-symbols-outlined text-[18px]">swap_horiz</span> Company Switcher
+            </button>
+</div>
+<div class="flex-1 overflow-y-auto px-4 space-y-1">
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant text-body-md font-body-md hover:bg-surface-container-high transition-all scale-95 active:scale-90" href="#">
+<span class="material-symbols-outlined">dashboard</span> Executive Overview
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant text-body-md font-body-md hover:bg-surface-container-high transition-all scale-95 active:scale-90" href="#">
+<span class="material-symbols-outlined">local_shipping</span> Shipment Intelligence
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant text-body-md font-body-md hover:bg-surface-container-high transition-all scale-95 active:scale-90" href="#">
+<span class="material-symbols-outlined">trending_up</span> Demand Forecasting
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant text-body-md font-body-md hover:bg-surface-container-high transition-all scale-95 active:scale-90" href="#">
+<span class="material-symbols-outlined">inventory_2</span> Inventory Intelligence
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant text-body-md font-body-md hover:bg-surface-container-high transition-all scale-95 active:scale-90" href="#">
+<span class="material-symbols-outlined">precision_manufacturing</span> Supplier Intelligence
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant text-body-md font-body-md hover:bg-surface-container-high transition-all scale-95 active:scale-90" href="#">
+<span class="material-symbols-outlined">warning</span> Anomaly Detection
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant text-body-md font-body-md hover:bg-surface-container-high transition-all scale-95 active:scale-90" href="#">
+<span class="material-symbols-outlined">architecture</span> What-If Simulator
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant text-body-md font-body-md hover:bg-surface-container-high transition-all scale-95 active:scale-90" href="#">
+<span class="material-symbols-outlined">psychology</span> AI Recommendations
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant text-body-md font-body-md hover:bg-surface-container-high transition-all scale-95 active:scale-90" href="#">
+<span class="material-symbols-outlined">upload_file</span> Data Upload
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg bg-secondary-container text-on-secondary-container font-bold scale-95 active:scale-90 transition-transform" href="#">
+<span class="material-symbols-outlined filled">settings_suggest</span> Model Center
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant text-body-md font-body-md hover:bg-surface-container-high transition-all scale-95 active:scale-90" href="#">
+<span class="material-symbols-outlined">settings</span> Settings
+            </a>
+</div>
+<div class="px-4 mt-auto border-t border-outline-variant pt-4 space-y-1">
+<a class="flex items-center gap-3 px-4 py-2 rounded-lg text-on-surface-variant text-body-md font-body-md hover:bg-surface-container-high transition-all scale-95 active:scale-90" href="#">
+<span class="material-symbols-outlined">support_agent</span> Support
+            </a>
+<a class="flex items-center gap-3 px-4 py-2 rounded-lg text-on-surface-variant text-body-md font-body-md hover:bg-surface-container-high transition-all scale-95 active:scale-90" href="#">
+<span class="material-symbols-outlined">help</span> Help Center
+            </a>
+</div>
+</nav>
+<!-- Main Content Canvas -->
+<main class="flex-1 mt-16 md:mt-0 md:ml-64 p-container-margin overflow-y-auto bg-background">
+<!-- Header -->
+<div class="flex flex-col md:flex-row md:items-center justify-between mb-stack-lg gap-4">
+<div>
+<h1 class="text-headline-lg-mobile md:text-headline-lg font-headline-lg-mobile md:font-headline-lg text-on-background">Model Center</h1>
+<p class="text-body-lg font-body-lg text-on-surface-variant mt-1">AI transparency and model management for predictive supply chain intelligence.</p>
+</div>
+<!-- Contextual Actions -->
+<div class="flex items-center gap-3 bg-surface p-1 rounded-lg border border-outline-variant">
+<button class="px-4 py-2 rounded-md bg-secondary-container text-on-secondary-container text-label-sm font-label-sm font-bold shadow-sm transition-colors">Base Model (Global)</button>
+<button class="px-4 py-2 rounded-md text-on-surface-variant text-label-sm font-label-sm hover:bg-surface-container-low transition-colors">Company-Specific</button>
+</div>
+</div>
+<!-- Bento Grid Layout -->
+<div class="grid grid-cols-1 xl:grid-cols-12 gap-gutter">
+<!-- Left Column: Active Models Table (Spans 8 columns on extra large) -->
+<div class="xl:col-span-8 flex flex-col gap-gutter">
+<div class="bg-white rounded-xl border border-outline-variant shadow-sm flex flex-col h-full">
+<div class="p-container-margin border-b border-outline-variant flex justify-between items-center">
+<h2 class="text-title-md font-title-md text-on-surface">Deployed Models</h2>
+<button class="text-primary text-body-md font-body-md hover:underline flex items-center gap-1">
+<span class="material-symbols-outlined text-[18px]">add</span> Deploy New
+                        </button>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-low border-b border-outline-variant text-on-surface-variant text-label-sm font-label-sm uppercase tracking-wider">
+<th class="p-4 font-medium">Model Name</th>
+<th class="p-4 font-medium">Type</th>
+<th class="p-4 font-medium text-right">Accuracy</th>
+<th class="p-4 font-medium">Dataset Size</th>
+<th class="p-4 font-medium">Status</th>
+</tr>
+</thead>
+<tbody class="text-data-table font-data-table text-on-surface">
+<tr class="border-b border-outline-variant hover:bg-surface-container-lowest transition-colors cursor-pointer group">
+<td class="p-4 flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-primary-fixed flex items-center justify-center text-on-primary-fixed">
+<span class="material-symbols-outlined text-[16px]">trending_up</span>
+</div>
+<div>
+<div class="font-medium">Demand-Forecast-v2.1</div>
+<div class="text-label-sm font-label-sm text-on-surface-variant">Updated: 2d ago</div>
+</div>
+</td>
+<td class="p-4">Time Series</td>
+<td class="p-4 text-right font-label-sm font-label-sm text-primary">94.2%</td>
+<td class="p-4 font-label-sm font-label-sm">1.2TB</td>
+<td class="p-4">
+<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-surface-container-high text-on-surface text-label-sm font-label-sm">
+<span class="w-2 h-2 rounded-full bg-primary"></span> Active
+                                        </span>
+</td>
+</tr>
+<tr class="border-b border-outline-variant hover:bg-surface-container-lowest transition-colors cursor-pointer group bg-surface-container-lowest">
+<td class="p-4 flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-error-container flex items-center justify-center text-on-error-container">
+<span class="material-symbols-outlined text-[16px]">warning</span>
+</div>
+<div>
+<div class="font-medium">Delay-Predictor-X</div>
+<div class="text-label-sm font-label-sm text-on-surface-variant">Updated: 1w ago</div>
+</div>
+</td>
+<td class="p-4">Classification</td>
+<td class="p-4 text-right font-label-sm font-label-sm text-error">88.5%</td>
+<td class="p-4 font-label-sm font-label-sm">850GB</td>
+<td class="p-4">
+<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-error-container text-on-error-container text-label-sm font-label-sm">
+<span class="w-2 h-2 rounded-full bg-error"></span> Degrading
+                                        </span>
+</td>
+</tr>
+<tr class="border-b border-outline-variant hover:bg-surface-container-lowest transition-colors cursor-pointer group">
+<td class="p-4 flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-surface-variant flex items-center justify-center text-on-surface-variant">
+<span class="material-symbols-outlined text-[16px]">inventory_2</span>
+</div>
+<div>
+<div class="font-medium">Inventory-Opt-Beta</div>
+<div class="text-label-sm font-label-sm text-on-surface-variant">Updated: Just now</div>
+</div>
+</td>
+<td class="p-4">Reinforcement</td>
+<td class="p-4 text-right font-label-sm font-label-sm text-on-surface-variant">--</td>
+<td class="p-4 font-label-sm font-label-sm">2.1TB</td>
+<td class="p-4">
+<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-surface-variant text-on-surface-variant text-label-sm font-label-sm">
+<span class="material-symbols-outlined text-[14px] animate-spin">sync</span> Retraining
+                                        </span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<!-- Right Column: Model Details & Actions (Spans 4 columns) -->
+<div class="xl:col-span-4 flex flex-col gap-gutter">
+<!-- Detail Card for 'Delay-Predictor-X' -->
+<div class="bg-white rounded-xl border border-outline-variant shadow-sm flex flex-col h-full relative overflow-hidden">
+<div class="p-container-margin border-b border-outline-variant pb-stack-sm">
+<div class="flex justify-between items-start mb-2">
+<div class="flex items-center gap-2">
+<div class="w-8 h-8 rounded bg-error-container flex items-center justify-center text-on-error-container">
+<span class="material-symbols-outlined text-[16px]">warning</span>
+</div>
+<h3 class="text-title-md font-title-md text-on-surface">Delay-Predictor-X</h3>
+</div>
+<button class="text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</div>
+<p class="text-body-md font-body-md text-on-surface-variant">Predicts shipping delays based on weather, carrier performance, and port congestion data.</p>
+</div>
+<div class="p-container-margin flex-1 flex flex-col">
+<div class="flex justify-between items-end mb-4">
+<div>
+<div class="text-label-sm font-label-sm text-on-surface-variant uppercase">Current RMSE</div>
+<div class="text-headline-lg font-headline-lg text-error">12.4 <span class="text-body-md font-body-md text-on-surface-variant">hrs</span></div>
+</div>
+<div class="text-right">
+<div class="text-label-sm font-label-sm text-on-surface-variant uppercase">Drift Detected</div>
+<div class="text-body-md font-body-md text-error flex items-center justify-end gap-1">
+<span class="material-symbols-outlined text-[16px]">trending_up</span> +2.1% 
+                                </div>
+</div>
+</div>
+<!-- Mini Chart Placeholder -->
+<div class="w-full h-32 bg-surface-container-lowest rounded border border-outline-variant relative mb-stack-md flex items-end pb-2 px-2 gap-1 justify-between">
+<!-- Simulated Chart Bars representing error increasing -->
+<div class="w-full bg-secondary-fixed-dim h-[30%] rounded-t-sm"></div>
+<div class="w-full bg-secondary-fixed-dim h-[35%] rounded-t-sm"></div>
+<div class="w-full bg-secondary-fixed-dim h-[32%] rounded-t-sm"></div>
+<div class="w-full bg-secondary-fixed-dim h-[40%] rounded-t-sm"></div>
+<div class="w-full bg-error-container h-[55%] rounded-t-sm border-t-2 border-error"></div>
+<div class="w-full bg-error-container h-[70%] rounded-t-sm border-t-2 border-error"></div>
+<div class="w-full bg-error-container h-[85%] rounded-t-sm border-t-2 border-error"></div>
+<!-- Threshold Line -->
+<div class="absolute top-[50%] left-0 w-full border-t border-dashed border-error opacity-50"></div>
+</div>
+<div class="grid grid-cols-2 gap-4 mb-stack-lg">
+<div>
+<div class="text-label-sm font-label-sm text-on-surface-variant">Last Trained</div>
+<div class="text-body-md font-body-md text-on-surface">Oct 12, 2023</div>
+</div>
+<div>
+<div class="text-label-sm font-label-sm text-on-surface-variant">Data Scope</div>
+<div class="text-body-md font-body-md text-on-surface">Trailing 24m</div>
+</div>
+</div>
+<div class="mt-auto pt-stack-sm border-t border-outline-variant">
+<button class="w-full py-3 bg-primary text-on-primary text-body-md font-body-md font-medium rounded-lg hover:bg-primary-container transition-colors shadow-sm flex justify-center items-center gap-2">
+<span class="material-symbols-outlined">model_training</span> Initiate Retraining
+                            </button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</body></html>

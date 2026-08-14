@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Shipment Intelligence - SupplyIQ</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary": "#4648d4",
+                        "background": "#f8f9ff",
+                        "tertiary": "#904900",
+                        "on-primary-container": "#fffbff",
+                        "surface-variant": "#d3e4fe",
+                        "secondary-fixed": "#dae2fd",
+                        "error-container": "#ffdad6",
+                        "surface-container-highest": "#d3e4fe",
+                        "on-primary-fixed-variant": "#2f2ebe",
+                        "tertiary-fixed-dim": "#ffb783",
+                        "on-secondary-fixed-variant": "#3f465c",
+                        "on-background": "#0b1c30",
+                        "on-surface": "#0b1c30",
+                        "surface": "#f8f9ff",
+                        "inverse-primary": "#c0c1ff",
+                        "on-surface-variant": "#464554",
+                        "primary-fixed": "#e1e0ff",
+                        "error": "#ba1a1a",
+                        "on-tertiary-container": "#fffbff",
+                        "tertiary-container": "#b55d00",
+                        "surface-bright": "#f8f9ff",
+                        "on-secondary": "#ffffff",
+                        "on-tertiary-fixed-variant": "#703700",
+                        "on-primary": "#ffffff",
+                        "secondary": "#565e74",
+                        "outline": "#767586",
+                        "inverse-surface": "#213145",
+                        "tertiary-fixed": "#ffdcc5",
+                        "on-error-container": "#93000a",
+                        "on-secondary-container": "#5c647a",
+                        "surface-container-high": "#dce9ff",
+                        "on-error": "#ffffff",
+                        "secondary-container": "#dae2fd",
+                        "surface-container-low": "#eff4ff",
+                        "surface-container": "#e5eeff",
+                        "surface-dim": "#cbdbf5",
+                        "secondary-fixed-dim": "#bec6e0",
+                        "surface-tint": "#494bd6",
+                        "on-primary-fixed": "#07006c",
+                        "on-tertiary-fixed": "#301400",
+                        "primary-container": "#6063ee",
+                        "on-secondary-fixed": "#131b2e",
+                        "primary-fixed-dim": "#c0c1ff",
+                        "inverse-on-surface": "#eaf1ff",
+                        "on-tertiary": "#ffffff",
+                        "surface-container-lowest": "#ffffff",
+                        "outline-variant": "#c7c4d7"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "stack-lg": "32px",
+                        "container-margin": "24px",
+                        "unit": "4px",
+                        "stack-md": "16px",
+                        "gutter": "16px",
+                        "stack-sm": "8px"
+                    },
+                    "fontFamily": {
+                        "title-md": ["Inter"],
+                        "headline-lg-mobile": ["Inter"],
+                        "headline-lg": ["Inter"],
+                        "body-md": ["Inter"],
+                        "label-sm": ["JetBrains Mono"],
+                        "display-lg": ["Inter"],
+                        "data-table": ["Inter"],
+                        "body-lg": ["Inter"]
+                    },
+                    "fontSize": {
+                        "title-md": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+                        "headline-lg-mobile": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "label-sm": ["12px", { "lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "500" }],
+                        "display-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "data-table": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined.fill {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        
+        /* Slide-out panel transition */
+        .slide-panel {
+            transform: translateX(100%);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .slide-panel.open {
+            transform: translateX(0);
+        }
+        
+        /* Table row hover highlight */
+        tbody tr:hover {
+            background-color: #f1f5f9; /* Tailwind slate-100 equivalent for standard modern feel */
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md antialiased overflow-x-hidden">
+<!-- TopNavBar -->
+<header class="fixed top-0 w-full z-50 flex justify-between items-center px-container-margin h-16 bg-surface dark:bg-on-background border-b border-outline-variant dark:border-outline shadow-sm dark:shadow-none docked full-width top-0">
+<div class="flex items-center gap-4">
+<!-- Mobile Menu Toggle (hidden on md) -->
+<button class="md:hidden text-primary dark:text-primary-fixed p-2">
+<span class="material-symbols-outlined">menu</span>
+</button>
+<div class="text-title-md font-title-md font-bold text-primary dark:text-primary-fixed">
+                SupplyIQ
+            </div>
+<!-- Search Bar on Left -->
+<div class="hidden md:flex ml-8 relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline-variant">search</span>
+<input class="pl-10 pr-4 py-2 border border-outline-variant rounded bg-surface-container-lowest focus:border-primary focus:ring-1 focus:ring-primary text-body-md font-body-md w-80 outline-none" placeholder="Search shipments, POs, suppliers..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="p-2 text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-low dark:hover:bg-secondary-fixed-variant transition-colors rounded-full cursor-pointer active:opacity-80">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="p-2 text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-low dark:hover:bg-secondary-fixed-variant transition-colors rounded-full cursor-pointer active:opacity-80">
+<span class="material-symbols-outlined">apps</span>
+</button>
+<div class="w-8 h-8 rounded-full bg-secondary-container flex items-center justify-center overflow-hidden border border-outline-variant">
+<img alt="User Profile" class="w-full h-full object-cover" data-alt="A professional headshot of an executive in a modern corporate setting. The lighting is bright and even, typical of a professional studio portrait used for a B2B software profile picture. The person looks approachable yet serious, matching the high-stakes supply chain context." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBHSwBZNjURHTE_tjNf-d3py5I1BJI9q4aXysEKBTGm39YaS0jj9oS-Wm8r2fnhAR7h457eGep8LEM23Wr8nJvRPFnLE-OetZHp7neXWg-d4fpHDtrN9wfvA0Tw5nBKRo0QHSuEeWFmd7z4GALWoZ2Cafby95UFGx_zp_Lkh6iAd2C_o2dp_R6fD85Cywtp1LK-SeVhxBQWOEkViP6ijelELh2KN--92NWKkZHBFAgfDlBQm-5vzbw"/>
+</div>
+</div>
+</header>
+<!-- SideNavBar (Hidden on Mobile) -->
+<nav class="hidden md:flex fixed left-0 top-0 h-full w-64 flex-col pt-16 pb-4 z-40 bg-surface dark:bg-on-background border-r border-outline-variant dark:border-outline flat no shadows docked left-0 h-full w-64">
+<!-- Header area below TopNav -->
+<div class="p-container-margin border-b border-outline-variant">
+<div class="flex items-center gap-3 mb-4">
+<div class="w-10 h-10 rounded bg-primary-container flex items-center justify-center text-on-primary-container">
+<span class="material-symbols-outlined">domain</span>
+</div>
+<div>
+<div class="text-title-md font-title-md font-bold text-on-surface">Global Supply</div>
+<div class="text-label-sm font-label-sm text-on-surface-variant">Enterprise Tier</div>
+</div>
+</div>
+<button class="w-full py-2 px-3 border border-outline rounded flex items-center justify-between text-body-md font-body-md hover:bg-surface-container-low transition-colors text-on-surface">
+<span>Company Switcher</span>
+<span class="material-symbols-outlined">unfold_more</span>
+</button>
+</div>
+<div class="flex-1 overflow-y-auto py-4 px-3 flex flex-col gap-1">
+<!-- Navigation Items -->
+<!-- Inactive -->
+<a class="flex items-center gap-3 px-3 py-2 rounded text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-low dark:hover:bg-secondary-fixed-variant transition-all scale-95 active:scale-90" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="text-body-md font-body-md">Executive Overview</span>
+</a>
+<!-- Active (Shipment Intelligence) -->
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg bg-secondary-container dark:bg-on-secondary-fixed-variant text-on-secondary-container dark:text-secondary-fixed font-bold transition-all scale-95 active:scale-90" href="#">
+<span class="material-symbols-outlined fill">local_shipping</span>
+<span class="text-body-md font-body-md font-bold">Shipment Intelligence</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-low dark:hover:bg-secondary-fixed-variant transition-all scale-95 active:scale-90" href="#">
+<span class="material-symbols-outlined">trending_up</span>
+<span class="text-body-md font-body-md">Demand Forecasting</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-low dark:hover:bg-secondary-fixed-variant transition-all scale-95 active:scale-90" href="#">
+<span class="material-symbols-outlined">inventory_2</span>
+<span class="text-body-md font-body-md">Inventory Intelligence</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-low dark:hover:bg-secondary-fixed-variant transition-all scale-95 active:scale-90" href="#">
+<span class="material-symbols-outlined">precision_manufacturing</span>
+<span class="text-body-md font-body-md">Supplier Intelligence</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-low dark:hover:bg-secondary-fixed-variant transition-all scale-95 active:scale-90" href="#">
+<span class="material-symbols-outlined">warning</span>
+<span class="text-body-md font-body-md">Anomaly Detection</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-low dark:hover:bg-secondary-fixed-variant transition-all scale-95 active:scale-90" href="#">
+<span class="material-symbols-outlined">architecture</span>
+<span class="text-body-md font-body-md">What-If Simulator</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-low dark:hover:bg-secondary-fixed-variant transition-all scale-95 active:scale-90" href="#">
+<span class="material-symbols-outlined">psychology</span>
+<span class="text-body-md font-body-md">AI Recommendations</span>
+</a>
+<div class="mt-4 mb-2 px-3 text-label-sm font-label-sm text-outline uppercase tracking-wider">Data &amp; Config</div>
+<a class="flex items-center gap-3 px-3 py-2 rounded text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-low dark:hover:bg-secondary-fixed-variant transition-all scale-95 active:scale-90" href="#">
+<span class="material-symbols-outlined">upload_file</span>
+<span class="text-body-md font-body-md">Data Upload</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-low dark:hover:bg-secondary-fixed-variant transition-all scale-95 active:scale-90" href="#">
+<span class="material-symbols-outlined">settings_suggest</span>
+<span class="text-body-md font-body-md">Model Center</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-low dark:hover:bg-secondary-fixed-variant transition-all scale-95 active:scale-90" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="text-body-md font-body-md">Settings</span>
+</a>
+</div>
+<div class="mt-auto px-3 py-4 border-t border-outline-variant flex flex-col gap-1">
+<a class="flex items-center gap-3 px-3 py-2 rounded text-on-surface-variant hover:bg-surface-container-low transition-all scale-95 active:scale-90" href="#">
+<span class="material-symbols-outlined">support_agent</span>
+<span class="text-body-md font-body-md">Support</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded text-on-surface-variant hover:bg-surface-container-low transition-all scale-95 active:scale-90" href="#">
+<span class="material-symbols-outlined">help</span>
+<span class="text-body-md font-body-md">Help Center</span>
+</a>
+</div>
+</nav>
+<!-- Main Content Canvas -->
+<main class="md:ml-64 pt-16 min-h-screen bg-background flex flex-col">
+<!-- Page Header & Filters -->
+<div class="p-container-margin md:p-stack-lg border-b border-outline-variant bg-surface">
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
+<div>
+<h1 class="text-headline-lg-mobile md:text-headline-lg font-headline-lg-mobile md:font-headline-lg text-on-surface">Shipment Intelligence</h1>
+<p class="text-body-md font-body-md text-on-surface-variant mt-1">Detailed tracking, delay probability, and AI-driven risk analysis.</p>
+</div>
+<div class="flex gap-3">
+<button class="px-4 py-2 border border-outline rounded bg-surface text-on-surface text-body-md font-body-md hover:bg-surface-container-low transition flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px]">download</span>
+                        Export
+                    </button>
+<button class="px-4 py-2 bg-primary text-on-primary rounded text-body-md font-body-md font-medium hover:bg-primary-container transition shadow-sm">
+                        Create Alert
+                    </button>
+</div>
+</div>
+<!-- Global Filters Bar -->
+<div class="flex flex-wrap gap-4 items-center bg-surface-container-lowest p-3 rounded-lg border border-outline-variant shadow-[0_4px_6px_rgba(15,23,42,0.02)]">
+<div class="flex items-center gap-2 border-r border-outline-variant pr-4">
+<span class="material-symbols-outlined text-outline">filter_list</span>
+<span class="text-label-sm font-label-sm text-on-surface uppercase font-bold">Filters</span>
+</div>
+<div class="relative flex-1 min-w-[200px] max-w-[250px]">
+<div class="flex items-center border border-outline-variant rounded px-3 py-1.5 bg-surface focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-all">
+<span class="material-symbols-outlined text-[18px] text-outline-variant mr-2">calendar_today</span>
+<input class="bg-transparent border-none p-0 text-body-md font-body-md w-full outline-none focus:ring-0 text-on-surface" readonly="" type="text" value="Last 30 Days"/>
+<span class="material-symbols-outlined text-[18px] text-outline ml-auto">expand_more</span>
+</div>
+</div>
+<div class="relative flex-1 min-w-[150px] max-w-[200px]">
+<div class="flex items-center border border-outline-variant rounded px-3 py-1.5 bg-surface focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-all">
+<span class="material-symbols-outlined text-[18px] text-outline-variant mr-2">directions_boat</span>
+<select class="bg-transparent border-none p-0 text-body-md font-body-md w-full outline-none focus:ring-0 text-on-surface appearance-none pr-6 cursor-pointer">
+<option>All Carriers</option>
+<option>Maersk</option>
+<option>MSC</option>
+<option>Hapag-Lloyd</option>
+</select>
+<span class="material-symbols-outlined text-[18px] text-outline absolute right-3 pointer-events-none">expand_more</span>
+</div>
+</div>
+<div class="relative flex-1 min-w-[150px] max-w-[200px]">
+<div class="flex items-center border border-outline-variant rounded px-3 py-1.5 bg-surface focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-all">
+<span class="material-symbols-outlined text-[18px] text-outline-variant mr-2">pin_drop</span>
+<select class="bg-transparent border-none p-0 text-body-md font-body-md w-full outline-none focus:ring-0 text-on-surface appearance-none pr-6 cursor-pointer">
+<option>All Origins</option>
+<option>Shanghai (CNSHA)</option>
+<option>Rotterdam (NLRTM)</option>
+</select>
+<span class="material-symbols-outlined text-[18px] text-outline absolute right-3 pointer-events-none">expand_more</span>
+</div>
+</div>
+<div class="relative flex-1 min-w-[150px] max-w-[200px]">
+<div class="flex items-center border border-outline-variant rounded px-3 py-1.5 bg-surface focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-all">
+<span class="material-symbols-outlined text-[18px] text-outline-variant mr-2">flag</span>
+<select class="bg-transparent border-none p-0 text-body-md font-body-md w-full outline-none focus:ring-0 text-on-surface appearance-none pr-6 cursor-pointer">
+<option>All Destinations</option>
+<option>Los Angeles (USLAX)</option>
+<option>Hamburg (DEHAM)</option>
+</select>
+<span class="material-symbols-outlined text-[18px] text-outline absolute right-3 pointer-events-none">expand_more</span>
+</div>
+</div>
+<button class="text-primary text-label-sm font-label-sm uppercase hover:underline ml-auto">Clear Filters</button>
+</div>
+</div>
+<!-- Data Canvas (Table) -->
+<div class="flex-1 p-container-margin md:px-stack-lg pb-stack-lg">
+<div class="bg-surface-container-lowest rounded-lg border border-outline-variant shadow-[0_4px_6px_rgba(15,23,42,0.03)] overflow-hidden flex flex-col h-full">
+<!-- Table Header Tooling -->
+<div class="p-4 border-b border-outline-variant flex justify-between items-center bg-surface">
+<div class="text-title-md font-title-md text-on-surface">Active Shipments <span class="text-body-md text-outline font-normal ml-2">(243 total)</span></div>
+<div class="flex gap-2">
+<button class="p-1.5 text-outline hover:text-on-surface transition-colors rounded"><span class="material-symbols-outlined text-[20px]">view_column</span></button>
+<button class="p-1.5 text-outline hover:text-on-surface transition-colors rounded"><span class="material-symbols-outlined text-[20px]">sort</span></button>
+</div>
+</div>
+<!-- Table Wrapper for scroll -->
+<div class="overflow-x-auto w-full">
+<table class="w-full text-left border-collapse min-w-[1000px]">
+<thead>
+<tr class="bg-surface-container-low border-b border-outline-variant">
+<th class="py-3 px-4 text-label-sm font-label-sm uppercase text-on-surface-variant font-semibold tracking-wider">Shipment ID</th>
+<th class="py-3 px-4 text-label-sm font-label-sm uppercase text-on-surface-variant font-semibold tracking-wider">Route (Origin → Dest)</th>
+<th class="py-3 px-4 text-label-sm font-label-sm uppercase text-on-surface-variant font-semibold tracking-wider">Carrier</th>
+<th class="py-3 px-4 text-label-sm font-label-sm uppercase text-on-surface-variant font-semibold tracking-wider text-right">Delay Prob.</th>
+<th class="py-3 px-4 text-label-sm font-label-sm uppercase text-on-surface-variant font-semibold tracking-wider text-right">Expected Delay</th>
+<th class="py-3 px-4 text-label-sm font-label-sm uppercase text-on-surface-variant font-semibold tracking-wider">Risk Status</th>
+<th class="py-3 px-4 text-label-sm font-label-sm uppercase text-on-surface-variant font-semibold tracking-wider">Key Risk Factors</th>
+</tr>
+</thead>
+<tbody class="text-data-table font-data-table text-on-surface divide-y divide-outline-variant/50">
+<!-- Row 1: CRITICAL RISK -->
+<tr class="hover:bg-surface-container-low transition-colors cursor-pointer group" onclick="toggleSlidePanel(true)">
+<td class="py-3 px-4 font-label-sm text-primary group-hover:underline">SHP-892341</td>
+<td class="py-3 px-4">
+<div class="flex items-center gap-2">
+<span class="text-lg leading-none" title="China">🇨🇳</span>
+<span class="truncate max-w-[100px]">CNSHA</span>
+<span class="material-symbols-outlined text-[16px] text-outline-variant">arrow_right_alt</span>
+<span class="text-lg leading-none" title="USA">🇺🇸</span>
+<span class="truncate max-w-[100px]">USLAX</span>
+</div>
+</td>
+<td class="py-3 px-4">
+<div class="flex items-center gap-2">
+<div class="w-6 h-6 bg-surface-container border border-outline-variant rounded flex items-center justify-center text-[10px] font-bold text-on-surface">MSK</div>
+<span>Maersk</span>
+</div>
+</td>
+<td class="py-3 px-4 text-right font-label-sm text-error font-semibold">94%</td>
+<td class="py-3 px-4 text-right font-label-sm text-error">+7.5 days</td>
+<td class="py-3 px-4">
+<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-error-container text-on-error-container border border-error/20">
+<span class="w-1.5 h-1.5 rounded-full bg-error mr-1.5"></span> Critical
+                                    </span>
+</td>
+<td class="py-3 px-4">
+<div class="flex gap-1 items-center">
+<div class="flex flex-col gap-0.5 group/tooltip relative" title="Weather: High Impact">
+<span class="material-symbols-outlined text-[16px] text-error">thunderstorm</span>
+<div class="h-1 w-full bg-error rounded-full"></div>
+</div>
+<div class="flex flex-col gap-0.5 ml-2 group/tooltip relative" title="Port Congestion: High Impact">
+<span class="material-symbols-outlined text-[16px] text-error">anchor</span>
+<div class="h-1 w-full bg-error rounded-full"></div>
+</div>
+</div>
+</td>
+</tr>
+<!-- Row 2: AMBER RISK -->
+<tr class="hover:bg-surface-container-low transition-colors cursor-pointer group" onclick="toggleSlidePanel(true)">
+<td class="py-3 px-4 font-label-sm text-primary group-hover:underline">SHP-892102</td>
+<td class="py-3 px-4">
+<div class="flex items-center gap-2">
+<span class="text-lg leading-none" title="Netherlands">🇳🇱</span>
+<span class="truncate max-w-[100px]">NLRTM</span>
+<span class="material-symbols-outlined text-[16px] text-outline-variant">arrow_right_alt</span>
+<span class="text-lg leading-none" title="USA">🇺🇸</span>
+<span class="truncate max-w-[100px]">USNYC</span>
+</div>
+</td>
+<td class="py-3 px-4">
+<div class="flex items-center gap-2">
+<div class="w-6 h-6 bg-surface-container border border-outline-variant rounded flex items-center justify-center text-[10px] font-bold text-on-surface">HL</div>
+<span>Hapag-Lloyd</span>
+</div>
+</td>
+<td class="py-3 px-4 text-right font-label-sm text-tertiary-container font-semibold">62%</td>
+<td class="py-3 px-4 text-right font-label-sm text-tertiary-container">+2.1 days</td>
+<td class="py-3 px-4">
+<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-tertiary-fixed text-on-tertiary-fixed border border-tertiary/20">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary mr-1.5"></span> Elevated
+                                    </span>
+</td>
+<td class="py-3 px-4">
+<div class="flex gap-1 items-center">
+<div class="flex flex-col gap-0.5 group/tooltip relative" title="Customs Delay: Med Impact">
+<span class="material-symbols-outlined text-[16px] text-tertiary">policy</span>
+<div class="h-1 w-full bg-tertiary rounded-full"></div>
+</div>
+</div>
+</td>
+</tr>
+<!-- Row 3: GREEN RISK -->
+<tr class="hover:bg-surface-container-low transition-colors cursor-pointer group" onclick="toggleSlidePanel(true)">
+<td class="py-3 px-4 font-label-sm text-primary group-hover:underline">SHP-891995</td>
+<td class="py-3 px-4">
+<div class="flex items-center gap-2">
+<span class="text-lg leading-none" title="Vietnam">🇻🇳</span>
+<span class="truncate max-w-[100px]">VNSGN</span>
+<span class="material-symbols-outlined text-[16px] text-outline-variant">arrow_right_alt</span>
+<span class="text-lg leading-none" title="Germany">🇩🇪</span>
+<span class="truncate max-w-[100px]">DEHAM</span>
+</div>
+</td>
+<td class="py-3 px-4">
+<div class="flex items-center gap-2">
+<div class="w-6 h-6 bg-surface-container border border-outline-variant rounded flex items-center justify-center text-[10px] font-bold text-on-surface">MSC</div>
+<span>MSC</span>
+</div>
+</td>
+<td class="py-3 px-4 text-right font-label-sm text-secondary font-semibold">12%</td>
+<td class="py-3 px-4 text-right font-label-sm text-secondary">--</td>
+<td class="py-3 px-4">
+<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-[#DCFCE7] text-[#166534] border border-[#22C55E]/20">
+<span class="w-1.5 h-1.5 rounded-full bg-[#22C55E] mr-1.5"></span> On Track
+                                    </span>
+</td>
+<td class="py-3 px-4">
+<span class="text-outline-variant text-xs italic">No major risks detected</span>
+</td>
+</tr>
+<!-- Row 4: GREEN RISK -->
+<tr class="hover:bg-surface-container-low transition-colors cursor-pointer group" onclick="toggleSlidePanel(true)">
+<td class="py-3 px-4 font-label-sm text-primary group-hover:underline">SHP-891880</td>
+<td class="py-3 px-4">
+<div class="flex items-center gap-2">
+<span class="text-lg leading-none" title="Japan">🇯🇵</span>
+<span class="truncate max-w-[100px]">JPTYO</span>
+<span class="material-symbols-outlined text-[16px] text-outline-variant">arrow_right_alt</span>
+<span class="text-lg leading-none" title="USA">🇺🇸</span>
+<span class="truncate max-w-[100px]">USOAK</span>
+</div>
+</td>
+<td class="py-3 px-4">
+<div class="flex items-center gap-2">
+<div class="w-6 h-6 bg-surface-container border border-outline-variant rounded flex items-center justify-center text-[10px] font-bold text-on-surface">ONE</div>
+<span>ONE</span>
+</div>
+</td>
+<td class="py-3 px-4 text-right font-label-sm text-secondary font-semibold">18%</td>
+<td class="py-3 px-4 text-right font-label-sm text-secondary">--</td>
+<td class="py-3 px-4">
+<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-[#DCFCE7] text-[#166534] border border-[#22C55E]/20">
+<span class="w-1.5 h-1.5 rounded-full bg-[#22C55E] mr-1.5"></span> On Track
+                                    </span>
+</td>
+<td class="py-3 px-4">
+<span class="text-outline-variant text-xs italic">No major risks detected</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Pagination -->
+<div class="p-3 border-t border-outline-variant flex items-center justify-between bg-surface-container-lowest mt-auto">
+<div class="text-label-sm text-on-surface-variant font-label-sm">Showing 1 to 4 of 243 entries</div>
+<div class="flex gap-1">
+<button class="px-2 py-1 border border-outline-variant rounded text-outline-variant disabled:opacity-50" disabled=""><span class="material-symbols-outlined text-[18px]">chevron_left</span></button>
+<button class="px-3 py-1 border border-primary bg-primary text-on-primary rounded text-label-sm font-label-sm font-medium">1</button>
+<button class="px-3 py-1 border border-outline-variant text-on-surface rounded text-label-sm font-label-sm hover:bg-surface-container-low transition-colors">2</button>
+<button class="px-3 py-1 border border-outline-variant text-on-surface rounded text-label-sm font-label-sm hover:bg-surface-container-low transition-colors">3</button>
+<button class="px-2 py-1 border border-outline-variant rounded text-on-surface hover:bg-surface-container-low transition-colors"><span class="material-symbols-outlined text-[18px]">chevron_right</span></button>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Slide-out Panel Overlay -->
+<div class="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm z-[60] hidden" id="panel-overlay" onclick="toggleSlidePanel(false)"></div>
+<!-- Shipment Detail Panel (Slide-out) -->
+<aside class="slide-panel fixed top-0 right-0 w-full max-w-2xl h-full bg-surface-container-lowest z-[70] shadow-[-10px_0_30px_rgba(15,23,42,0.1)] flex flex-col border-l border-outline-variant" id="detail-panel">
+<!-- Panel Header -->
+<div class="px-6 py-4 border-b border-outline-variant flex justify-between items-center bg-surface sticky top-0 z-10">
+<div>
+<div class="text-label-sm font-label-sm text-outline uppercase tracking-wider mb-1">Shipment Detail</div>
+<h2 class="text-headline-lg-mobile font-headline-lg-mobile text-on-surface flex items-center gap-3">
+                    SHP-892341 
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-error-container text-on-error-container border border-error/20 align-middle">
+<span class="w-1.5 h-1.5 rounded-full bg-error mr-1.5"></span> Critical
+                    </span>
+</h2>
+</div>
+<div class="flex gap-2">
+<button class="p-2 border border-outline-variant rounded hover:bg-surface-container-low transition-colors text-on-surface-variant"><span class="material-symbols-outlined text-[20px]">share</span></button>
+<button class="p-2 bg-surface-container hover:bg-surface-container-high transition-colors rounded text-on-surface cursor-pointer" onclick="toggleSlidePanel(false)"><span class="material-symbols-outlined">close</span></button>
+</div>
+</div>
+<!-- Panel Content Scrollable Area -->
+<div class="flex-1 overflow-y-auto p-6 flex flex-col gap-6">
+<!-- Map Visualization Placeholder (Static for layout context) -->
+<div class="w-full h-48 bg-surface-container rounded-lg border border-outline-variant overflow-hidden relative shadow-sm">
+<img class="w-full h-full object-cover" data-alt="A highly detailed, modern supply chain logistics map centered on the Pacific Ocean, showing a routing line from Shanghai to Los Angeles. The style is dark mode, sleek, high-tech, and analytical, resembling a sophisticated enterprise dashboard map with subtle glowing lines, data nodes, and minimal geographical features. The ocean is a deep navy blue, and the route is highlighted in a vibrant, pulsing primary color with red warning zones indicating weather disruptions." data-location="Pacific Ocean Route from Shanghai to Los Angeles" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD8ZfnZUFMCt1lTscqBHid_qSthlFLDIaaM8dL5mC3g7QFd8SujHvSphPqNuWGu5za6Nl8sMQkpToNqu3CZiyEIct7v3-GWBlwXMxbhQZ0gETjPmYrRbb-3vipha75JdQsgNZoOzb-1NnpxpirQjs3UFb9746NsXfqJZp91Bwg6UcxpR6x7bdopoOl7nWsJ_eGmUich-duYSDL0XgW0s0o25zbdgs0PH-K5QF5cgrN2Wud2VLEcd2I"/>
+<!-- Map UI Overlay elements -->
+<div class="absolute top-3 right-3 flex flex-col gap-1">
+<div class="bg-surface/90 backdrop-blur border border-outline-variant rounded p-1.5 shadow shadow-black/10"><span class="material-symbols-outlined text-on-surface text-[18px]">zoom_in</span></div>
+<div class="bg-surface/90 backdrop-blur border border-outline-variant rounded p-1.5 shadow shadow-black/10"><span class="material-symbols-outlined text-on-surface text-[18px]">zoom_out</span></div>
+</div>
+</div>
+<!-- Core Details Bento Grid -->
+<div class="grid grid-cols-2 gap-4">
+<div class="p-4 border border-outline-variant rounded-lg bg-surface-container-lowest">
+<div class="text-label-sm font-label-sm text-outline mb-1 uppercase">Origin</div>
+<div class="text-title-md font-title-md text-on-surface mb-0.5">Shanghai (CNSHA)</div>
+<div class="text-body-md font-body-md text-on-surface-variant">Dep: Oct 12, 2023 (Actual)</div>
+</div>
+<div class="p-4 border border-outline-variant rounded-lg bg-surface-container-lowest">
+<div class="text-label-sm font-label-sm text-outline mb-1 uppercase">Destination</div>
+<div class="text-title-md font-title-md text-on-surface mb-0.5">Los Angeles (USLAX)</div>
+<div class="text-body-md font-body-md text-error line-through decoration-error/50 mr-2">Oct 28</div>
+<span class="text-body-md font-body-md text-on-surface font-semibold">Nov 4 (Est)</span>
+</div>
+<div class="p-4 border border-outline-variant rounded-lg bg-surface-container-lowest">
+<div class="text-label-sm font-label-sm text-outline mb-1 uppercase">Carrier &amp; Vessel</div>
+<div class="text-body-md font-body-md text-on-surface font-medium">Maersk</div>
+<div class="text-body-md font-body-md text-on-surface-variant">Vessel: M/V Eugen Maersk</div>
+<div class="text-body-md font-body-md text-on-surface-variant">IMO: 9321483</div>
+</div>
+<div class="p-4 border border-outline-variant rounded-lg bg-surface-container-lowest">
+<div class="text-label-sm font-label-sm text-outline mb-1 uppercase">Cargo Details</div>
+<div class="text-body-md font-body-md text-on-surface font-medium">Consumer Electronics</div>
+<div class="text-body-md font-body-md text-on-surface-variant">Value: $2.4M</div>
+<div class="text-body-md font-body-md text-on-surface-variant">Containers: 14x 40ft HC</div>
+</div>
+</div>
+<!-- AI Risk Analysis Section -->
+<div class="border border-outline-variant rounded-lg bg-surface overflow-hidden">
+<div class="p-4 border-b border-outline-variant bg-surface-container-low flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">psychology</span>
+<h3 class="text-title-md font-title-md text-on-surface">AI Risk Analysis</h3>
+</div>
+<div class="p-4">
+<div class="flex items-end gap-4 mb-6">
+<div class="text-display-lg font-display-lg text-error leading-none">94%</div>
+<div class="text-body-md font-body-md text-on-surface-variant pb-1">Probability of delay exceeding 48 hours. <br/> Expected impact: <span class="font-bold text-error">+7.5 days</span>.</div>
+</div>
+<h4 class="text-label-sm font-label-sm uppercase text-outline mb-3 tracking-wide">Predicted Disruption Events</h4>
+<div class="flex flex-col gap-3">
+<!-- Risk Item 1 -->
+<div class="flex gap-3 p-3 border border-error-container bg-[#FEF2F2] rounded-lg">
+<span class="material-symbols-outlined text-error mt-0.5">thunderstorm</span>
+<div>
+<div class="text-body-md font-body-md font-semibold text-on-error-container">Severe Weather (Typhoon Koinu)</div>
+<div class="text-body-md font-body-md text-on-surface-variant mt-1">Vessel is currently routing around major storm system in the Pacific. Speed reduced by 40%.</div>
+<div class="mt-2 text-label-sm font-label-sm text-error font-medium">Impact: High (+4.5 days)</div>
+</div>
+</div>
+<!-- Risk Item 2 -->
+<div class="flex gap-3 p-3 border border-tertiary-fixed bg-[#FFF7ED] rounded-lg">
+<span class="material-symbols-outlined text-tertiary mt-0.5">anchor</span>
+<div>
+<div class="text-body-md font-body-md font-semibold text-on-tertiary-fixed-variant">Port Congestion at Arrival</div>
+<div class="text-body-md font-body-md text-on-surface-variant mt-1">Current queue at USLAX is 14 vessels. Expected berthing delay upon arrival.</div>
+<div class="mt-2 text-label-sm font-label-sm text-tertiary font-medium">Impact: Medium (+3.0 days)</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Carrier History / Reliability -->
+<div class="border border-outline-variant rounded-lg bg-surface p-4">
+<h3 class="text-title-md font-title-md text-on-surface mb-4">Route Reliability (Historical)</h3>
+<div class="flex items-center justify-between mb-2">
+<div class="text-body-md font-body-md text-on-surface-variant">On-Time Performance (Maersk, CNSHA→USLAX)</div>
+<div class="text-title-md font-title-md font-bold text-on-surface">68%</div>
+</div>
+<!-- Simple progress bar chart -->
+<div class="w-full h-2 bg-surface-container rounded-full overflow-hidden flex">
+<div class="bg-[#22C55E] h-full" style="width: 68%;"></div>
+<div class="bg-[#EAB308] h-full" style="width: 20%;"></div>
+<div class="bg-error h-full" style="width: 12%;"></div>
+</div>
+<div class="flex justify-between mt-2 text-label-sm font-label-sm text-outline">
+<span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-[#22C55E]"></span> On Time (68%)</span>
+<span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-[#EAB308]"></span> Minor Delay (20%)</span>
+<span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-error]"></span> Major Delay (12%)</span>
+</div>
+</div>
+</div>
+<!-- Panel Footer -->
+<div class="p-4 border-t border-outline-variant bg-surface mt-auto flex justify-end gap-3">
+<button class="px-4 py-2 border border-outline rounded text-body-md font-body-md text-on-surface hover:bg-surface-container-low transition" onclick="toggleSlidePanel(false)">Close</button>
+<button class="px-4 py-2 bg-primary text-on-primary rounded text-body-md font-body-md font-medium hover:bg-primary-container transition shadow-sm">View Full Lifecycle</button>
+</div>
+</aside>
+<script>
+        // Simple script to handle slide panel toggle
+        function toggleSlidePanel(show) {
+            const panel = document.getElementById('detail-panel');
+            const overlay = document.getElementById('panel-overlay');
+            
+            if (show) {
+                overlay.classList.remove('hidden');
+                // slight delay to allow display:block to apply before animating transform
+                setTimeout(() => {
+                    panel.classList.add('open');
+                }, 10);
+            } else {
+                panel.classList.remove('open');
+                setTimeout(() => {
+                    overlay.classList.add('hidden');
+                }, 300); // match transition duration
+            }
+        }
+    </script>
+</body></html>

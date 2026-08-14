@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>SupplyIQ - Supplier Intelligence</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary": "#4648d4",
+                        "background": "#f8f9ff",
+                        "tertiary": "#904900",
+                        "on-primary-container": "#fffbff",
+                        "surface-variant": "#d3e4fe",
+                        "secondary-fixed": "#dae2fd",
+                        "error-container": "#ffdad6",
+                        "surface-container-highest": "#d3e4fe",
+                        "on-primary-fixed-variant": "#2f2ebe",
+                        "tertiary-fixed-dim": "#ffb783",
+                        "on-secondary-fixed-variant": "#3f465c",
+                        "on-background": "#0b1c30",
+                        "on-surface": "#0b1c30",
+                        "surface": "#f8f9ff",
+                        "inverse-primary": "#c0c1ff",
+                        "on-surface-variant": "#464554",
+                        "primary-fixed": "#e1e0ff",
+                        "error": "#ba1a1a",
+                        "on-tertiary-container": "#fffbff",
+                        "tertiary-container": "#b55d00",
+                        "surface-bright": "#f8f9ff",
+                        "on-secondary": "#ffffff",
+                        "on-tertiary-fixed-variant": "#703700",
+                        "on-primary": "#ffffff",
+                        "secondary": "#565e74",
+                        "outline": "#767586",
+                        "inverse-surface": "#213145",
+                        "tertiary-fixed": "#ffdcc5",
+                        "on-error-container": "#93000a",
+                        "on-secondary-container": "#5c647a",
+                        "surface-container-high": "#dce9ff",
+                        "on-error": "#ffffff",
+                        "secondary-container": "#dae2fd",
+                        "surface-container-low": "#eff4ff",
+                        "surface-container": "#e5eeff",
+                        "surface-dim": "#cbdbf5",
+                        "secondary-fixed-dim": "#bec6e0",
+                        "surface-tint": "#494bd6",
+                        "on-primary-fixed": "#07006c",
+                        "on-tertiary-fixed": "#301400",
+                        "primary-container": "#6063ee",
+                        "on-secondary-fixed": "#131b2e",
+                        "primary-fixed-dim": "#c0c1ff",
+                        "inverse-on-surface": "#eaf1ff",
+                        "on-tertiary": "#ffffff",
+                        "surface-container-lowest": "#ffffff",
+                        "outline-variant": "#c7c4d7"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "stack-lg": "32px",
+                        "container-margin": "24px",
+                        "unit": "4px",
+                        "stack-md": "16px",
+                        "gutter": "16px",
+                        "stack-sm": "8px"
+                    },
+                    "fontFamily": {
+                        "title-md": ["Inter"],
+                        "headline-lg-mobile": ["Inter"],
+                        "headline-lg": ["Inter"],
+                        "body-md": ["Inter"],
+                        "label-sm": ["JetBrains Mono"],
+                        "display-lg": ["Inter"],
+                        "data-table": ["Inter"],
+                        "body-lg": ["Inter"]
+                    },
+                    "fontSize": {
+                        "title-md": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+                        "headline-lg-mobile": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "label-sm": ["12px", { "lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "500" }],
+                        "display-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "data-table": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { background-color: #F8FAFC; }
+    </style>
+</head>
+<body class="font-body-md text-on-background bg-background antialiased overflow-hidden flex h-screen">
+<!-- SideNavBar -->
+<nav class="hidden md:flex flex-col bg-surface dark:bg-on-background border-r border-outline-variant dark:border-outline fixed left-0 top-0 h-full w-64 pt-16 pb-4 z-40">
+<div class="px-gutter mb-8 flex flex-col gap-2">
+<div class="flex items-center gap-3">
+<img class="w-10 h-10 rounded object-cover" data-alt="A clean, minimalist logo icon for a supply chain enterprise, featuring crisp geometric shapes in navy and indigo on a white background, highly corporate aesthetic, modern UI context." src="https://lh3.googleusercontent.com/aida-public/AB6AXuA6XYBk74LuM4XAExUYtlqrH39ICCGMEsf3AASkNOXs6zdR_pYeb-CPncBAC8i_ro-9-_vbl5VNplPyCPWzXmuWCWX0AKNs6CPvu70eh2XFPyKpcPs_Fs7zzRL2lDWvdoFmTjPA2LXZgU3QhtOhg5JGIGFCFpsKdLMMf5YUWjaofmGqp2K4JTxzVvaklgiuzCi0iFZRFmMTtMMUIsOmrpRGNSYPVyVyFo3t2QaAx-FKwiNUUSx95ZI"/>
+<div>
+<h1 class="text-title-md font-title-md font-black text-primary dark:text-primary-fixed leading-tight">Global Supply</h1>
+<span class="text-label-sm font-label-sm text-on-surface-variant">Enterprise Tier</span>
+</div>
+</div>
+<button class="mt-4 flex items-center justify-between w-full px-3 py-2 border border-outline-variant rounded-lg hover:bg-surface-container-low transition-colors text-left text-body-md font-body-md">
+<span>Company Switcher</span>
+<span class="material-symbols-outlined text-outline">expand_more</span>
+</button>
+</div>
+<div class="flex-1 overflow-y-auto px-gutter flex flex-col gap-unit">
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-low dark:hover:bg-secondary-fixed-variant transition-all scale-95 active:scale-90" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="text-label-sm font-label-sm">Executive Overview</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-low dark:hover:bg-secondary-fixed-variant transition-all scale-95 active:scale-90" href="#">
+<span class="material-symbols-outlined">local_shipping</span>
+<span class="text-label-sm font-label-sm">Shipment Intelligence</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-low dark:hover:bg-secondary-fixed-variant transition-all scale-95 active:scale-90" href="#">
+<span class="material-symbols-outlined">trending_up</span>
+<span class="text-label-sm font-label-sm">Demand Forecasting</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-low dark:hover:bg-secondary-fixed-variant transition-all scale-95 active:scale-90" href="#">
+<span class="material-symbols-outlined">inventory_2</span>
+<span class="text-label-sm font-label-sm">Inventory Intelligence</span>
+</a>
+<!-- Active State -->
+<a class="flex items-center gap-3 px-3 py-2 bg-secondary-container dark:bg-on-secondary-fixed-variant text-on-secondary-container dark:text-secondary-fixed rounded-lg font-bold transition-all scale-95 active:scale-90" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">precision_manufacturing</span>
+<span class="text-label-sm font-label-sm">Supplier Intelligence</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-low dark:hover:bg-secondary-fixed-variant transition-all scale-95 active:scale-90" href="#">
+<span class="material-symbols-outlined">warning</span>
+<span class="text-label-sm font-label-sm">Anomaly Detection</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-low dark:hover:bg-secondary-fixed-variant transition-all scale-95 active:scale-90" href="#">
+<span class="material-symbols-outlined">architecture</span>
+<span class="text-label-sm font-label-sm">What-If Simulator</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-low dark:hover:bg-secondary-fixed-variant transition-all scale-95 active:scale-90" href="#">
+<span class="material-symbols-outlined">psychology</span>
+<span class="text-label-sm font-label-sm">AI Recommendations</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-low dark:hover:bg-secondary-fixed-variant transition-all scale-95 active:scale-90" href="#">
+<span class="material-symbols-outlined">upload_file</span>
+<span class="text-label-sm font-label-sm">Data Upload</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-low dark:hover:bg-secondary-fixed-variant transition-all scale-95 active:scale-90" href="#">
+<span class="material-symbols-outlined">settings_suggest</span>
+<span class="text-label-sm font-label-sm">Model Center</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-low dark:hover:bg-secondary-fixed-variant transition-all scale-95 active:scale-90" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="text-label-sm font-label-sm">Settings</span>
+</a>
+</div>
+<div class="mt-auto px-gutter flex flex-col gap-unit pt-4 border-t border-outline-variant">
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-all scale-95 active:scale-90" href="#">
+<span class="material-symbols-outlined">support_agent</span>
+<span class="text-label-sm font-label-sm">Support</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-all scale-95 active:scale-90" href="#">
+<span class="material-symbols-outlined">help</span>
+<span class="text-label-sm font-label-sm">Help Center</span>
+</a>
+</div>
+</nav>
+<!-- TopNavBar -->
+<header class="fixed top-0 w-full z-50 flex justify-between items-center px-container-margin h-16 bg-surface dark:bg-on-background border-b border-outline-variant dark:border-outline shadow-sm dark:shadow-none md:pl-72 transition-all">
+<div class="flex items-center gap-4 flex-1">
+<button class="md:hidden text-on-surface-variant">
+<span class="material-symbols-outlined">menu</span>
+</button>
+<span class="text-title-md font-title-md font-bold text-primary dark:text-primary-fixed md:hidden">SupplyIQ</span>
+<div class="hidden md:flex items-center bg-surface-container-low border border-outline-variant rounded-full px-4 py-2 w-96 focus-within:border-primary transition-colors">
+<span class="material-symbols-outlined text-outline mr-2">search</span>
+<input class="bg-transparent border-none outline-none w-full text-body-md font-body-md text-on-surface placeholder:text-outline" placeholder="Search suppliers, parts, regions..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="text-on-surface-variant hover:bg-surface-container-low p-2 rounded-full transition-colors cursor-pointer active:opacity-80">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="text-on-surface-variant hover:bg-surface-container-low p-2 rounded-full transition-colors cursor-pointer active:opacity-80">
+<span class="material-symbols-outlined">apps</span>
+</button>
+<img alt="User Profile" class="w-8 h-8 rounded-full border border-outline-variant object-cover cursor-pointer" data-alt="A professional headshot of a corporate executive, clean bright background, modern corporate attire, suitable for an enterprise dashboard profile picture." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDKtP9dR6av6Ux4yAGwQ5af4-W2602LblzXA33OAeZo9WVYoNxlPhlQoGNi_co8qpLDDnL4VQRqPzHJya8DUH8VFFcvjLNSWupBzhfi86B76h_WMVE8uWjdau6w7J7UakR7whXSXEgQnIgOEqIGOYWPX3_C4WfW-Hp4erxRjezgfsCV7Jy8SondTOtXr8mCVpJDHUvzUghrWD8Npf5Ptjk2-_qwkb7iZRC2zP2-F59mm_yy9IyFhfc"/>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="flex-1 md:ml-64 pt-20 px-container-margin pb-container-margin overflow-y-auto h-full w-full custom-scrollbar">
+<!-- Header & Filters -->
+<div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-stack-lg gap-4">
+<div>
+<h2 class="text-headline-lg-mobile md:text-headline-lg font-headline-lg-mobile md:font-headline-lg text-on-background">Supplier Intelligence</h2>
+<p class="text-body-lg font-body-lg text-on-surface-variant mt-1">Enterprise-grade supplier ranking and risk assessment across global operations.</p>
+</div>
+<div class="flex items-center gap-3">
+<div class="flex items-center border border-outline-variant rounded-lg bg-surface px-3 py-2 cursor-pointer hover:bg-surface-container-low transition-colors">
+<span class="material-symbols-outlined text-outline mr-2 text-sm">filter_alt</span>
+<select class="bg-transparent border-none outline-none text-body-md font-body-md text-on-surface appearance-none cursor-pointer pr-4">
+<option>All Categories</option>
+<option>Semiconductors</option>
+<option>Raw Materials</option>
+<option>Packaging</option>
+</select>
+</div>
+<div class="flex items-center border border-outline-variant rounded-lg bg-surface px-3 py-2 cursor-pointer hover:bg-surface-container-low transition-colors">
+<span class="material-symbols-outlined text-outline mr-2 text-sm">public</span>
+<select class="bg-transparent border-none outline-none text-body-md font-body-md text-on-surface appearance-none cursor-pointer pr-4">
+<option>Global</option>
+<option>APAC</option>
+<option>EMEA</option>
+<option>Americas</option>
+</select>
+</div>
+<button class="bg-primary text-on-primary px-4 py-2 rounded-lg text-body-md font-body-md font-medium hover:bg-primary-container transition-colors shadow-sm">
+                    Generate Report
+                </button>
+</div>
+</div>
+<!-- Metric Cards -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-gutter mb-stack-lg">
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-stack-md shadow-[0_4px_6px_rgba(15,23,42,0.05)]">
+<div class="flex justify-between items-center mb-2">
+<span class="text-label-sm font-label-sm text-on-surface-variant uppercase tracking-wider">Total Supplier Spend</span>
+<span class="material-symbols-outlined text-primary">payments</span>
+</div>
+<div class="text-display-lg font-display-lg text-on-background">$1.42B</div>
+<div class="flex items-center mt-2 text-body-md font-body-md text-[#15803d]">
+<span class="material-symbols-outlined text-sm mr-1">trending_down</span>
+<span>-2.4% vs last quarter</span>
+</div>
+</div>
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-stack-md shadow-[0_4px_6px_rgba(15,23,42,0.05)]">
+<div class="flex justify-between items-center mb-2">
+<span class="text-label-sm font-label-sm text-on-surface-variant uppercase tracking-wider">Avg Supplier Lead Time</span>
+<span class="material-symbols-outlined text-primary">schedule</span>
+</div>
+<div class="text-display-lg font-display-lg text-on-background">42 Days</div>
+<div class="flex items-center mt-2 text-body-md font-body-md text-[#b91c1c]">
+<span class="material-symbols-outlined text-sm mr-1">trending_up</span>
+<span>+4 Days vs baseline</span>
+</div>
+</div>
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-stack-md shadow-[0_4px_6px_rgba(15,23,42,0.05)] flex items-center justify-center relative overflow-hidden">
+<div class="absolute inset-0 bg-surface-container-low opacity-50"></div>
+<div class="relative z-10 text-center">
+<span class="material-symbols-outlined text-4xl text-primary mb-2">insights</span>
+<p class="text-body-md font-body-md text-on-surface-variant">AI Risk Analysis Active</p>
+</div>
+</div>
+</div>
+<!-- Main Bento Grid -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-gutter">
+<!-- Supplier Ranking Table -->
+<div class="lg:col-span-2 bg-surface-container-lowest border border-outline-variant rounded-xl shadow-[0_4px_6px_rgba(15,23,42,0.05)] flex flex-col h-[600px]">
+<div class="p-stack-md border-b border-outline-variant flex justify-between items-center">
+<h3 class="text-title-md font-title-md text-on-background">Supplier Performance Ranking</h3>
+<div class="flex gap-2">
+<span class="px-2 py-1 bg-surface-container-low text-primary text-label-sm font-label-sm rounded cursor-pointer">Top Performers</span>
+<span class="px-2 py-1 border border-outline-variant text-on-surface-variant text-label-sm font-label-sm rounded cursor-pointer hover:bg-surface-container-low">At Risk</span>
+</div>
+</div>
+<div class="flex-1 overflow-auto custom-scrollbar p-stack-md">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="border-b border-outline-variant">
+<th class="pb-3 text-label-sm font-label-sm text-on-surface-variant uppercase font-medium">Supplier Name</th>
+<th class="pb-3 text-label-sm font-label-sm text-on-surface-variant uppercase font-medium">Reliability</th>
+<th class="pb-3 text-label-sm font-label-sm text-on-surface-variant uppercase font-medium">Lead Time</th>
+<th class="pb-3 text-label-sm font-label-sm text-on-surface-variant uppercase font-medium">Unit Cost</th>
+<th class="pb-3 text-label-sm font-label-sm text-on-surface-variant uppercase font-medium">Delay Rate</th>
+<th class="pb-3 text-label-sm font-label-sm text-on-surface-variant uppercase font-medium">Risk Score</th>
+</tr>
+</thead>
+<tbody class="text-data-table font-data-table text-on-surface">
+<tr class="border-b border-outline-variant/50 hover:bg-surface-container-low transition-colors cursor-pointer">
+<td class="py-3 font-medium flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-[#15803d]"></div>
+                                    Apex Manufacturing
+                                </td>
+<td class="py-3 font-label-sm">98.5%</td>
+<td class="py-3 font-label-sm">14 days</td>
+<td class="py-3 font-label-sm">$1.20</td>
+<td class="py-3 font-label-sm">1.2%</td>
+<td class="py-3">
+<span class="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-bold bg-[#dcfce7] text-[#166534]">LOW RISK</span>
+</td>
+</tr>
+<tr class="border-b border-outline-variant/50 hover:bg-surface-container-low transition-colors cursor-pointer">
+<td class="py-3 font-medium flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-[#15803d]"></div>
+                                    GlobalTech Semis
+                                </td>
+<td class="py-3 font-label-sm">96.2%</td>
+<td class="py-3 font-label-sm">22 days</td>
+<td class="py-3 font-label-sm">$45.00</td>
+<td class="py-3 font-label-sm">3.8%</td>
+<td class="py-3">
+<span class="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-bold bg-[#dcfce7] text-[#166534]">LOW RISK</span>
+</td>
+</tr>
+<tr class="border-b border-outline-variant/50 hover:bg-surface-container-low transition-colors cursor-pointer bg-surface-container-low">
+<td class="py-3 font-medium flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-[#ca8a04]"></div>
+                                    Quantum Logistics
+                                </td>
+<td class="py-3 font-label-sm">88.0%</td>
+<td class="py-3 font-label-sm">35 days</td>
+<td class="py-3 font-label-sm">$0.85</td>
+<td class="py-3 font-label-sm">12.0%</td>
+<td class="py-3">
+<span class="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-bold bg-[#fef08a] text-[#854d0e]">MODERATE</span>
+</td>
+</tr>
+<tr class="border-b border-outline-variant/50 hover:bg-surface-container-low transition-colors cursor-pointer">
+<td class="py-3 font-medium flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-[#b91c1c]"></div>
+                                    NEXA Materials
+                                </td>
+<td class="py-3 font-label-sm">74.5%</td>
+<td class="py-3 font-label-sm">68 days</td>
+<td class="py-3 font-label-sm">$3.40</td>
+<td class="py-3 font-label-sm">25.5%</td>
+<td class="py-3">
+<span class="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-bold bg-[#fee2e2] text-[#991b1b]">CRITICAL</span>
+</td>
+</tr>
+<tr class="border-b border-outline-variant/50 hover:bg-surface-container-low transition-colors cursor-pointer">
+<td class="py-3 font-medium flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-[#ca8a04]"></div>
+                                    Pacific Core
+                                </td>
+<td class="py-3 font-label-sm">82.1%</td>
+<td class="py-3 font-label-sm">45 days</td>
+<td class="py-3 font-label-sm">$12.50</td>
+<td class="py-3 font-label-sm">15.2%</td>
+<td class="py-3">
+<span class="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-bold bg-[#fef08a] text-[#854d0e]">MODERATE</span>
+</td>
+</tr>
+<tr class="border-b border-outline-variant/50 hover:bg-surface-container-low transition-colors cursor-pointer">
+<td class="py-3 font-medium flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-[#15803d]"></div>
+                                    EuroPack Systems
+                                </td>
+<td class="py-3 font-label-sm">94.8%</td>
+<td class="py-3 font-label-sm">18 days</td>
+<td class="py-3 font-label-sm">$0.45</td>
+<td class="py-3 font-label-sm">4.1%</td>
+<td class="py-3">
+<span class="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-bold bg-[#dcfce7] text-[#166534]">LOW RISK</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- Supplier Comparison Spider Chart Area -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-[0_4px_6px_rgba(15,23,42,0.05)] flex flex-col h-[600px]">
+<div class="p-stack-md border-b border-outline-variant">
+<h3 class="text-title-md font-title-md text-on-background">Supplier Comparison</h3>
+<p class="text-body-md font-body-md text-on-surface-variant mt-1">Apex Mfg vs Quantum Logistics</p>
+</div>
+<div class="flex-1 p-stack-md flex flex-col items-center justify-center relative">
+<!-- Faux Spider Chart Visualization -->
+<div class="w-full max-w-[280px] aspect-square relative">
+<!-- Background Grid -->
+<div class="absolute inset-0 flex items-center justify-center">
+<svg class="w-full h-full stroke-outline-variant/50 fill-none" stroke-width="0.5" viewbox="0 0 100 100">
+<polygon points="50,5 95,50 50,95 5,50"></polygon>
+<polygon points="50,25 75,50 50,75 25,50"></polygon>
+<line x1="50" x2="50" y1="5" y2="95"></line>
+<line x1="5" x2="95" y1="50" y2="50"></line>
+</svg>
+</div>
+<!-- Data Polygons -->
+<div class="absolute inset-0 flex items-center justify-center">
+<svg class="w-full h-full" viewbox="0 0 100 100">
+<!-- Apex Mfg (Primary) -->
+<polygon class="fill-primary/20 stroke-primary" points="50,10 85,50 50,80 15,50" stroke-width="1.5"></polygon>
+<!-- Quantum Logistics (Warning) -->
+<polygon class="fill-[#ca8a04]/20 stroke-[#ca8a04]" points="50,30 65,50 50,65 35,50" stroke-width="1.5"></polygon>
+</svg>
+</div>
+<!-- Labels -->
+<div class="absolute -top-4 left-1/2 -translate-x-1/2 text-[10px] font-label-sm text-on-surface font-medium">Reliability</div>
+<div class="absolute -bottom-4 left-1/2 -translate-x-1/2 text-[10px] font-label-sm text-on-surface font-medium">ESG/Compliance</div>
+<div class="absolute top-1/2 -right-12 -translate-y-1/2 text-[10px] font-label-sm text-on-surface font-medium">Unit Cost</div>
+<div class="absolute top-1/2 -left-12 -translate-y-1/2 text-[10px] font-label-sm text-on-surface font-medium">Lead Time</div>
+</div>
+<div class="mt-8 w-full flex justify-center gap-6">
+<div class="flex items-center gap-2">
+<div class="w-3 h-3 bg-primary rounded-sm"></div>
+<span class="text-label-sm font-label-sm text-on-surface">Apex Mfg</span>
+</div>
+<div class="flex items-center gap-2">
+<div class="w-3 h-3 bg-[#ca8a04] rounded-sm"></div>
+<span class="text-label-sm font-label-sm text-on-surface">Quantum Logistics</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<style>
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background-color: #cbd5e1;
+            border-radius: 10px;
+        }
+    </style>
+</body></html>
