@@ -26,6 +26,7 @@ from sklearn.metrics import (
     r2_score,
     recall_score,
     roc_auc_score,
+    average_precision_score,
 )
 from sklearn.utils.class_weight import compute_sample_weight
 
@@ -57,32 +58,25 @@ def _time_split(df: pd.DataFrame, test_fraction: float = TEST_FRACTION) -> tuple
 
 
 def train_delay_classifier(shipments_df: pd.DataFrame) -> TrainedDelayClassifier:
-    feat = build_shipment_feature_matrix(shipments_df, completed_only=True)
+    cutoff = shipments_df["order_date"].quantile(1 - TEST_FRACTION, interpolation="nearest")
+    feat = build_shipment_feature_matrix(shipments_df, completed_only=True, train_end_date=cutoff)
     if len(feat) < 40:
         raise ValueError("Not enough completed shipments to train a delay classifier (need >= 40).")
 
-    train, test = _time_split(feat)
-    if len(train) < 20 or len(test) < 5:
+    train_full, test = _time_split(feat)
+    if len(train_full) < 20 or len(test) < 5:
         raise ValueError("Not enough data on one side of the time-based split to train/evaluate reliably.")
-    if train["is_delayed"].nunique() < 2:
+    if train_full["is_delayed"].nunique() < 2:
         raise ValueError("Training split has only one class (all delayed or all on-time) - cannot train a classifier.")
 
-    train_enc, feature_cols = encode_categoricals(train)
-    test_enc, _ = encode_categoricals(test, fit_columns=feature_cols)
+    # Internal validation split
+    train_sub, val = _time_split(train_full, test_fraction=0.25)
+    
+    train_enc_sub, feature_cols = encode_categoricals(train_sub)
+    val_enc, _ = encode_categoricals(val, fit_columns=feature_cols)
 
-    X_train, y_train = train_enc[feature_cols], train_enc["is_delayed"].astype(int)
-    X_test, y_test = test_enc[feature_cols], test_enc["is_delayed"].astype(int)
-
-    majority_class = int(y_train.mode()[0])
-    majority_pred = np.full(len(y_test), majority_class)
-    baseline_metrics = {
-        "accuracy": float(accuracy_score(y_test, majority_pred)),
-        "precision": float(precision_score(y_test, majority_pred, zero_division=0)),
-        "recall": float(recall_score(y_test, majority_pred, zero_division=0)),
-        "f1": float(f1_score(y_test, majority_pred, zero_division=0)),
-        "roc_auc": None,
-    }
-    results = {"majority_class_baseline": baseline_metrics}
+    X_train_sub, y_train_sub = train_enc_sub[feature_cols], train_enc_sub["is_delayed"].astype(int)
+    X_val, y_val = val_enc[feature_cols], val_enc["is_delayed"].astype(int)
 
     candidates = {
         "logistic_regression": Pipeline([
@@ -97,44 +91,75 @@ def train_delay_classifier(shipments_df: pd.DataFrame) -> TrainedDelayClassifier
         ),
     }
 
-    fitted = {}
-    sample_weight = compute_sample_weight(class_weight="balanced", y=y_train)
+    # Model Selection on Validation Set
+    val_scores = {}
+    sample_weight_sub = compute_sample_weight(class_weight="balanced", y=y_train_sub)
     for name, model in candidates.items():
-        fit_kwargs = {"clf__sample_weight": sample_weight} if isinstance(model, Pipeline) else {"sample_weight": sample_weight}
-        model.fit(X_train, y_train, **fit_kwargs)
-        pred = model.predict(X_test)
-        proba = model.predict_proba(X_test)[:, 1]
+        fit_kwargs = {"clf__sample_weight": sample_weight_sub} if isinstance(model, Pipeline) else {"sample_weight": sample_weight_sub}
+        model.fit(X_train_sub, y_train_sub, **fit_kwargs)
+        proba = model.predict_proba(X_val)[:, 1]
         try:
-            auc = float(roc_auc_score(y_test, proba)) if y_test.nunique() > 1 else None
+            auc = float(roc_auc_score(y_val, proba)) if y_val.nunique() > 1 else 0.0
         except ValueError:
-            auc = None
-        results[name] = {
-            "accuracy": float(accuracy_score(y_test, pred)),
-            "precision": float(precision_score(y_test, pred, zero_division=0)),
-            "recall": float(recall_score(y_test, pred, zero_division=0)),
-            "f1": float(f1_score(y_test, pred, zero_division=0)),
-            "roc_auc": auc,
-        }
-        fitted[name] = model
+            auc = 0.0
+        val_scores[name] = auc
 
-    def _score(name):
-        auc = results[name]["roc_auc"]
-        return auc if auc is not None else results[name]["f1"]
+    best_name = max(val_scores, key=val_scores.get)
+    best_candidate = candidates[best_name]
 
-    best_name = max(fitted, key=_score)
-    best_model = fitted[best_name]
+    # Retrain on full train set and evaluate on test set
+    train_enc, _ = encode_categoricals(train_full, fit_columns=feature_cols)
+    test_enc, _ = encode_categoricals(test, fit_columns=feature_cols)
+
+    X_train, y_train = train_enc[feature_cols], train_enc["is_delayed"].astype(int)
+    X_test, y_test = test_enc[feature_cols], test_enc["is_delayed"].astype(int)
+
+    majority_class = int(y_train.mode()[0])
+    majority_pred = np.full(len(y_test), majority_class)
+    baseline_metrics = {
+        "accuracy": float(accuracy_score(y_test, majority_pred)),
+        "precision": float(precision_score(y_test, majority_pred, zero_division=0)),
+        "recall": float(recall_score(y_test, majority_pred, zero_division=0)),
+        "f1": float(f1_score(y_test, majority_pred, zero_division=0)),
+        "roc_auc": None,
+        "pr_auc": None,
+    }
+    results = {"majority_class_baseline": baseline_metrics}
+
+    sample_weight = compute_sample_weight(class_weight="balanced", y=y_train)
+    fit_kwargs = {"clf__sample_weight": sample_weight} if isinstance(best_candidate, Pipeline) else {"sample_weight": sample_weight}
+    best_candidate.fit(X_train, y_train, **fit_kwargs)
+    
+    pred = best_candidate.predict(X_test)
+    proba = best_candidate.predict_proba(X_test)[:, 1]
+    
+    try:
+        auc = float(roc_auc_score(y_test, proba)) if y_test.nunique() > 1 else None
+        pr_auc = float(average_precision_score(y_test, proba)) if y_test.nunique() > 1 else None
+    except ValueError:
+        auc, pr_auc = None, None
+        
+    results[best_name] = {
+        "accuracy": float(accuracy_score(y_test, pred)),
+        "precision": float(precision_score(y_test, pred, zero_division=0)),
+        "recall": float(recall_score(y_test, pred, zero_division=0)),
+        "f1": float(f1_score(y_test, pred, zero_division=0)),
+        "roc_auc": auc,
+        "pr_auc": pr_auc,
+    }
 
     return TrainedDelayClassifier(
         model_name=best_name,
-        model=best_model,
+        model=best_candidate,
         feature_columns=feature_cols,
         metrics={
             "selected_model": best_name,
-            "train_rows": len(train),
+            "train_rows": len(train_full),
             "test_rows": len(test),
             "positive_rate_train": float(y_train.mean()),
-            "confusion_matrix_test": _confusion_matrix(y_test, fitted[best_name].predict(X_test)),
+            "confusion_matrix_test": _confusion_matrix(y_test, pred),
             "comparison": results,
+            "validation_auc": val_scores,
         },
     )
 
@@ -150,20 +175,49 @@ def _confusion_matrix(y_true, y_pred) -> dict:
 
 def train_delay_duration_model(shipments_df: pd.DataFrame) -> TrainedDelayDurationModel:
     """Regresses delay DURATION in days, trained only on shipments that were actually delayed."""
-    feat = build_shipment_feature_matrix(shipments_df, completed_only=True)
+    cutoff = shipments_df["order_date"].quantile(1 - TEST_FRACTION, interpolation="nearest")
+    feat = build_shipment_feature_matrix(shipments_df, completed_only=True, train_end_date=cutoff)
     delayed = feat[feat["is_delayed"] == 1].copy()
     if len(delayed) < 30:
         raise ValueError("Not enough delayed shipments to train a delay-duration regressor (need >= 30).")
 
-    train, test = _time_split(delayed)
-    if len(train) < 15 or len(test) < 5:
+    train_full, test = _time_split(delayed)
+    if len(train_full) < 15 or len(test) < 5:
         raise ValueError("Not enough delayed shipments on one side of the time-based split.")
 
-    train_enc, feature_cols = encode_categoricals(train)
+    train_sub, val = _time_split(train_full, test_fraction=0.25)
+    train_enc_sub, feature_cols = encode_categoricals(train_sub)
+    val_enc, _ = encode_categoricals(val, fit_columns=feature_cols)
+
+    X_train_sub, y_train_sub = train_enc_sub[feature_cols], train_enc_sub["delay_days"]
+    X_val, y_val = val_enc[feature_cols], val_enc["delay_days"]
+
+    candidates = {
+        "random_forest": RandomForestRegressor(
+            n_estimators=200, max_depth=8, min_samples_leaf=2, random_state=RANDOM_STATE, n_jobs=-1,
+        ),
+        "gradient_boosting": GradientBoostingRegressor(
+            n_estimators=150, max_depth=3, learning_rate=0.05, random_state=RANDOM_STATE,
+        ),
+    }
+    
+    val_maes = {}
+    for name, model in candidates.items():
+        model.fit(X_train_sub, y_train_sub)
+        pred = np.clip(model.predict(X_val), 0, None)
+        val_maes[name] = float(mean_absolute_error(y_val, pred))
+
+    best_name = min(val_maes, key=val_maes.get)
+    best_candidate = candidates[best_name]
+
+    train_enc, _ = encode_categoricals(train_full, fit_columns=feature_cols)
     test_enc, _ = encode_categoricals(test, fit_columns=feature_cols)
 
     X_train, y_train = train_enc[feature_cols], train_enc["delay_days"]
     X_test, y_test = test_enc[feature_cols], test_enc["delay_days"]
+
+    best_candidate.fit(X_train, y_train)
+    pred = np.clip(best_candidate.predict(X_test), 0, None)
 
     naive_pred = np.full(len(y_test), float(y_train.mean()))
     results = {
@@ -174,36 +228,22 @@ def train_delay_duration_model(shipments_df: pd.DataFrame) -> TrainedDelayDurati
         }
     }
 
-    candidates = {
-        "random_forest": RandomForestRegressor(
-            n_estimators=200, max_depth=8, min_samples_leaf=2, random_state=RANDOM_STATE, n_jobs=-1,
-        ),
-        "gradient_boosting": GradientBoostingRegressor(
-            n_estimators=150, max_depth=3, learning_rate=0.05, random_state=RANDOM_STATE,
-        ),
+    results[best_name] = {
+        "mae": float(mean_absolute_error(y_test, pred)),
+        "rmse": float(np.sqrt(mean_squared_error(y_test, pred))),
+        "r2": float(r2_score(y_test, pred)) if y_test.nunique() > 1 else None,
     }
-    fitted = {}
-    for name, model in candidates.items():
-        model.fit(X_train, y_train)
-        pred = np.clip(model.predict(X_test), 0, None)
-        results[name] = {
-            "mae": float(mean_absolute_error(y_test, pred)),
-            "rmse": float(np.sqrt(mean_squared_error(y_test, pred))),
-            "r2": float(r2_score(y_test, pred)) if y_test.nunique() > 1 else None,
-        }
-        fitted[name] = model
-
-    best_name = min(fitted, key=lambda n: results[n]["mae"])
 
     return TrainedDelayDurationModel(
         model_name=best_name,
-        model=fitted[best_name],
+        model=best_candidate,
         feature_columns=feature_cols,
         metrics={
             "selected_model": best_name,
-            "train_rows": len(train),
+            "train_rows": len(train_full),
             "test_rows": len(test),
             "comparison": results,
+            "validation_maes": val_maes,
         },
     )
 
@@ -283,24 +323,52 @@ def predict_shipment_risk_batch(
 
 def _top_risk_factors(classifier: TrainedDelayClassifier, feature_row: pd.Series, top_n: int = 5) -> list[dict]:
     """
-    Lightweight explainability: for tree-based models, use global
-    feature_importances_; for linear models (e.g. logistic regression,
-    possibly wrapped in a scaling Pipeline), use absolute coefficient
-    magnitude instead. Combined with this shipment's own feature values to
-    surface which factors are driving THIS prediction. (Full SHAP-based
-    per-instance attribution can be layered on later; this gives a real,
-    non-fabricated signal in the meantime.)
+    Optional SHAP-based explainability if installed, falling back to lightweight 
+    feature_importances_ or coef_ magnitude. Includes direction of contribution.
     """
     model = classifier.model
 
+    try:
+        import shap
+        if hasattr(model, "feature_importances_"):
+            explainer = shap.TreeExplainer(model)
+            shap_values = explainer.shap_values(feature_row.to_frame().T)
+            if isinstance(shap_values, list):
+                vals = shap_values[1][0]  # class 1 (delayed)
+            else:
+                vals = shap_values[0]
+            
+            importances = pd.Series(vals, index=classifier.feature_columns)
+            top = importances.abs().sort_values(ascending=False).head(top_n)
+            
+            factors = []
+            for feature_name in top.index:
+                val = importances[feature_name]
+                if abs(val) <= 0:
+                    continue
+                factors.append({
+                    "factor": feature_name,
+                    "importance": round(float(abs(val)), 4),
+                    "value": round(float(feature_row[feature_name]), 3),
+                    "direction": "increases risk" if val > 0 else "decreases risk"
+                })
+            if factors:
+                return factors
+    except (ImportError, Exception):
+        pass
+
+    # Fallback lightweight explainability
+    direction_info = None
     if hasattr(model, "feature_importances_"):
         importances = pd.Series(model.feature_importances_, index=classifier.feature_columns)
     elif hasattr(model, "coef_"):
         importances = pd.Series(np.abs(model.coef_[0]), index=classifier.feature_columns)
-    elif hasattr(model, "named_steps"):  # sklearn Pipeline, e.g. StandardScaler + LogisticRegression
+        direction_info = pd.Series(model.coef_[0], index=classifier.feature_columns)
+    elif hasattr(model, "named_steps"):  # sklearn Pipeline
         final_step = model.named_steps[list(model.named_steps.keys())[-1]]
         if hasattr(final_step, "coef_"):
             importances = pd.Series(np.abs(final_step.coef_[0]), index=classifier.feature_columns)
+            direction_info = pd.Series(final_step.coef_[0], index=classifier.feature_columns)
         else:
             return []
     else:
@@ -311,9 +379,13 @@ def _top_risk_factors(classifier: TrainedDelayClassifier, feature_row: pd.Series
     for feature_name, importance in top.items():
         if importance <= 0:
             continue
+        direction = "unknown"
+        if direction_info is not None:
+            direction = "increases risk" if direction_info[feature_name] > 0 else "decreases risk"
         factors.append({
             "factor": feature_name,
             "importance": round(float(importance), 4),
             "value": round(float(feature_row[feature_name]), 3),
+            "direction": direction
         })
     return factors

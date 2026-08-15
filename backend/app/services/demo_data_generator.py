@@ -22,6 +22,7 @@ pure random noise:
 """
 from __future__ import annotations
 
+import hashlib
 import datetime as dt
 
 import numpy as np
@@ -57,7 +58,7 @@ COMPANY_CONFIGS = [
         "industry": "Electronics",
         "n_products": 15,
         "n_suppliers": 5,
-        "history_days": 365,    # 1 year -> enough for seasonality detection
+        "history_days": 1095,    # 3 years -> enough for seasonality detection
         "seed": 101,
     },
     {
@@ -65,7 +66,7 @@ COMPANY_CONFIGS = [
         "industry": "Automotive Parts",
         "n_products": 10,
         "n_suppliers": 3,
-        "history_days": 120,    # 4 months -> sparse -> should fall back to base model
+        "history_days": 240,    # 8 months -> sparse -> should fall back to base model
         "seed": 202,
     },
     {
@@ -73,7 +74,7 @@ COMPANY_CONFIGS = [
         "industry": "FMCG",
         "n_products": 12,
         "n_suppliers": 4,
-        "history_days": 270,    # 9 months -> borderline
+        "history_days": 540,    # 18 months -> borderline
         "seed": 303,
     },
 ]
@@ -189,7 +190,7 @@ def _generate_company(db: Session, config: dict) -> dict:
         avg_daily_demand = float(np.mean(demand_series)) or 1.0
         interval = meta["reorder_interval_days"]
         order_days = list(range(0, len(date_range), interval))
-        origin, destination, base_distance = CITY_POOL[hash(product.external_product_id) % len(CITY_POOL)]
+        origin, destination, base_distance = CITY_POOL[int(hashlib.sha256(product.external_product_id.encode()).hexdigest(), 16) % len(CITY_POOL)]
 
         deliveries: list[tuple[dt.date, float]] = []  # (arrival_date, quantity)
         for si, order_t in enumerate(order_days):
@@ -214,8 +215,8 @@ def _generate_company(db: Session, config: dict) -> dict:
                 "external_shipment_id": f"SHP-{product.external_product_id}-{si+1:04d}",
                 "origin": origin,
                 "destination": destination,
-                "carrier": f"Carrier {(hash(supplier.external_supplier_id) % 4) + 1}",
-                "transport_mode": TRANSPORT_MODES[(hash(supplier.external_supplier_id) + si) % len(TRANSPORT_MODES)],
+                "carrier": f"Carrier {(int(hashlib.sha256(supplier.external_supplier_id.encode()).hexdigest(), 16) % 4) + 1}",
+                "transport_mode": TRANSPORT_MODES[(int(hashlib.sha256(supplier.external_supplier_id.encode()).hexdigest(), 16) + si) % len(TRANSPORT_MODES)],
                 "distance_km": round(distance, 1),
                 "weight_kg": round(ship_qty * float(rng.uniform(0.4, 2.2)), 1),
                 "quantity": float(ship_qty),

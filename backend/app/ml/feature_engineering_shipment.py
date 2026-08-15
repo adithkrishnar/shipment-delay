@@ -38,7 +38,7 @@ def _expanding_prior_mean(df: pd.DataFrame, group_col: str, value_col: str, orde
     return expanding_mean.reindex(df.index)
 
 
-def build_shipment_feature_matrix(shipments_df: pd.DataFrame, completed_only: bool = True) -> pd.DataFrame:
+def build_shipment_feature_matrix(shipments_df: pd.DataFrame, completed_only: bool = True, train_end_date=None) -> pd.DataFrame:
     """
     shipments_df must contain: shipment_id, product_id, supplier_id, origin,
     destination, carrier, transport_mode, distance_km, weight_kg, quantity,
@@ -56,8 +56,12 @@ def build_shipment_feature_matrix(shipments_df: pd.DataFrame, completed_only: bo
     df = df.sort_values("order_date").reset_index(drop=True)
 
     df["delay_days"] = (df["actual_delivery"] - df["planned_delivery"]).dt.days
-    df["is_delayed"] = (df["delay_days"] > 0).astype("float")  # float so NaN survives for undelivered rows
-    df.loc[df["actual_delivery"].isna(), ["delay_days", "is_delayed"]] = pd.NA
+    df["target_is_delayed"] = (df["delay_days"] > 0).astype("float")
+    df.loc[df["actual_delivery"].isna(), ["delay_days", "target_is_delayed"]] = pd.NA
+    
+    df["is_delayed"] = df["target_is_delayed"].copy()
+    if train_end_date is not None:
+        df.loc[df["order_date"] >= pd.to_datetime(train_end_date), "is_delayed"] = pd.NA
 
     # route key for expanding stats
     df["route"] = df["origin"].astype(str) + " -> " + df["destination"].astype(str)
@@ -88,6 +92,10 @@ def build_shipment_feature_matrix(shipments_df: pd.DataFrame, completed_only: bo
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce")
     df[NUMERIC_FEATURE_COLUMNS] = df[NUMERIC_FEATURE_COLUMNS].fillna(0)
+    
+    # Restore actual target labels for evaluation
+    df["is_delayed"] = df["target_is_delayed"]
+    df = df.drop(columns=["target_is_delayed"])
 
     if completed_only:
         df = df[df["actual_delivery"].notna()].reset_index(drop=True)

@@ -34,27 +34,32 @@ def detect_anomalies(db: Session, company_id: int, limit: int = 100) -> list[dic
                 "explanation": "Daily demand is materially different from the product's recent distribution (Z-score > 3)."
             })
 
-    # Fast Shipment anomalies using Z-Score on distance/weight/quantity
+    # Shipment anomalies using IsolationForest on multidimensional profile (distance, weight, quantity)
     shipments = db.query(Shipment).filter(Shipment.company_id == company_id).all()
     if len(shipments) >= 15:
         df = pd.DataFrame([{"id":s.id,"product_id":s.product_id,"distance":s.distance_km or 0,"weight":s.weight_kg or 0,"quantity":s.quantity or 0,"date":s.order_date} for s in shipments])
         for col in ["distance", "weight", "quantity"]:
             df[col] = df[col].astype(float)
-            mean = df[col].mean()
-            std = df[col].std() + 1e-9
-            df[f"{col}_z"] = ((df[col] - mean) / std).abs()
+            
+        features = df[["distance", "weight", "quantity"]]
+        model = IsolationForest(n_estimators=100, contamination=0.05, random_state=42)
+        model.fit(features)
         
-        df["max_z"] = df[["distance_z", "weight_z", "quantity_z"]].max(axis=1)
-        anomalous_shipments = df[df["max_z"] > 3.0]
+        df["anomaly_score"] = model.decision_function(features)
+        df["is_anomaly"] = model.predict(features)
+        
+        anomalous_shipments = df[df["is_anomaly"] == -1]
         
         for _, row in anomalous_shipments.iterrows():
-            score = float(row.max_z) / 10.0
-            severity = "HIGH" if score > 0.35 else "MEDIUM"
+            # anomaly_score is negative for anomalies. More negative = more anomalous.
+            # Normalize to a positive 0-1 score roughly.
+            score = min(1.0, abs(float(row.anomaly_score)) * 2) 
+            severity = "CRITICAL" if score > 0.8 else "HIGH" if score > 0.5 else "MEDIUM"
             anomalies.append({
                 "entity_type": "shipment", "entity_id": int(row.id), "record_id": int(row.id), 
                 "date": str(row.date) if pd.notna(row.date) else None, "metric": "shipment_profile", 
                 "value": round(float(row.quantity), 2), "score": round(score, 4), "severity": severity, 
-                "explanation": "Shipment profile is unusual relative to this company's average (Z-score > 3)."
+                "explanation": "Shipment profile is multidimensionally anomalous compared to historical averages (IsolationForest)."
             })
             
     return sorted(anomalies, key=lambda x:x["score"], reverse=True)[:limit]

@@ -84,15 +84,18 @@ def train_demand_model(sales_df: pd.DataFrame) -> TrainedDemandModel:
     if len(feature_df) < 50:
         raise ValueError("Not enough historical data to train a demand forecasting model (need >= 50 usable rows).")
 
-    train, test = _time_based_split(feature_df)
-    if len(train) < 20 or len(test) < 5:
+    train_full, test = _time_based_split(feature_df)
+    if len(train_full) < 20 or len(test) < 5:
         raise ValueError("Not enough data on one side of the time-based split to train/evaluate reliably.")
 
-    train, test, product_means, global_mean = _add_product_mean_encoding(train, test)
+    # Internal split for hyperparameter/model selection (prevents test set leakage)
+    train_sub, val = _time_based_split(train_full, test_fraction=0.25)
+    
+    train_sub, val, product_means_val, global_mean_val = _add_product_mean_encoding(train_sub, val)
     feature_cols = list(FEATURE_COLUMNS) + ["product_mean_demand"]
 
-    X_train, y_train = train[feature_cols], train["quantity"]
-    X_test, y_test = test[feature_cols], test["quantity"]
+    X_train_sub, y_train_sub = train_sub[feature_cols], train_sub["quantity"]
+    X_val, y_val = val[feature_cols], val["quantity"]
 
     candidates = {
         "random_forest": RandomForestRegressor(
@@ -103,6 +106,23 @@ def train_demand_model(sales_df: pd.DataFrame) -> TrainedDemandModel:
         ),
     }
 
+    # Model Selection using validation set
+    val_maes = {}
+    for name, model in candidates.items():
+        model.fit(X_train_sub, y_train_sub)
+        pred = np.clip(model.predict(X_val), 0, None)
+        val_maes[name] = float(mean_absolute_error(y_val, pred))
+        
+    best_name = min(val_maes, key=val_maes.get)
+    best_candidate = candidates[best_name]
+
+    # Retrain on full train set
+    train_full, test, product_means, global_mean = _add_product_mean_encoding(train_full, test)
+    X_train_full, y_train_full = train_full[feature_cols], train_full["quantity"]
+    X_test, y_test = test[feature_cols], test["quantity"]
+
+    best_candidate.fit(X_train_full, y_train_full)
+
     baseline_pred = np.clip(_naive_seasonal_baseline(test), 0, None)
     results = {
         "naive_seasonal_baseline": {
@@ -112,30 +132,24 @@ def train_demand_model(sales_df: pd.DataFrame) -> TrainedDemandModel:
         }
     }
 
-    fitted_models = {}
-    for name, model in candidates.items():
-        model.fit(X_train, y_train)
-        pred = np.clip(model.predict(X_test), 0, None)
-        results[name] = {
-            "mae": float(mean_absolute_error(y_test, pred)),
-            "rmse": float(np.sqrt(mean_squared_error(y_test, pred))),
-            "mape": _mape(y_test.to_numpy(), pred),
-        }
-        fitted_models[name] = model
-
-    best_name = min(fitted_models, key=lambda n: results[n]["mae"])
-    best_model = fitted_models[best_name]
+    final_pred = np.clip(best_candidate.predict(X_test), 0, None)
+    results[best_name] = {
+        "mae": float(mean_absolute_error(y_test, final_pred)),
+        "rmse": float(np.sqrt(mean_squared_error(y_test, final_pred))),
+        "mape": _mape(y_test.to_numpy(), final_pred),
+    }
 
     return TrainedDemandModel(
         model_name=best_name,
-        model=best_model,
+        model=best_candidate,
         product_mean_encoding=product_means,
         global_mean_demand=global_mean,
         metrics={
             "selected_model": best_name,
-            "train_rows": len(train),
+            "train_rows": len(train_full),
             "test_rows": len(test),
             "comparison": results,
+            "validation_maes": val_maes,
         },
     )
 

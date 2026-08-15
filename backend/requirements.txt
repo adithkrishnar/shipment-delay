@@ -11,7 +11,9 @@ scikit-learn
 joblib
 shap
 python-dateutil
-pytest
+python-dotenv==1.0.0
+pytest==7.4.3
+shap==0.46.0
 httpx
 
 requests

@@ -1,4 +1,4 @@
-# SupplyIQ — AI-Powered Multi-Company Supply Chain Intelligence Platform
+# SupplyIQ — Supply Chain Intelligence Platform
 
 A multi-company supply-chain intelligence system: companies upload their own
 historical sales, inventory, shipment, and supplier data; the platform predicts
@@ -51,9 +51,7 @@ both demand and shipment models.
 
 ### Frontend
 
-Not yet wired up — the Stitch-designed screens exist as static mockups. This
-is built in Phase 13 once enough backend endpoints exist for the pages to call
-into. See `frontend/` for the eventual Vite + React app location.
+The React + Vite frontend is fully implemented and wired to the backend API. It includes dashboards for shipments, demand, inventory, anomaly detection, suppliers, what-if simulations, and recommendations.
 
 ---
 
@@ -265,22 +263,22 @@ the server is running.
 
 - [x] **Phase 1** — Project structure, backend setup, database, demo data generator
 - [x] **Phase 2** — Data upload, validation, column mapping, cleaning
-- [x] **Phase 3** — Demand forecasting
-- [x] **Phase 4** — Shipment delay prediction
-- [x] **Phase 5** — Delay duration prediction
-- [ ] Phase 6 — Inventory risk and stockout engine
-- [ ] Phase 7 — Supplier analytics
-- [ ] Phase 8 — Anomaly detection
-- [ ] Phase 9 — Risk propagation
-- [ ] Phase 10 — Financial impact
-- [ ] Phase 11 — What-if simulator
-- [ ] Phase 12 — Recommendation engine
-- [ ] Phase 13 — Frontend integration (Stitch UI → real React app)
-- [ ] Phase 14 — Multi-company model management
-- [ ] Phase 15 — Testing (expanded)
-- [ ] Phase 16 — Optional live weather/news
-- [ ] Phase 17 — Final UI polish
-- [ ] Phase 18 — Documentation and deployment
+- [x] **Phase 3** — Demand forecasting (ML regression)
+- [x] **Phase 4** — Shipment delay prediction (ML classification)
+- [x] **Phase 5** — Delay duration prediction (ML regression)
+- [x] **Phase 6** — Inventory intelligence (Operations analytics)
+- [x] **Phase 7** — Supplier risk (Rule-based risk scoring)
+- [x] **Phase 8** — Anomaly detection (Isolation Forest / Statistical Z-score)
+- [x] **Phase 9** — Risk propagation (Deterministic risk analytics)
+- [x] **Phase 10** — Financial impact
+- [x] **Phase 11** — What-if simulator (Scenario simulation)
+- [x] **Phase 12** — Recommendation engine (Rule-based decision engine)
+- [x] **Phase 13** — Frontend integration (Vite + React)
+- [x] **Phase 14** — Multi-company model management
+- [x] **Phase 15** — Testing (expanded)
+- [x] **Phase 16** — Optional live weather/news (External contextual intelligence)
+- [x] **Phase 17** — Real-world Dataset Benchmark Integration
+- [ ] Phase 18 — Final UI polish and deployment
 
 ## Design principles carried through every phase
 
@@ -308,7 +306,14 @@ python run.py
 Open `http://127.0.0.1:8000/docs`.
 
 ### Seed demo data and base models
-Use the Swagger UI endpoint `POST /api/demo/seed`. It creates three realistic fictional companies and trains the shared demand, delay-classifier and delay-duration base models. This is normally a one-time setup after starting the backend.
+Use the Swagger UI endpoint `POST /api/demo/seed` or run `python scripts/generate_demo_data.py`. It creates three realistic fictional companies and trains the shared demand, delay-classifier and delay-duration base models. This is normally a one-time setup after starting the backend.
+
+### Real Data Benchmark
+The project supports evaluating the pipeline on the Brazilian E-Commerce Public Dataset by Olist.
+1. Download from: https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce (CC BY-NC-SA 4.0)
+2. Extract and place `olist_orders_dataset.csv`, `olist_order_items_dataset.csv`, and `olist_products_dataset.csv` into `data/real/raw/`
+3. Run `python scripts/prepare_real_dataset.py` to generate `processed_shipments.csv` and `processed_sales.csv`.
+4. Upload these files via the dashboard to create a real-world benchmark company.
 
 ### Frontend
 In a second terminal:
