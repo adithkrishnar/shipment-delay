@@ -2,18 +2,13 @@ import json
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from arq.connections import ArqRedis
 
 from app.database import get_db
 from app.models import Company, ModelRegistryEntry
-from app.schemas.ml import BaseModelTrainError, ModelRegistryOut, ModelTrainOutcome, RetrainResponse, TrainBaseModelsResponse
-from app.services.model_training_service import (
-    get_active_demand_model,
-    get_active_shipment_models,
-    train_base_demand_model,
-    train_base_shipment_models,
-    train_company_demand_model,
-    train_company_shipment_models,
-)
+from app.models.job import TrainingJob, JobType, JobStatus
+from app.schemas.ml import ModelRegistryOut, JobStatusResponse
+from app.deps.arq import get_redis_pool
 from app.utils.logging_config import get_logger
 
 router = APIRouter(prefix="/api/models", tags=["models"])
@@ -29,84 +24,102 @@ def _to_registry_out(entry: ModelRegistryEntry) -> ModelRegistryOut:
     )
 
 
-@router.post("/train/base", response_model=TrainBaseModelsResponse)
-def train_base_model(db: Session = Depends(get_db)):
+@router.post("/train/base")
+async def train_base_model(
+    db: Session = Depends(get_db),
+    redis: ArqRedis = Depends(get_redis_pool)
+):
     """
-    Trains every base model that currently has enough pooled data: the
-    demand model (needs sales history somewhere) and the shipment delay
-    classifier + duration model (needs shipment history somewhere). These
-    are independent - if one has no data yet, the other still trains.
+    Enqueue background jobs to train base demand and shipment models.
     """
-    trained: list[ModelRegistryOut] = []
-    errors: list[BaseModelTrainError] = []
+    demand_job = TrainingJob(job_type=JobType.BASE_DEMAND.value)
+    shipment_job = TrainingJob(job_type=JobType.BASE_SHIPMENT.value)
+    db.add(demand_job)
+    db.add(shipment_job)
+    db.commit()
 
-    try:
-        trained.append(_to_registry_out(train_base_demand_model(db)))
-    except ValueError as exc:
-        errors.append(BaseModelTrainError(model_type="demand_forecast", error=str(exc)))
+    await redis.enqueue_job('train_base_demand', demand_job.id)
+    await redis.enqueue_job('train_base_shipment', shipment_job.id)
 
-    try:
-        clf_entry, dur_entry = train_base_shipment_models(db)
-        trained.append(_to_registry_out(clf_entry))
-        if dur_entry:
-            trained.append(_to_registry_out(dur_entry))
-    except ValueError as exc:
-        errors.append(BaseModelTrainError(model_type="delay_classifier", error=str(exc)))
-
-    if not trained:
-        raise HTTPException(status_code=400, detail="No base model could be trained: " + "; ".join(e.error for e in errors))
-
-    return TrainBaseModelsResponse(trained=trained, errors=errors)
+    return {
+        "message": "Base model training jobs queued",
+        "jobs": [
+            {"job_id": demand_job.id, "type": demand_job.job_type, "status": demand_job.status},
+            {"job_id": shipment_job.id, "type": shipment_job.job_type, "status": shipment_job.status}
+        ]
+    }
 
 
-def _demand_outcome(db: Session, company_id: int) -> ModelTrainOutcome:
-    entry, reason = train_company_demand_model(db, company_id)
-    try:
-        _, active = get_active_demand_model(db, company_id)
-        return ModelTrainOutcome(
-            trained_company_specific=entry is not None, reason=reason,
-            active_model_source=active.model_source, registry_entry=_to_registry_out(active),
-        )
-    except FileNotFoundError as exc:
-        return ModelTrainOutcome(
-            trained_company_specific=False, reason=f"{reason} | {exc}",
-            active_model_source=None, registry_entry=None,
-        )
-
-
-def _shipment_outcome(db: Session, company_id: int) -> ModelTrainOutcome:
-    entry, _dur_entry, reason = train_company_shipment_models(db, company_id)
-    try:
-        _, _dur, active = get_active_shipment_models(db, company_id)
-        return ModelTrainOutcome(
-            trained_company_specific=entry is not None, reason=reason,
-            active_model_source=active.model_source, registry_entry=_to_registry_out(active),
-        )
-    except FileNotFoundError as exc:
-        return ModelTrainOutcome(
-            trained_company_specific=False, reason=f"{reason} | {exc}",
-            active_model_source=None, registry_entry=None,
-        )
-
-
-@router.post("/retrain/{company_id}", response_model=RetrainResponse)
-def retrain_company_model(company_id: int, db: Session = Depends(get_db)):
+@router.post("/retrain/{company_id}")
+async def retrain_company_model(
+    company_id: int, 
+    db: Session = Depends(get_db),
+    redis: ArqRedis = Depends(get_redis_pool)
+):
     """
-    Attempts to (re)train company-specific demand AND shipment models.
-    These are INDEPENDENT: a company with shipment history but no sales
-    history yet (or vice versa) still gets a successful response for
-    whichever model type has data, rather than a single all-or-nothing
-    failure.
+    Enqueue background jobs to train company-specific demand and shipment models.
     """
     company = db.query(Company).filter(Company.id == company_id).first()
     if not company:
         raise HTTPException(status_code=404, detail="Company not found.")
 
-    return RetrainResponse(
-        company_id=company_id,
-        demand=_demand_outcome(db, company_id),
-        shipments=_shipment_outcome(db, company_id),
+    demand_job = TrainingJob(company_id=company_id, job_type=JobType.DEMAND_RETRAIN.value)
+    shipment_job = TrainingJob(company_id=company_id, job_type=JobType.SHIPMENT_RETRAIN.value)
+    db.add(demand_job)
+    db.add(shipment_job)
+    db.commit()
+
+    await redis.enqueue_job('train_demand_for_company', demand_job.id, company_id)
+    await redis.enqueue_job('train_shipment_for_company', shipment_job.id, company_id)
+
+    return {
+        "message": "Company model retraining jobs queued",
+        "jobs": [
+            {"job_id": demand_job.id, "type": demand_job.job_type, "status": demand_job.status},
+            {"job_id": shipment_job.id, "type": shipment_job.job_type, "status": shipment_job.status}
+        ]
+    }
+
+
+@router.get("/jobs/{job_id}", response_model=JobStatusResponse)
+def get_job_status(job_id: str, db: Session = Depends(get_db)):
+    """
+    Check the status of a specific background training job.
+    """
+    job = db.query(TrainingJob).filter(TrainingJob.id == job_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+        
+    return JobStatusResponse(
+        job_id=job.id,
+        status=job.status,
+        result=json.loads(job.result) if job.result else None,
+        error=job.error_message
     )
+
+
+@router.get("/{company_id}/jobs")
+def list_company_jobs(company_id: int, db: Session = Depends(get_db)):
+    """
+    List recent jobs for a company.
+    """
+    jobs = (
+        db.query(TrainingJob)
+        .filter(TrainingJob.company_id == company_id)
+        .order_by(TrainingJob.created_at.desc())
+        .limit(10)
+        .all()
+    )
+    return [
+        {
+            "job_id": j.id,
+            "type": j.job_type,
+            "status": j.status,
+            "created_at": j.created_at,
+            "finished_at": j.finished_at
+        }
+        for j in jobs
+    ]
 
 
 @router.get("/{company_id}", response_model=list[ModelRegistryOut])

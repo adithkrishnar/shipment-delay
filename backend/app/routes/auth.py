@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.user import User
 from app.auth import security
+from app.auth.deps import get_current_user
 
 router = APIRouter()
 
@@ -33,4 +34,16 @@ def login_access_token(
             user.id, expires_delta=access_token_expires
         ),
         "token_type": "bearer",
+    }
+
+@router.get("/me")
+def read_users_me(current_user: User = Depends(get_current_user)):
+    """
+    Get current user profile.
+    """
+    return {
+        "id": current_user.id,
+        "email": current_user.email,
+        "company_id": current_user.company_id,
+        "is_superuser": current_user.is_superuser
     }

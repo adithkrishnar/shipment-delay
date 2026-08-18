@@ -19,6 +19,16 @@ class ModelRegistryOut(BaseModel):
     metrics: dict[str, Any] | None = None
 
 
+class JobStatusResponse(BaseModel):
+    model_config = {"protected_namespaces": ()}
+
+    job_id: str
+    status: str
+    message: str | None = None
+    result: dict[str, Any] | None = None
+    error: str | None = None
+
+
 class BaseModelTrainError(BaseModel):
     model_config = {"protected_namespaces": ()}
 

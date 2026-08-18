@@ -19,6 +19,7 @@ class Settings(BaseSettings):
 
     # Database - SQLite by default, structured so PostgreSQL can be swapped in later
     DATABASE_URL: str = f"sqlite:///{(BASE_DIR / 'supplyiq.db').as_posix()}"
+    REDIS_URL: str = "redis://localhost:6379"
 
     # Storage locations
     UPLOAD_DIR: Path = BASE_DIR / "uploads"
@@ -30,10 +31,20 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
 
     # CORS
-    FRONTEND_ORIGINS: list[str] = [
+    FRONTEND_ORIGINS: list[str] | str = [
         "http://localhost:5173",
         "http://127.0.0.1:5173",
     ]
+
+    from pydantic import field_validator
+    @field_validator("FRONTEND_ORIGINS", mode="before")
+    @classmethod
+    def assemble_cors_origins(cls, v: str | list[str]) -> list[str]:
+        if isinstance(v, str) and not v.startswith("["):
+            return [i.strip() for i in v.split(",")]
+        elif isinstance(v, list):
+            return v
+        return v
 
     # Optional external services - app must work with these unset
     AI_API_KEY: str | None = None

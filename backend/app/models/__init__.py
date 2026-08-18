@@ -10,6 +10,7 @@ from app.models.recommendation import Recommendation
 from app.models.alert import Alert
 from app.models.dataset_upload import DatasetUpload
 from app.models.user import User
+from app.models.job import TrainingJob
 
 __all__ = [
     "Company",
@@ -24,4 +25,5 @@ __all__ = [
     "Alert",
     "DatasetUpload",
     "User",
+    "TrainingJob",
 ]

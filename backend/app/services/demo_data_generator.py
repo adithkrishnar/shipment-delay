@@ -90,6 +90,8 @@ def _reset_demo_data(db: Session) -> None:
         db.execute(delete(Supplier).where(Supplier.company_id == company_id))
         db.execute(delete(Product).where(Product.company_id == company_id))
         db.execute(delete(Warehouse).where(Warehouse.company_id == company_id))
+        from app.models.user import User
+        db.execute(delete(User).where(User.company_id == company_id))
     db.query(Company).filter(Company.is_demo == 1).delete()
     db.commit()
 
@@ -101,6 +103,21 @@ def _generate_company(db: Session, config: dict) -> dict:
 
     company = Company(name=config["name"], industry=industry, is_demo=1)
     db.add(company)
+    db.flush()
+
+    # --- Demo User (one per company for testing) ---
+    from app.models.user import User
+    from app.auth.security import get_password_hash
+    
+    # Create a predictable email: e.g., admin@horizonelectronics.demo
+    email_domain = config["name"].lower().replace(" ", "") + ".demo"
+    demo_user = User(
+        email=f"admin@{email_domain}",
+        hashed_password=get_password_hash("password"),
+        company_id=company.id,
+        is_superuser=True
+    )
+    db.add(demo_user)
     db.flush()
 
     # --- Warehouses ---
