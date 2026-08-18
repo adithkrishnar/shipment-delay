@@ -24,6 +24,11 @@ class Settings(BaseSettings):
     UPLOAD_DIR: Path = BASE_DIR / "uploads"
     TRAINED_MODELS_DIR: Path = BASE_DIR / "trained_models"
 
+    # JWT Authentication
+    SECRET_KEY: str = "change-me-in-production-super-secret"
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
+
     # CORS
     FRONTEND_ORIGINS: list[str] = [
         "http://localhost:5173",

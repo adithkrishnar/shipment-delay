@@ -56,6 +56,10 @@ async def upload_dataset(
     if dataset_type not in VALID_DATASET_TYPES:
         raise HTTPException(status_code=400, detail=f"dataset_type must be one of {sorted(VALID_DATASET_TYPES)}")
 
+    allowed_content_types = ["text/csv", "application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"]
+    if file.content_type not in allowed_content_types:
+        raise HTTPException(status_code=400, detail="Invalid Content-Type. Only CSV and Excel are allowed.")
+
     suffix = Path(file.filename or "").suffix.lower()
     if suffix not in settings.ALLOWED_UPLOAD_EXTENSIONS:
         raise HTTPException(status_code=400, detail=f"Unsupported file type '{suffix}'. Use CSV or Excel.")

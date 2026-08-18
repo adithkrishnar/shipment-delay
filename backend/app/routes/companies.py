@@ -1,14 +1,22 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy import func
 from sqlalchemy.orm import Session
+from typing import List
 
 from app.database import get_db
 from app.models import Company, Product, Sale, Shipment, Supplier
 from app.schemas.company import CompanyCreate, CompanyOut, CompanySummaryOut
 from app.utils.logging_config import get_logger
+from app.auth.deps import get_current_user
+from app.models.user import User
 
 router = APIRouter(prefix="/api/companies", tags=["companies"])
 logger = get_logger(__name__)
+
+
+@router.get("/all", response_model=List[CompanyOut])
+def get_companies(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return db.query(Company).all()
 
 
 @router.get("", response_model=list[CompanySummaryOut])

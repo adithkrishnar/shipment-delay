@@ -331,7 +331,9 @@ def _top_risk_factors(classifier: TrainedDelayClassifier, feature_row: pd.Series
     try:
         import shap
         if hasattr(model, "feature_importances_"):
-            explainer = shap.TreeExplainer(model)
+            if not hasattr(classifier, "_shap_explainer"):
+                classifier._shap_explainer = shap.TreeExplainer(model)
+            explainer = classifier._shap_explainer
             shap_values = explainer.shap_values(feature_row.to_frame().T)
             if isinstance(shap_values, list):
                 vals = shap_values[1][0]  # class 1 (delayed)

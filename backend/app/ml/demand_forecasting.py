@@ -181,6 +181,7 @@ def forecast_product_demand(
 
     history = product_history[["date", "product_id", "quantity", "promotion"]].copy()
     history["date"] = pd.to_datetime(history["date"])
+    history = history.tail(60).copy()
     product_id = history["product_id"].iloc[0]
     product_mean = trained.product_mean_encoding.get(product_id, trained.global_mean_demand)
 

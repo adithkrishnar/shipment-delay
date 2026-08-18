@@ -17,3 +17,7 @@ shap==0.46.0
 httpx
 
 requests
+psycopg2-binary
+alembic
+python-jose[cryptography]
+passlib[bcrypt]

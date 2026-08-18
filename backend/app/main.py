@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.database import init_db
-from app.routes import companies, demand, demo, health, models, shipments, upload, intelligence, simulator, recommendations, dashboard, live
+from app.routes import companies, demand, demo, health, models, shipments, upload, intelligence, simulator, recommendations, dashboard, live, auth
 from app.utils.logging_config import configure_logging, get_logger
 
 configure_logging()
@@ -40,6 +40,7 @@ app.add_middleware(
 )
 
 app.include_router(health.router)
+app.include_router(auth.router, prefix="/api/v1/auth", tags=["Auth"])
 app.include_router(companies.router)
 app.include_router(demo.router)
 app.include_router(upload.router)
