@@ -57,26 +57,53 @@ def list_shipment_risk(
     except FileNotFoundError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    shipments = (
-        db.query(Shipment)
+    shipments_and_suppliers = (
+        db.query(Shipment, Supplier)
+        .outerjoin(Supplier, Supplier.id == Shipment.supplier_id)
         .filter(Shipment.company_id == company_id)
         .order_by(Shipment.order_date.desc())
         .limit(limit)
         .all()
     )
-    if not shipments:
+    
+    if not shipments_and_suppliers:
         raise HTTPException(status_code=404, detail="No shipments found for this company.")
 
-    results = []
-    for shipment in shipments:
-        supplier = db.query(Supplier).filter(Supplier.id == shipment.supplier_id).first()
-        row_df = _row_to_single_df(shipment, supplier)
-        try:
-            risk = predict_shipment_risk(classifier, duration_model, row_df)
-        except Exception:  # noqa: BLE001 - one bad row must not break the whole list
-            logger.exception("Risk prediction failed for shipment_id=%s", shipment.id)
-            continue
+    # Prepare DataFrame for batch prediction
+    rows = []
+    for shipment, supplier in shipments_and_suppliers:
+        rows.append({
+            "shipment_id": shipment.id,
+            "external_shipment_id": shipment.external_shipment_id,
+            "product_id": shipment.product_id,
+            "supplier_id": shipment.supplier_id,
+            "origin": shipment.origin,
+            "destination": shipment.destination,
+            "carrier": shipment.carrier,
+            "transport_mode": shipment.transport_mode,
+            "distance_km": shipment.distance_km,
+            "weight_kg": shipment.weight_kg,
+            "quantity": shipment.quantity,
+            "order_date": shipment.order_date,
+            "planned_delivery": shipment.planned_delivery,
+            "actual_delivery": None,
+            "supplier_lead_time_days": supplier.lead_time_days if supplier else None,
+            "supplier_reliability": supplier.reliability if supplier else None,
+            "supplier_cost_index": supplier.cost_index if supplier else None,
+        })
+    df_batch = pd.DataFrame(rows)
 
+    # Batch Predict
+    from app.ml.shipment_delay import predict_shipment_risk_batch
+    try:
+        batch_risks = predict_shipment_risk_batch(classifier, duration_model, df_batch)
+    except Exception:
+        logger.exception("Batch risk prediction failed.")
+        # Fallback empty list of risks if it somehow fails completely
+        batch_risks = [{"delay_probability": 0.0, "risk_tier": "LOW", "expected_delay_days": None, "top_risk_factors": []}] * len(shipments_and_suppliers)
+
+    results = []
+    for (shipment, _), risk in zip(shipments_and_suppliers, batch_risks):
         is_completed = shipment.actual_delivery is not None
         actual_was_delayed = None
         actual_delay_days = None

@@ -56,8 +56,9 @@ def dashboard(company_id:int,db:Session=Depends(get_db)):
                 })
             
             df = pd.DataFrame(rows)
-            risk_tiers = predict_shipment_risk_batch(clf, dur, df)
-            for tier in risk_tiers:
+            batch_risks = predict_shipment_risk_batch(clf, dur, df)
+            for risk in batch_risks:
+                tier = risk["risk_tier"]
                 risk_counts[tier] = risk_counts.get(tier, 0) + 1
     except Exception:
         entry=None
