@@ -328,6 +328,7 @@ The frontend includes the overview, shipment, demand, inventory, supplier, anoma
 
 ### Core API additions in the extended build
 - `GET /api/dashboard/{company_id}`
+- `GET /api/dashboard/{company_id}/explain`
 - `GET /api/intelligence/{company_id}/inventory`
 - `GET /api/intelligence/{company_id}/inventory/{product_id}`
 - `GET /api/intelligence/{company_id}/suppliers`

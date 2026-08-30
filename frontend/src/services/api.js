@@ -21,6 +21,7 @@ export const getMe = () => api.get('/v1/auth/me').then(r => r.data);
 export const getCompanies=()=>api.get('/companies').then(r=>r.data)
 export const seedDemo=()=>api.post('/demo/seed').then(r=>r.data)
 export const getDashboard=id=>api.get(`/dashboard/${id}`).then(r=>r.data)
+export const explainDashboard=id=>api.get(`/dashboard/${id}/explain`).then(r=>r.data)
 export const getInventory=id=>api.get(`/intelligence/${id}/inventory`).then(r=>r.data)
 export const getSuppliers=id=>api.get(`/intelligence/${id}/suppliers`).then(r=>r.data)
 export const getAnomalies=id=>api.get(`/intelligence/${id}/anomalies`).then(r=>r.data)

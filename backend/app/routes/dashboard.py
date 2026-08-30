@@ -9,6 +9,7 @@ from app.models import Company, Product, Sale, Shipment, Supplier, InventoryReco
 from app.services.inventory_intelligence import company_inventory, inventory_summary
 from app.services.supplier_intelligence import analyze_suppliers
 from app.services.recommendation_engine import generate_recommendations
+from app.services.explain_service import generate_situation_explanation
 
 router=APIRouter(prefix="/api/dashboard",tags=["dashboard"])
 @router.get("/{company_id}")
@@ -72,3 +73,17 @@ def dashboard(company_id:int,db:Session=Depends(get_db)):
     recommendations=generate_recommendations(db,company_id)
     health=max(0,min(100,100-risk_counts.get("CRITICAL",0)*3-risk_counts.get("HIGH",0)*1.5-inventory_summary(inv).get("stockout_high",0)*2))
     return {"company":{"id":c.id,"name":c.name,"industry":c.industry,"currency":c.default_currency},"kpis":{"products":products,"shipments":len(shipments),"high_risk_shipments":risk_counts.get("HIGH",0)+risk_counts.get("CRITICAL",0),"stockout_risks":inventory_summary(inv).get("stockout_high",0),"inventory_units":round(total_inventory,2),"inventory_value":round(inv_value,2),"supply_chain_health":round(health,1),"supplier_count":len(suppliers)},"shipment_risk_distribution":risk_counts,"inventory_summary":inventory_summary(inv),"top_suppliers":suppliers[:6],"top_recommendations":recommendations[:6],"model_source":entry.model_source if entry else None}
+
+@router.get("/{company_id}/explain")
+def explain_dashboard(company_id: int, db: Session = Depends(get_db)):
+    # Re-use the existing dashboard endpoint logic to fetch current metrics
+    data = dashboard(company_id, db)
+    
+    explanation = generate_situation_explanation(
+        kpis=data.get("kpis", {}),
+        risk_counts=data.get("shipment_risk_distribution", {}),
+        inventory_summary=data.get("inventory_summary", {}),
+        recommendations=data.get("top_recommendations", [])
+    )
+    
+    return {"explanation": explanation}
