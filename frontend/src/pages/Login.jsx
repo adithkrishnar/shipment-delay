@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 
 export default function Login() {
@@ -46,6 +46,10 @@ export default function Login() {
         <button type="submit" className="primary" style={{ padding: '0.8rem' }}>Log In</button>
       </form>
       {error && <p className="error" style={{ color: 'red' }}>{error}</p>}
+      
+      <p style={{ color: '#7f90a7', fontSize: '14px', marginTop: '20px' }}>
+        Don't have an account? <Link to="/register" style={{ color: '#38bdf8', textDecoration: 'none' }}>Register here</Link>
+      </p>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { login as apiLogin, getMe } from '../services/api';
+import { login as apiLogin, register as apiRegister, getMe } from '../services/api';
 
 const AuthContext = createContext(null);
 
@@ -42,6 +42,23 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const register = async (email, password, companyName) => {
+    try {
+      const data = await apiRegister(email, password, companyName);
+      setToken(data.access_token);
+      localStorage.setItem('token', data.access_token);
+      
+      const userData = await getMe();
+      setUser(userData);
+      return { success: true };
+    } catch (error) {
+      return { 
+        success: false, 
+        error: error.response?.data?.detail || "Registration failed" 
+      };
+    }
+  };
+
   const logout = () => {
     setToken(null);
     setUser(null);
@@ -54,6 +71,7 @@ export const AuthProvider = ({ children }) => {
     isAuthenticated: !!user,
     loading,
     login,
+    register,
     logout
   };
 

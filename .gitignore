@@ -75,3 +75,6 @@ Thumbs.db
 *.njsproj
 *.sln
 *.sw?
+
+trained_models/
+data/raw/

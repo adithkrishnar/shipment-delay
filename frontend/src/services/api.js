@@ -17,7 +17,7 @@ export const login = (username, password) => {
 };
 
 export const getMe = () => api.get('/v1/auth/me').then(r => r.data);
-
+export const register = (email, password, company_name) => api.post('/v1/auth/register', { email, password, company_name }).then(r => r.data);
 export const getCompanies=()=>api.get('/companies').then(r=>r.data)
 export const seedDemo=()=>api.post('/demo/seed').then(r=>r.data)
 export const getDashboard=id=>api.get(`/dashboard/${id}`).then(r=>r.data)

@@ -14,6 +14,7 @@ import Recommendations from './pages/Recommendations';
 import Models from './pages/Models';
 import Data from './pages/Data';
 import Login from './pages/Login';
+import Register from './pages/Register';
 import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider, useAuth } from './auth/AuthContext';
 
@@ -95,6 +96,7 @@ function MainApp() {
         {isAuthenticated && <Topbar company={company} companies={user?.is_superuser ? companies : (company ? [company] : [])} onCompany={changeCompany} />}
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
           <Route element={<ProtectedRoute />}>
             <Route path="/" element={<Overview company={company} />} />
             <Route path="/shipments" element={<Shipments company={company} />} />
