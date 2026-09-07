@@ -18,6 +18,18 @@ import Register from './pages/Register';
 import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider, useAuth } from './auth/AuthContext';
 
+/* ── Brand Logo SVG Mark ─────────────────────────────────────── */
+function BrandMark() {
+  return (
+    <div className="brand-logo" style={{ width: 40, height: 40, borderRadius: 10, margin: '0 auto 16px' }}>
+      <svg style={{ position: 'relative', zIndex: 1, width: 20, height: 20 }} viewBox="0 0 14 14" fill="none">
+        <path d="M7 1L12 4v6l-5 3L2 10V4l5-3z" stroke="#040810" strokeWidth="1.5" strokeLinejoin="round" fill="none"/>
+        <path d="M7 5l3 1.75v3.5L7 12l-3-1.75V6.75L7 5z" fill="#040810" opacity="0.6"/>
+      </svg>
+    </div>
+  );
+}
+
 function MainApp() {
   const { user, isAuthenticated } = useAuth();
   const [companies, setCompanies] = useState([]);
@@ -31,18 +43,18 @@ function MainApp() {
       setLoading(false);
       return;
     }
-    
+
     getCompanies()
       .then(x => {
         setCompanies(x);
-        
+
         // Use user's company_id as preference if available, else fallback to local storage / first company
         let defaultCompanyId = user?.company_id || id;
         if (!defaultCompanyId && x[0]) defaultCompanyId = x[0].id;
-        
+
         // Enforce the user's company_id if they are not superuser
         if (user && !user.is_superuser && user.company_id) {
-            defaultCompanyId = user.company_id;
+          defaultCompanyId = user.company_id;
         }
 
         setId(defaultCompanyId);
@@ -75,15 +87,22 @@ function MainApp() {
     localStorage.setItem('supplyiq_company', x);
   };
 
-  if (loading) return <div className="boot"><div className="brand-mark">S</div><h2>SupplyIQ</h2><p>Starting intelligence layer…</p></div>;
-  
+  if (loading) return (
+    <div className="boot">
+      <BrandMark />
+      <h2>SupplyIQ</h2>
+      <p>Starting intelligence layer…</p>
+      <div className="spinner" style={{ marginTop: 8 }} aria-hidden="true" />
+    </div>
+  );
+
   if (isAuthenticated && !companies.length) return (
     <div className="boot">
-      <div className="brand-mark">S</div>
+      <BrandMark />
       <h2>No company data yet</h2>
       <p>Seed the realistic demo companies to start.</p>
       <button className="primary" onClick={seed}>Seed demo data</button>
-      {err && <p className="error">{err}</p>}
+      {err && <p className="error" style={{ maxWidth: 360 }}>{err}</p>}
     </div>
   );
 
@@ -92,8 +111,20 @@ function MainApp() {
   return (
     <div className="app">
       {isAuthenticated && <Sidebar />}
-      <main className="main" style={{ width: isAuthenticated ? 'calc(100% - 240px)' : '100%', marginLeft: isAuthenticated ? '240px' : '0' }}>
-        {isAuthenticated && <Topbar company={company} companies={user?.is_superuser ? companies : (company ? [company] : [])} onCompany={changeCompany} />}
+      <main
+        className="main"
+        style={{
+          width: isAuthenticated ? `calc(100% - var(--sidebar-w))` : '100%',
+          marginLeft: isAuthenticated ? 'var(--sidebar-w)' : '0'
+        }}
+      >
+        {isAuthenticated && (
+          <Topbar
+            company={company}
+            companies={user?.is_superuser ? companies : (company ? [company] : [])}
+            onCompany={changeCompany}
+          />
+        )}
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />

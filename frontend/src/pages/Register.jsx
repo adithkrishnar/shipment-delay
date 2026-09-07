@@ -15,11 +15,11 @@ export default function Register() {
     e.preventDefault();
     setError('');
     setIsRegistering(true);
-    
+
     const result = await register(email, password, companyName);
-    
+
     setIsRegistering(false);
-    
+
     if (result.success) {
       navigate('/');
     } else {
@@ -28,46 +28,90 @@ export default function Register() {
   };
 
   return (
-    <div className="boot">
-      <div className="brand-mark">S</div>
-      <h2>Join SupplyIQ</h2>
-      <p>Create an account and set up your company space</p>
-      
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '300px', margin: '2rem auto' }}>
-        <input
-          type="text"
-          placeholder="Company Name"
-          value={companyName}
-          onChange={(e) => setCompanyName(e.target.value)}
-          required
-          style={{ padding: '0.8rem', borderRadius: '4px', border: '1px solid #203049', background: '#0b1220', color: '#e6edf7' }}
-        />
-        <input
-          type="email"
-          placeholder="Email address"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          style={{ padding: '0.8rem', borderRadius: '4px', border: '1px solid #203049', background: '#0b1220', color: '#e6edf7' }}
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          style={{ padding: '0.8rem', borderRadius: '4px', border: '1px solid #203049', background: '#0b1220', color: '#e6edf7' }}
-        />
-        <button type="submit" className="primary" style={{ padding: '0.8rem' }} disabled={isRegistering}>
-          {isRegistering ? 'Registering...' : 'Register'}
-        </button>
-      </form>
-      
-      {error && <p className="error" style={{ color: '#f87171', border: 'none', padding: 0, margin: '-10px 0 10px' }}>{error}</p>}
-      
-      <p style={{ color: '#7f90a7', fontSize: '14px' }}>
-        Already have an account? <Link to="/login" style={{ color: '#38bdf8', textDecoration: 'none' }}>Log in here</Link>
-      </p>
+    <div className="boot" style={{ justifyContent: 'center' }}>
+      {/* Brand mark */}
+      <div style={{ marginBottom: 0, textAlign: 'center' }}>
+        <div className="brand-logo" style={{ width: 40, height: 40, borderRadius: 10, margin: '0 auto 12px' }}>
+          <svg style={{ position: 'relative', zIndex: 1, width: 20, height: 20 }} viewBox="0 0 14 14" fill="none">
+            <path d="M7 1L12 4v6l-5 3L2 10V4l5-3z" stroke="#040810" strokeWidth="1.5" strokeLinejoin="round" fill="none"/>
+            <path d="M7 5l3 1.75v3.5L7 12l-3-1.75V6.75L7 5z" fill="#040810" opacity="0.6"/>
+          </svg>
+        </div>
+      </div>
+
+      <div className="auth-card animate-up">
+        <div className="auth-header">
+          <h2>Join SupplyIQ</h2>
+          <p>Create an account and set up your company space</p>
+        </div>
+
+        <form className="auth-form" onSubmit={handleSubmit}>
+          <div className="form-field">
+            <label className="form-label" htmlFor="reg-company">Company name</label>
+            <input
+              id="reg-company"
+              className="form-input"
+              type="text"
+              placeholder="Acme Corp"
+              value={companyName}
+              onChange={(e) => setCompanyName(e.target.value)}
+              required
+              autoComplete="organization"
+            />
+          </div>
+
+          <div className="form-field">
+            <label className="form-label" htmlFor="reg-email">Email address</label>
+            <input
+              id="reg-email"
+              className="form-input"
+              type="email"
+              placeholder="you@company.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              autoComplete="email"
+            />
+          </div>
+
+          <div className="form-field">
+            <label className="form-label" htmlFor="reg-password">Password</label>
+            <input
+              id="reg-password"
+              className="form-input"
+              type="password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              autoComplete="new-password"
+            />
+          </div>
+
+          {error && (
+            <div className="error" style={{ marginTop: 0 }}>{error}</div>
+          )}
+
+          <button
+            type="submit"
+            className="primary full"
+            disabled={isRegistering}
+            style={{ marginTop: 4 }}
+          >
+            {isRegistering ? (
+              <span style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center' }}>
+                <span className="spinner" style={{ width: 13, height: 13, borderWidth: 2 }} aria-hidden="true" />
+                Creating account…
+              </span>
+            ) : 'Create account'}
+          </button>
+        </form>
+
+        <div className="auth-link">
+          Already have an account?{' '}
+          <Link to="/login">Log in here</Link>
+        </div>
+      </div>
     </div>
   );
 }
