@@ -22,4 +22,38 @@ def generate_recommendations(db: Session, company_id: int) -> list[dict]:
     anomalies=detect_anomalies(db, company_id, 20)
     for a in anomalies[:5]:
         recs.append({"priority":"high" if a['severity']=='CRITICAL' else "medium","type":"anomaly","title":f"Investigate {a['entity_type']} anomaly","reason":a['explanation'],"expected_impact":"Validate the underlying event before it distorts planning decisions.","affected_entity":str(a['entity_id'])})
+    
+    try:
+        from app.models import Shipment
+        from app.services.risk_engine import shipment_context
+        # Get active uncompleted shipments to check for risk
+        shipments = db.query(Shipment).filter(Shipment.company_id == company_id, Shipment.actual_delivery.is_(None)).order_by(Shipment.planned_delivery.asc()).limit(100).all()
+        shipment_recs = []
+        for s in shipments:
+            try:
+                ctx = shipment_context(db, company_id, s.id)
+                live_score = ctx.get("live_risk", {}).get("live_risk_score", ctx["delay"]["delay_probability"])
+                if live_score >= 0.7:
+                    shipment_recs.append(ctx)
+            except Exception:
+                pass
+        
+        # Sort by live_risk_score descending
+        shipment_recs.sort(key=lambda x: x.get("live_risk", {}).get("live_risk_score", x["delay"]["delay_probability"]), reverse=True)
+        for ctx in shipment_recs[:10]:
+            live_score = ctx.get("live_risk", {}).get("live_risk_score", ctx["delay"]["delay_probability"])
+            title = f"High risk of delay: Shipment {ctx['shipment']['external_id']}"
+            reason = f"{(live_score*100):.0f}% live risk of delay. Expected shortage: {ctx['inventory_impact']['expected_shortage']} units."
+            recs.append({
+                "priority": "critical" if ctx['inventory_impact']['stockout_risk'] in ("HIGH", "CRITICAL") else "high",
+                "type": "shipment",
+                "title": title,
+                "reason": reason,
+                "expected_impact": ctx['recommended_action'],
+                "affected_entity": ctx['shipment']['product_name'] or str(ctx['shipment']['product_id']),
+                "shipment_id": ctx['shipment']['id']
+            })
+    except Exception:
+        pass
+        
     return sorted(recs, key=lambda x:{"critical":0,"high":1,"medium":2,"low":3}.get(x["priority"],2))[:30]

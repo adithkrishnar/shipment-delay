@@ -253,6 +253,12 @@ def save_model(trained, path) -> None:
 
 
 def load_model(path):
+    import __main__
+    from app.ml.shipment_delay import TrainedDelayClassifier, TrainedDelayDurationModel
+    if not hasattr(__main__, 'TrainedDelayClassifier'):
+        __main__.TrainedDelayClassifier = TrainedDelayClassifier
+    if not hasattr(__main__, 'TrainedDelayDurationModel'):
+        __main__.TrainedDelayDurationModel = TrainedDelayDurationModel
     return joblib.load(path)
 
 
@@ -266,9 +272,38 @@ def predict_shipment_risk(
     build_shipment_feature_matrix (completed_only=False, since this is for
     a shipment that may not have an actual_delivery yet).
     """
-    feat = build_shipment_feature_matrix(shipment_row, completed_only=False)
-    encoded, _ = encode_categoricals(feat, fit_columns=classifier.feature_columns)
-    X = encoded[classifier.feature_columns]
+    if classifier.metrics.get("dataco_trained"):
+        mode_map = {"air": "First Class", "rail": "Second Class", "road": "Same Day", "sea": "Standard Class"}
+        row_dict = {}
+        for col in classifier.feature_columns:
+            if col == "Shipping Mode":
+                row_dict[col] = mode_map.get(str(shipment_row.iloc[0].get("transport_mode", "")).lower(), "Standard Class")
+            elif col == "Order City":
+                row_dict[col] = shipment_row.iloc[0].get("destination", "")
+            elif col == "Order State":
+                row_dict[col] = shipment_row.iloc[0].get("origin", "")
+            elif col in ["order_month", "order_day", "order_dayofweek", "order_year"]:
+                order_date = pd.to_datetime(shipment_row.iloc[0].get("order_date"))
+                if pd.notna(order_date):
+                    if col == "order_month": row_dict[col] = order_date.month
+                    elif col == "order_day": row_dict[col] = order_date.day
+                    elif col == "order_dayofweek": row_dict[col] = order_date.dayofweek
+                    elif col == "order_year": row_dict[col] = order_date.year
+                else:
+                    row_dict[col] = 0
+            else:
+                row_dict[col] = 0
+        
+        X = pd.DataFrame([row_dict])
+        encoder = classifier.metrics["encoder"]
+        cat_cols = encoder.feature_names_in_ if hasattr(encoder, "feature_names_in_") else [c for c in X.columns if X[c].dtype == object]
+        for c in cat_cols:
+            X[c] = X[c].astype(str)
+        X[cat_cols] = encoder.transform(X[cat_cols])
+    else:
+        feat = build_shipment_feature_matrix(shipment_row, completed_only=False)
+        encoded, _ = encode_categoricals(feat, fit_columns=classifier.feature_columns)
+        X = encoded[classifier.feature_columns]
 
     delay_probability = float(classifier.model.predict_proba(X)[0, 1])
 
@@ -281,9 +316,12 @@ def predict_shipment_risk(
 
     expected_delay_days = None
     if duration_model is not None:
-        encoded_dur, _ = encode_categoricals(feat, fit_columns=duration_model.feature_columns)
-        X_dur = encoded_dur[duration_model.feature_columns]
-        expected_delay_days = float(np.clip(duration_model.model.predict(X_dur)[0], 0, None))
+        if classifier.metrics.get("dataco_trained"):
+            expected_delay_days = None
+        else:
+            encoded_dur, _ = encode_categoricals(feat, fit_columns=duration_model.feature_columns)
+            X_dur = encoded_dur[duration_model.feature_columns]
+            expected_delay_days = float(np.clip(duration_model.model.predict(X_dur)[0], 0, None))
 
     top_factors = _top_risk_factors(classifier, X.iloc[0])
 
@@ -304,17 +342,47 @@ def predict_shipment_risk_batch(
     if shipments_df.empty:
         return []
         
-    feat = build_shipment_feature_matrix(shipments_df, completed_only=False)
-    encoded, _ = encode_categoricals(feat, fit_columns=classifier.feature_columns)
-    X = encoded[classifier.feature_columns]
+    if classifier.metrics.get("dataco_trained"):
+        mode_map = {"air": "First Class", "rail": "Second Class", "road": "Same Day", "sea": "Standard Class"}
+        X = pd.DataFrame(index=shipments_df.index, columns=classifier.feature_columns)
+        for col in classifier.feature_columns:
+            if col == "Shipping Mode":
+                X[col] = shipments_df.get("transport_mode", pd.Series(index=shipments_df.index)).fillna("").astype(str).str.lower().map(mode_map).fillna("Standard Class")
+            elif col == "Order City":
+                X[col] = shipments_df.get("destination", "")
+            elif col == "Order State":
+                X[col] = shipments_df.get("origin", "")
+            elif col == "order_month":
+                X[col] = pd.to_datetime(shipments_df.get("order_date")).dt.month.fillna(0)
+            elif col == "order_day":
+                X[col] = pd.to_datetime(shipments_df.get("order_date")).dt.day.fillna(0)
+            elif col == "order_dayofweek":
+                X[col] = pd.to_datetime(shipments_df.get("order_date")).dt.dayofweek.fillna(0)
+            elif col == "order_year":
+                X[col] = pd.to_datetime(shipments_df.get("order_date")).dt.year.fillna(0)
+            else:
+                X[col] = 0
+                
+        encoder = classifier.metrics["encoder"]
+        cat_cols = encoder.feature_names_in_ if hasattr(encoder, "feature_names_in_") else [c for c in X.columns if X[c].dtype == object]
+        for c in cat_cols:
+            X[c] = X[c].astype(str)
+        X[cat_cols] = encoder.transform(X[cat_cols])
+    else:
+        feat = build_shipment_feature_matrix(shipments_df, completed_only=False)
+        encoded, _ = encode_categoricals(feat, fit_columns=classifier.feature_columns)
+        X = encoded[classifier.feature_columns]
 
     delay_probabilities = classifier.model.predict_proba(X)[:, 1]
     
     expected_delay_days = [None] * len(X)
     if duration_model is not None:
-        encoded_dur, _ = encode_categoricals(feat, fit_columns=duration_model.feature_columns)
-        X_dur = encoded_dur[duration_model.feature_columns]
-        expected_delay_days = np.clip(duration_model.model.predict(X_dur), 0, None).tolist()
+        if classifier.metrics.get("dataco_trained"):
+            pass
+        else:
+            encoded_dur, _ = encode_categoricals(feat, fit_columns=duration_model.feature_columns)
+            X_dur = encoded_dur[duration_model.feature_columns]
+            expected_delay_days = np.clip(duration_model.model.predict(X_dur), 0, None).tolist()
 
     # Batch SHAP explainability
     model = classifier.model

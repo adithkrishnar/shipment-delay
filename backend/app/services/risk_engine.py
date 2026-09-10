@@ -7,6 +7,7 @@ from app.models import Company, Shipment, Supplier, Product
 from app.ml.shipment_delay import predict_shipment_risk
 from app.services.model_training_service import get_active_shipment_models
 from app.services.inventory_intelligence import analyze_product
+from app.services.live_intelligence import weather, news, live_risk_fusion
 import pandas as pd
 
 
@@ -25,9 +26,57 @@ def shipment_context(db: Session, company_id: int, shipment_id: int) -> dict:
         "supplier_reliability": supplier.reliability if supplier else None, "supplier_cost_index": supplier.cost_index if supplier else None,
     }])
     risk = predict_shipment_risk(classifier, duration, row)
-    inv = analyze_product(db, company_id, shipment.product_id, risk.get("expected_delay_days") or 0)
-    return {"shipment": {"id": shipment.id, "external_id": shipment.external_shipment_id, "origin": shipment.origin, "destination": shipment.destination, "quantity": shipment.quantity, "product_id": shipment.product_id}, "delay": risk, "inventory_impact": inv, "model_source": entry.model_source}
-
+    product = db.query(Product).filter(Product.id == shipment.product_id).first()
+    
+    delay_prob = risk.get("delay_probability", 0)
+    
+    weather_res = weather(shipment.destination)
+    news_res = news(shipment.destination)
+    live_risk = live_risk_fusion(delay_prob, weather_res, news_res)
+    live_risk_score = live_risk["live_risk_score"]
+    
+    delay_days = risk.get("expected_delay_days")
+    if delay_days is None and live_risk_score >= 0.5:
+        delay_days = 3.5
+        
+    inv = analyze_product(db, company_id, shipment.product_id, delay_days or 0)
+    
+    stockout_risk = inv.get("stockout_risk", "LOW")
+    overstock_risk = inv.get("overstock_risk", "LOW")
+    if live_risk_score >= 0.7 and stockout_risk in ("HIGH", "CRITICAL"):
+        rec = "Expedite shipment and place emergency replenishment order"
+    elif live_risk_score >= 0.7 and stockout_risk in ("LOW", "MEDIUM"):
+        rec = "Monitor; place contingency replenishment order"
+    elif live_risk_score < 0.4 and stockout_risk in ("HIGH", "CRITICAL"):
+        rec = "Shortage unrelated to this shipment; investigate demand surge or place replenishment order"
+    elif overstock_risk in ("HIGH", "CRITICAL"):
+        rec = "Delay replenishment; existing inventory can absorb the delay"
+    else:
+        rec = "No action required; inventory adequate for expected delay duration"
+        
+    return {
+        "shipment": {
+            "id": shipment.id,
+            "external_id": shipment.external_shipment_id,
+            "origin": shipment.origin,
+            "destination": shipment.destination,
+            "quantity": shipment.quantity,
+            "product_id": shipment.product_id,
+            "product_name": product.name if product else None,
+            "supplier_name": supplier.name if supplier else None,
+            "shipping_mode": shipment.transport_mode,
+        },
+        "ml_prediction": risk,
+        "delay": risk, # keep for backwards compatibility if needed
+        "live_intelligence": {
+            "weather": weather_res,
+            "news": news_res
+        },
+        "live_risk": live_risk,
+        "inventory_impact": inv,
+        "recommended_action": rec,
+        "model_source": entry.model_source
+    }
 
 def simulate(db: Session, company_id: int, product_id: int, demand_multiplier: float = 1.0, inventory_delta: float = 0.0, delay_days: float = 0.0, lead_time_delta: float = 0.0, incoming_delta: float = 0.0, reorder_delta: float = 0.0) -> dict:
     base = analyze_product(db, company_id, product_id, 0)

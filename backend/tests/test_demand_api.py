@@ -46,8 +46,14 @@ def test_retrain_then_forecast_end_to_end(client):
     r = client.post(f"/api/models/retrain/{company_id}")
     assert r.status_code == 200
     body = r.json()
-    assert body["demand"]["trained_company_specific"] is True
-    assert body["demand"]["active_model_source"] == "company_specific"
+    assert "queued" in body["message"]
+
+    from app.services.model_training_service import train_company_demand_model
+    from app.database import SessionLocal
+    db = SessionLocal()
+    train_company_demand_model(db, company_id)
+    db.commit()
+    db.close()
 
     r = client.get(f"/api/demand/forecast/{company_id}?horizon=7")
     assert r.status_code == 200
@@ -62,7 +68,15 @@ def test_retrain_then_forecast_end_to_end(client):
 def test_forecast_rejects_invalid_horizon(client):
     company_id = _create_company(client, "Bad Horizon Co")
     _seed_sales_via_db(company_id, n_days=400, n_products=10)
-    client.post(f"/api/models/retrain/{company_id}")
+    r = client.post(f"/api/models/retrain/{company_id}")
+    assert r.status_code == 200
+
+    from app.services.model_training_service import train_company_demand_model
+    from app.database import SessionLocal
+    db = SessionLocal()
+    train_company_demand_model(db, company_id)
+    db.commit()
+    db.close()
 
     r = client.get(f"/api/demand/forecast/{company_id}?horizon=13")
     assert r.status_code == 400
@@ -78,10 +92,18 @@ def test_small_company_falls_back_to_base_via_api(client):
     r = client.post("/api/models/train/base")
     assert r.status_code == 200
 
+    from app.services.model_training_service import train_base_demand_model, train_company_demand_model
+    from app.database import SessionLocal
+    db = SessionLocal()
+    train_base_demand_model(db)
+    db.commit()
+
     r = client.post(f"/api/models/retrain/{small_id}")
-    body = r.json()
-    assert body["demand"]["trained_company_specific"] is False
-    assert body["demand"]["active_model_source"] == "base"
+    assert r.status_code == 200
+
+    train_company_demand_model(db, small_id)
+    db.commit()
+    db.close()
 
     r = client.get(f"/api/demand/forecast/{small_id}")
     assert r.status_code == 200
@@ -91,7 +113,15 @@ def test_small_company_falls_back_to_base_via_api(client):
 def test_forecast_single_product_via_query_param(client):
     company_id = _create_company(client, "Single Product Co")
     _seed_sales_via_db(company_id, n_days=400, n_products=10)
-    client.post(f"/api/models/retrain/{company_id}")
+    r = client.post(f"/api/models/retrain/{company_id}")
+    assert r.status_code == 200
+
+    from app.services.model_training_service import train_company_demand_model
+    from app.database import SessionLocal
+    db = SessionLocal()
+    train_company_demand_model(db, company_id)
+    db.commit()
+    db.close()
 
     r = client.get(f"/api/demand/forecast/{company_id}")
     all_products = r.json()["products"]
@@ -107,7 +137,15 @@ def test_forecast_single_product_via_query_param(client):
 def test_model_registry_lists_entries_for_company(client):
     company_id = _create_company(client, "Registry Co")
     _seed_sales_via_db(company_id, n_days=400, n_products=10)
-    client.post(f"/api/models/retrain/{company_id}")
+    r = client.post(f"/api/models/retrain/{company_id}")
+    assert r.status_code == 200
+
+    from app.services.model_training_service import train_company_demand_model
+    from app.database import SessionLocal
+    db = SessionLocal()
+    train_company_demand_model(db, company_id)
+    db.commit()
+    db.close()
 
     r = client.get(f"/api/models/{company_id}")
     assert r.status_code == 200

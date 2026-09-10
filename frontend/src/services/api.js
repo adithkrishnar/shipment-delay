@@ -26,6 +26,7 @@ export const getInventory=id=>api.get(`/intelligence/${id}/inventory`).then(r=>r
 export const getSuppliers=id=>api.get(`/intelligence/${id}/suppliers`).then(r=>r.data)
 export const getAnomalies=id=>api.get(`/intelligence/${id}/anomalies`).then(r=>r.data)
 export const getShipments=id=>api.get(`/shipments/${id}?limit=100`).then(r=>r.data)
+export const getShipmentImpact=(companyId, shipmentId)=>api.get(`/intelligence/${companyId}/shipments/${shipmentId}/impact`).then(r=>r.data)
 export const getForecast=(id,horizon=30)=>api.get(`/demand/forecast/${id}?horizon=${horizon}`).then(r=>r.data)
 export const getRecommendations=id=>api.get(`/recommendations/${id}`).then(r=>r.data)
 export const getModels=id=>api.get(`/models/${id}`).then(r=>r.data)

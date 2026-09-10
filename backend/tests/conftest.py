@@ -35,3 +35,7 @@ def db_session():
     finally:
         session.close()
         Base.metadata.drop_all(bind=engine)
+import pytest
+from unittest.mock import AsyncMock
+from app.deps.arq import get_redis_pool
+app.dependency_overrides[get_redis_pool] = lambda: AsyncMock()
