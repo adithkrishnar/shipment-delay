@@ -78,13 +78,20 @@ function MainApp() {
       });
   };
 
-  const changeCompany = x => {
+  const changeCompany = async x => {
     // Prevent changing company if not superuser
     if (user && !user.is_superuser && user.company_id !== x) {
       return;
     }
     setId(x);
     localStorage.setItem('supplyiq_company', x);
+    // If the company isn't in our list (e.g. newly created from CSV), reload companies
+    if (!companies.find(c => c.id === x)) {
+      try {
+        const updated = await getCompanies();
+        setCompanies(updated);
+      } catch(e) {}
+    }
   };
 
   if (loading) return (
@@ -106,7 +113,7 @@ function MainApp() {
     </div>
   );
 
-  const company = companies.find(x => x.id === id) || companies[0];
+  const company = companies.find(x => x.id === id) || (id ? { id, name: 'Loading...' } : companies[0]);
 
   return (
     <div className="app">
@@ -138,7 +145,7 @@ function MainApp() {
             <Route path="/simulator" element={<Simulator company={company} />} />
             <Route path="/recommendations" element={<Recommendations company={company} />} />
             <Route path="/models" element={<Models company={company} />} />
-            <Route path="/data" element={<Data company={company} />} />
+            <Route path="/data" element={<Data company={company} onCompanyChange={changeCompany} />} />
           </Route>
         </Routes>
       </main>

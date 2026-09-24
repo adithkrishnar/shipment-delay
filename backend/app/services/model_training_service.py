@@ -30,6 +30,15 @@ from app.ml.shipment_delay import (
 )
 from app.ml.shipment_delay import load_model as load_shipment_model
 from app.ml.shipment_delay import save_model as save_shipment_model
+from functools import lru_cache
+
+@lru_cache(maxsize=16)
+def _cached_load_demand(path: str):
+    return load_model(path)
+
+@lru_cache(maxsize=16)
+def _cached_load_shipment(path: str):
+    return load_shipment_model(path)
 from app.ml.shipment_delay import train_delay_classifier, train_delay_duration_model
 from app.models import Company, ModelRegistryEntry, Sale, Shipment, Supplier
 from app.services.model_selection import check_demand_data_sufficiency, check_shipment_data_sufficiency
@@ -199,7 +208,7 @@ def get_active_demand_model(db: Session, company_id: int) -> tuple[TrainedDemand
         .first()
     )
     if company_entry:
-        return load_model(company_entry.model_path), company_entry
+        return _cached_load_demand(str(company_entry.model_path)), company_entry
 
     base_entry = (
         db.query(ModelRegistryEntry)
@@ -212,7 +221,7 @@ def get_active_demand_model(db: Session, company_id: int) -> tuple[TrainedDemand
         .first()
     )
     if base_entry:
-        return load_model(base_entry.model_path), base_entry
+        return _cached_load_demand(str(base_entry.model_path)), base_entry
 
     raise FileNotFoundError(
         "No demand forecasting model available for this company and no base model has been trained yet. "
@@ -356,7 +365,7 @@ def get_active_shipment_models(db: Session, company_id: int) -> tuple[TrainedDel
             "Call POST /api/models/train/base first."
         )
 
-    classifier = load_shipment_model(clf_entry.model_path)
+    classifier = _cached_load_shipment(str(clf_entry.model_path))
 
     dur_entry = (
         db.query(ModelRegistryEntry)
@@ -368,7 +377,7 @@ def get_active_shipment_models(db: Session, company_id: int) -> tuple[TrainedDel
         .order_by(ModelRegistryEntry.training_date.desc())
         .first()
     )
-    duration_model = load_shipment_model(dur_entry.model_path) if dur_entry else None
+    duration_model = _cached_load_shipment(str(dur_entry.model_path)) if dur_entry else None
 
     return classifier, duration_model, clf_entry
 

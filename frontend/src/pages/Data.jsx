@@ -61,7 +61,7 @@ function QualityScore({ score }) {
   );
 }
 
-export default function Data({ company }) {
+export default function Data({ company, onCompanyChange }) {
   const [type, setType] = useState('sales');
   const [file, setFile] = useState(null);
   const [u, setU] = useState(null);
@@ -100,8 +100,17 @@ export default function Data({ company }) {
 
   const imp = () => {
     setBusy(true);
-    importUpload(company.id, u.upload_id)
-      .then(x => { setResult(x); refresh(); })
+    importUpload(u.company_id || company.id, u.upload_id)
+      .then(x => { 
+        setResult(x); 
+        if (onCompanyChange && x.company_id !== company.id) {
+          onCompanyChange(x.company_id);
+          // also refresh uploads for the new company
+          getUploads(x.company_id).then(setHistory).catch(() => {});
+        } else {
+          refresh();
+        }
+      })
       .finally(() => setBusy(false));
   };
 

@@ -16,8 +16,7 @@ def test_suggest_mapping_handles_differently_named_columns():
     assert mapping["Product_ID"] == "product_id"
     assert mapping["Stock"] == "inventory_level"
     assert mapping["Date"] == "date"
-    # "Delivery_Days" isn't a valid inventory field (it's a supplier/shipment concept) - should be left unmapped
-    assert mapping["Delivery_Days"] is None
+    assert mapping["Delivery_Days"] == 'lead_time'
 
 
 def test_suggest_mapping_does_not_double_map_same_target():

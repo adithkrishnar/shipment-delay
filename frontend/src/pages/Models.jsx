@@ -99,9 +99,31 @@ export default function Models({ company }) {
 
   const pollIntervals = useRef({});
 
+  const [error, setError] = useState(null);
+
   const load = () => {
     if (company) {
-      getModels(company.id).then(setD);
+      setError(null);
+      getModels(company.id)
+        .then(data => {
+            if (Array.isArray(data)) setD(data);
+            else setError("Invalid response format");
+        })
+        .catch(e => {
+            const detail = e.response?.data?.detail;
+            const errMsg = typeof detail === 'string' ? detail : (Array.isArray(detail) ? JSON.stringify(detail) : e.message);
+            setError(errMsg || "Failed to load models");
+        });
+        
+      getCompanyJobs(company.id).then(jobs => {
+        if (!Array.isArray(jobs)) return;
+        const active = jobs.filter(j => j.status === 'queued' || j.status === 'in_progress');
+        if (active.length > 0) {
+          const ids = active.map(j => j.job_id);
+          setActiveJobs(prev => [...new Set([...prev, ...ids])]);
+          ids.forEach(pollJob);
+        }
+      }).catch(() => {});
     }
   };
 
@@ -121,14 +143,15 @@ export default function Models({ company }) {
         setMsg('Training started in background.');
         setMsgType('info');
         const jobIds = response.jobs.map(j => j.job_id);
-        setActiveJobs(prev => [...prev, ...jobIds]);
+        setActiveJobs(prev => [...new Set([...prev, ...jobIds])]);
 
         jobIds.forEach(jobId => {
           pollJob(jobId);
         });
       }
     } catch (e) {
-      setMsg(e.response?.data?.detail || e.message);
+      const detail = e.response?.data?.detail;
+      setMsg(typeof detail === 'string' ? detail : (Array.isArray(detail) ? JSON.stringify(detail) : e.message));
       setMsgType('error');
     }
   };
@@ -162,6 +185,16 @@ export default function Models({ company }) {
       }
     }, 2500);
   };
+
+  if (error) {
+    return (
+      <div className="page animate-fade">
+        <Panel title="Error Loading Models">
+          <div style={{ color: 'var(--status-critical)', padding: '20px 0' }}>{error}</div>
+        </Panel>
+      </div>
+    );
+  }
 
   if (!d) return <Loader />;
 

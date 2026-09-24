@@ -41,3 +41,15 @@ def get_current_active_superuser(
             status_code=400, detail="The user doesn't have enough privileges"
         )
     return current_user
+
+def verify_company_access(
+    company_id: int,
+    current_user: User = Depends(get_current_user),
+) -> User:
+    if not current_user.is_superuser and current_user.company_id != company_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, 
+            detail="Not authorized to access this company's data"
+        )
+    return current_user
+

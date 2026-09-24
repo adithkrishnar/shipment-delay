@@ -205,10 +205,16 @@ IMPORTERS = {
 
 def import_dataset(db: Session, company_id: int, dataset_type: str, df: pd.DataFrame) -> tuple[int, int]:
     """Runs the correct importer, commits, and returns (imported_count, skipped_count)."""
-    importer = IMPORTERS[dataset_type]
-    imported, skipped = importer(db, company_id, df)
+    total_imported, total_skipped = 0, 0
+    # Try all importers since a unified CSV might contain fields for multiple domains
+    for name, importer in IMPORTERS.items():
+        imp, skp = importer(db, company_id, df)
+        if imp > 0:
+            total_imported += imp
+        if name == dataset_type:
+            total_skipped = skp
     db.commit()
-    return imported, skipped
+    return total_imported, total_skipped
 
 
 def revalidate_after_mapping(dataset_type: str, mapped_df: pd.DataFrame) -> dict:

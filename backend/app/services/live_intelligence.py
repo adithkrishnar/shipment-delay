@@ -18,6 +18,9 @@ def get_coordinates(port: str) -> tuple[float, float] | None:
     # Simple hardcoded fallback for demo if not in PORTS
     return PORTS["Mumbai"]
 
+from functools import lru_cache
+
+@lru_cache(maxsize=128)
 def weather(port: str) -> dict:
     coords = get_coordinates(port)
     if not coords:
@@ -112,14 +115,15 @@ def weather(port: str) -> dict:
     except Exception as e:
         return {"status": "offline", "port": port, "message": str(e), "weather_risk_score": 0}
 
+@lru_cache(maxsize=128)
 def news(query: str) -> dict:
     from app.config import settings
     api_key = settings.NEWS_API_KEY
     if not api_key:
         return {"status": "offline", "query": query, "message": "NEWS_API_KEY not configured."}
         
-    # Build search query for disruptions
-    search_q = f'"{query}" AND (disruption OR delay OR strike OR flood OR storm OR shortage OR fire OR earthquake)'
+    # Build search query for disruptions, focusing on logistics and supply chain
+    search_q = f'"{query}" AND ("supply chain" OR port OR cargo OR logistics OR freight OR shipping) AND (disruption OR delay OR strike OR flood OR storm OR shortage)'
     
     try:
         r = requests.get(

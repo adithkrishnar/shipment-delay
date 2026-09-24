@@ -59,19 +59,43 @@ export default function Demand({ company }) {
   const [d, setD] = useState(null);
   const [h, setH] = useState(30);
   const [p, setP] = useState(0);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     if (company) {
-      getForecast(company.id, h).then(x => {
-        setD(x);
-        setP(x.products[0]?.product_id || 0);
-      });
+      setError(null);
+      setD(null);
+      getForecast(company.id, h)
+        .then(x => {
+          setD(x);
+          setP(x.products[0]?.product_id || 0);
+        })
+        .catch(e => {
+          const detail = e.response?.data?.detail;
+          setError(typeof detail === 'string' ? detail : (Array.isArray(detail) ? JSON.stringify(detail) : (e.message || "Failed to load demand forecast")));
+        });
     }
   }, [company, h]);
 
+  if (error) {
+    return (
+      <div className="page animate-fade">
+        <div className="page-header">
+          <div className="page-eyebrow">Demand Forecasting</div>
+          <h1 className="page-title">Turn historical demand into a planning signal.</h1>
+        </div>
+        <Panel title="Error Loading Forecast">
+          <div style={{ color: 'var(--status-critical)', padding: '20px 0' }}>
+            {error}
+          </div>
+        </Panel>
+      </div>
+    );
+  }
+
   if (!d) return <Loader />;
 
-  const selected = d.products.find(x => x.product_id === p) || d.products[0];
+  const selected = d.products?.find(x => x.product_id === p) || d.products?.[0];
 
   return (
     <div className="page animate-fade">

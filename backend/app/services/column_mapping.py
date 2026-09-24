@@ -53,7 +53,14 @@ def suggest_column_mapping(dataset_type: str, source_columns: list[str]) -> dict
     if dataset_type not in STANDARD_SCHEMA:
         raise ValueError(f"Unknown dataset_type: {dataset_type}")
 
-    candidate_fields = all_standard_fields(dataset_type)
+    # Suggest mappings for ALL known fields, regardless of chosen dataset_type, 
+    # since a unified CSV might contain cross-domain data
+    candidate_fields = []
+    for schema_type in STANDARD_SCHEMA.keys():
+        candidate_fields.extend(all_standard_fields(schema_type))
+    # Deduplicate candidate fields
+    candidate_fields = list(set(candidate_fields))
+    
     mapping: dict[str, str | None] = {}
     used_standard_fields: set[str] = set()
 

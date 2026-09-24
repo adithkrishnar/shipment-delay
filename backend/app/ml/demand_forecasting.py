@@ -185,6 +185,10 @@ def forecast_product_demand(
     product_id = history["product_id"].iloc[0]
     product_mean = trained.product_mean_encoding.get(product_id, trained.global_mean_demand)
 
+    # Disable parallel overhead for recursive single-row predictions
+    if hasattr(trained.model, "n_jobs"):
+        trained.model.n_jobs = None
+
     last_date = history["date"].max()
     forecasts = []
 

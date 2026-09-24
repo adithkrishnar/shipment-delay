@@ -142,6 +142,12 @@ export default function Overview({ company }) {
           </Link>
         </div>
       </div>
+      
+      {d.model_source && (
+        <div style={{ marginBottom: 20, padding: '10px 14px', background: 'var(--bg-surface-2)', borderRadius: 'var(--r-md)', fontSize: 12, display: 'flex', gap: 20 }}>
+          <div><span style={{ color: 'var(--text-tertiary)' }}>Shipment Risk Model Source:</span> <strong>{d.model_source}</strong></div>
+        </div>
+      )}
 
       {/* ── KPI Row ───────────────────────────────────────────── */}
       <div className="metrics stagger" style={{ marginBottom: 20 }}>

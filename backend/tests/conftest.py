@@ -38,4 +38,12 @@ def db_session():
 import pytest
 from unittest.mock import AsyncMock
 from app.deps.arq import get_redis_pool
+from app.auth.deps import get_current_user
+from app.models.user import User
+
 app.dependency_overrides[get_redis_pool] = lambda: AsyncMock()
+
+def mock_get_current_user():
+    return User(id=1, email="test@example.com", company_id=1, is_superuser=True, is_active=True)
+
+app.dependency_overrides[get_current_user] = mock_get_current_user

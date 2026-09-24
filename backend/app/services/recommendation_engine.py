@@ -27,7 +27,7 @@ def generate_recommendations(db: Session, company_id: int) -> list[dict]:
         from app.models import Shipment
         from app.services.risk_engine import shipment_context
         # Get active uncompleted shipments to check for risk
-        shipments = db.query(Shipment).filter(Shipment.company_id == company_id, Shipment.actual_delivery.is_(None)).order_by(Shipment.planned_delivery.asc()).limit(100).all()
+        shipments = db.query(Shipment).filter(Shipment.company_id == company_id, Shipment.actual_delivery.is_(None)).order_by(Shipment.planned_delivery.asc()).limit(20).all()
         shipment_recs = []
         for s in shipments:
             try:
