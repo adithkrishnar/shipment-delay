@@ -253,12 +253,6 @@ def save_model(trained, path) -> None:
 
 
 def load_model(path):
-    import __main__
-    from app.ml.shipment_delay import TrainedDelayClassifier, TrainedDelayDurationModel
-    if not hasattr(__main__, 'TrainedDelayClassifier'):
-        __main__.TrainedDelayClassifier = TrainedDelayClassifier
-    if not hasattr(__main__, 'TrainedDelayDurationModel'):
-        __main__.TrainedDelayDurationModel = TrainedDelayDurationModel
     return joblib.load(path)
 
 

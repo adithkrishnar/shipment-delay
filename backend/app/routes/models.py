@@ -57,6 +57,8 @@ def get_job_status(job_id: str, db: Session=Depends(get_db), *, current_user: Us
     job = db.query(TrainingJob).filter(TrainingJob.id == job_id).first()
     if not job:
         raise HTTPException(status_code=404, detail='Job not found')
+    if job.company_id is not None and not current_user.is_superuser and current_user.company_id != job.company_id:
+        raise HTTPException(status_code=403, detail="Not authorized to access this company's job")
     return JobStatusResponse(job_id=job.id, status=job.status, result=json.loads(job.result) if job.result else None, error=job.error_message)
 
 @router.get('/{company_id}/jobs')

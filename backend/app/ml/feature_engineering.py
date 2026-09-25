@@ -30,6 +30,10 @@ def build_daily_demand_table(sales_df: pd.DataFrame) -> pd.DataFrame:
     """
     sales_df = sales_df.copy()
     sales_df["date"] = pd.to_datetime(sales_df["date"])
+    
+    if "promotion" not in sales_df.columns:
+        sales_df["promotion"] = 0
+    sales_df = sales_df.groupby(["product_id", "date"], as_index=False).agg({"quantity": "sum", "promotion": "max"})
 
     frames = []
     for product_id, group in sales_df.groupby("product_id"):

@@ -32,7 +32,9 @@ def _require_upload(db: Session, upload_id: int) -> DatasetUpload:
     return upload
 
 @router.post('/upload', response_model=UploadResponse)
-async def upload_dataset(company_id: int=Form(...), dataset_type: str=Form(...), file: UploadFile=File(...), db: Session=Depends(get_db)):
+async def upload_dataset(company_id: int=Form(...), dataset_type: str=Form(...), file: UploadFile=File(...), db: Session=Depends(get_db), *, current_user: User=Depends(get_current_user)):
+    if not current_user.is_superuser and current_user.company_id != company_id:
+        raise HTTPException(403, "Not authorized to access this company's data")
     _require_company(db, company_id)
     if dataset_type not in VALID_DATASET_TYPES:
         raise HTTPException(status_code=400, detail=f'dataset_type must be one of {sorted(VALID_DATASET_TYPES)}')

@@ -20,6 +20,8 @@ class SimulationRequest(BaseModel):
 
 @router.post('')
 def run_simulation(req: SimulationRequest, db: Session=Depends(get_db), *, current_user: User=Depends(get_current_user)):
+    if not current_user.is_superuser and current_user.company_id != req.company_id:
+        raise HTTPException(403, "Not authorized to access this company's data")
     if not db.query(Company).filter(Company.id == req.company_id).first():
         raise HTTPException(404, 'Company not found')
     if not db.query(Product).filter(Product.id == req.product_id, Product.company_id == req.company_id).first():

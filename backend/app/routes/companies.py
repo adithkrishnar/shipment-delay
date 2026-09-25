@@ -13,11 +13,17 @@ logger = get_logger(__name__)
 
 @router.get('/all', response_model=List[CompanyOut])
 def get_companies(db: Session=Depends(get_db), current_user: User=Depends(get_current_user)):
-    return db.query(Company).all()
+    query = db.query(Company)
+    if not current_user.is_superuser:
+        query = query.filter(Company.id == current_user.company_id)
+    return query.all()
 
 @router.get('', response_model=list[CompanySummaryOut])
 def list_companies(db: Session=Depends(get_db), *, current_user: User=Depends(get_current_user)):
-    companies = db.query(Company).order_by(Company.name).all()
+    query = db.query(Company)
+    if not current_user.is_superuser:
+        query = query.filter(Company.id == current_user.company_id)
+    companies = query.order_by(Company.name).all()
     out = []
     for c in companies:
         product_count = db.query(func.count(Product.id)).filter(Product.company_id == c.id).scalar() or 0
@@ -30,6 +36,8 @@ def list_companies(db: Session=Depends(get_db), *, current_user: User=Depends(ge
 
 @router.post('', response_model=CompanyOut, status_code=201)
 def create_company(payload: CompanyCreate, db: Session=Depends(get_db), *, current_user: User=Depends(get_current_user)):
+    if not current_user.is_superuser:
+        raise HTTPException(403, "Not authorized to create companies")
     existing = db.query(Company).filter(Company.name == payload.name).first()
     if existing:
         raise HTTPException(status_code=409, detail=f"A company named '{payload.name}' already exists.")
