@@ -46,13 +46,37 @@ def dashboard(company_id: int, db: Session=Depends(get_db), *, current_user: Use
                 risk_counts[tier] = risk_counts.get(tier, 0) + 1
     except Exception:
         entry = None
-    total_inventory = sum((x['inventory_level'] for x in inv))
+    has_inventory = db.query(InventoryRecord).filter(InventoryRecord.company_id == company_id).first() is not None
+    total_inventory = sum((x['inventory_level'] for x in inv)) if has_inventory else 0
     products_db = db.query(Product).filter(Product.company_id == company_id).all()
     product_costs = {p.id: float(p.unit_cost or 0) for p in products_db}
-    inv_value = sum((x['inventory_level'] * product_costs.get(x['product_id'], 0) for x in inv))
+    inv_value = sum((x['inventory_level'] * product_costs.get(x['product_id'], 0) for x in inv)) if has_inventory else 0
     recommendations = generate_recommendations(db, company_id)
-    health = max(0, min(100, 100 - risk_counts.get('CRITICAL', 0) * 3 - risk_counts.get('HIGH', 0) * 1.5 - inventory_summary(inv).get('stockout_high', 0) * 2))
-    return {'company': {'id': c.id, 'name': c.name, 'industry': c.industry, 'currency': c.default_currency}, 'kpis': {'products': products, 'shipments': len(shipments), 'high_risk_shipments': risk_counts.get('HIGH', 0) + risk_counts.get('CRITICAL', 0), 'stockout_risks': inventory_summary(inv).get('stockout_high', 0), 'inventory_units': round(total_inventory, 2), 'inventory_value': round(inv_value, 2), 'supply_chain_health': round(health, 1), 'supplier_count': len(suppliers)}, 'shipment_risk_distribution': risk_counts, 'inventory_summary': inventory_summary(inv), 'top_suppliers': suppliers[:6], 'top_recommendations': recommendations[:6], 'model_source': entry.model_source if entry else None}
+    
+    # Do not penalize health for missing data, only for actual risks
+    stockout_risks = inventory_summary(inv).get('stockout_high', 0) if has_inventory else 0
+    health = max(0, min(100, 100 - risk_counts.get('CRITICAL', 0) * 3 - risk_counts.get('HIGH', 0) * 1.5 - stockout_risks * 2))
+    
+    return {
+        'company': {'id': c.id, 'name': c.name, 'industry': c.industry, 'currency': c.default_currency}, 
+        'kpis': {
+            'products': products, 
+            'shipments': len(shipments), 
+            'has_shipments': len(shipments) > 0,
+            'high_risk_shipments': risk_counts.get('HIGH', 0) + risk_counts.get('CRITICAL', 0) if len(shipments) > 0 else None, 
+            'stockout_risks': stockout_risks if has_inventory else None, 
+            'inventory_units': round(total_inventory, 2) if has_inventory else None, 
+            'has_inventory': has_inventory,
+            'inventory_value': round(inv_value, 2) if has_inventory else None, 
+            'supply_chain_health': round(health, 1), 
+            'supplier_count': len(suppliers)
+        }, 
+        'shipment_risk_distribution': risk_counts if len(shipments) > 0 else {}, 
+        'inventory_summary': inventory_summary(inv) if has_inventory else {}, 
+        'top_suppliers': suppliers[:6], 
+        'top_recommendations': recommendations[:6], 
+        'model_source': entry.model_source if entry else None
+    }
 
 @router.get('/{company_id}/explain')
 def explain_dashboard(company_id: int, db: Session=Depends(get_db), *, current_user: User=Depends(get_current_user)):

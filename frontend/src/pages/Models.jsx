@@ -190,7 +190,10 @@ export default function Models({ company }) {
     return (
       <div className="page animate-fade">
         <Panel title="Error Loading Models">
-          <div style={{ color: 'var(--status-critical)', padding: '20px 0' }}>{error}</div>
+          <div style={{ color: 'var(--status-critical)', padding: '20px 0' }}>
+            <p><strong>Failed to load models.</strong></p>
+            <p>{error}</p>
+          </div>
         </Panel>
       </div>
     );
@@ -244,47 +247,67 @@ export default function Models({ company }) {
         </div>
       )}
 
-      <Panel title="Model registry">
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Model type</th>
-                <th>Source</th>
-                <th>Version</th>
-                <th>Dataset size</th>
-                <th>Metrics</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {d.map(m => (
-                <tr key={m.id}>
-                  <td><ModelTypeChip type={m.model_type} /></td>
-                  <td style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>{m.model_source}</td>
-                  <td>
-                    <span style={{ fontVariantNumeric: 'tabular-nums', color: 'var(--text-tertiary)', fontSize: 11, fontFamily: 'var(--font-mono)' }}>
-                      v{m.version}
-                    </span>
-                  </td>
-                  <td style={{ fontVariantNumeric: 'tabular-nums' }}>
-                    {m.dataset_size
-                      ? <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{m.dataset_size.toLocaleString()}<span style={{ color: 'var(--text-tertiary)', fontWeight: 400, marginLeft: 2 }}>rows</span></span>
-                      : <span style={{ color: 'var(--text-muted)' }}>—</span>
-                    }
-                  </td>
-                  <td>
-                    <MetricsPill metrics={m.metrics} />
-                  </td>
-                  <td>
-                    <StatusChip status={m.status} />
-                  </td>
+      {d.length === 0 && activeJobs.length === 0 ? (
+        <Panel title="No Models Found">
+          <div style={{ padding: '40px 20px', textAlign: 'center' }}>
+            <h3 style={{ marginBottom: 12 }}>No trained model available for this company.</h3>
+            <p style={{ color: 'var(--text-secondary)', marginBottom: 24 }}>Upload data and train a model to unlock intelligence.</p>
+            <button className="primary" onClick={handleRetrain}>Train Model</button>
+          </div>
+        </Panel>
+      ) : d.length === 0 && activeJobs.length > 0 ? (
+        <Panel title="Training Models">
+          <div style={{ padding: '40px 20px', textAlign: 'center' }}>
+            <h3 style={{ marginBottom: 12 }}>Model training in progress...</h3>
+            <p style={{ color: 'var(--text-secondary)', marginBottom: 24 }}>This might take a few moments depending on data size.</p>
+            <button className="primary" onClick={load} style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              <RefreshCw size={13} aria-hidden="true" /> Refresh Status
+            </button>
+          </div>
+        </Panel>
+      ) : (
+        <Panel title="Model registry">
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Model type</th>
+                  <th>Source</th>
+                  <th>Version</th>
+                  <th>Dataset size</th>
+                  <th>Metrics</th>
+                  <th>Status</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Panel>
+              </thead>
+              <tbody>
+                {d.map(m => (
+                  <tr key={m.id}>
+                    <td><ModelTypeChip type={m.model_type} /></td>
+                    <td style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>{m.model_source}</td>
+                    <td>
+                      <span style={{ fontVariantNumeric: 'tabular-nums', color: 'var(--text-tertiary)', fontSize: 11, fontFamily: 'var(--font-mono)' }}>
+                        v{m.version}
+                      </span>
+                    </td>
+                    <td style={{ fontVariantNumeric: 'tabular-nums' }}>
+                      {m.dataset_size
+                        ? <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{m.dataset_size.toLocaleString()}<span style={{ color: 'var(--text-tertiary)', fontWeight: 400, marginLeft: 2 }}>rows</span></span>
+                        : <span style={{ color: 'var(--text-muted)' }}>—</span>
+                      }
+                    </td>
+                    <td>
+                      <MetricsPill metrics={m.metrics} />
+                    </td>
+                    <td>
+                      <StatusChip status={m.status} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Panel>
+      )}
     </div>
   );
 }

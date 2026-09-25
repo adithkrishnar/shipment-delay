@@ -150,11 +150,18 @@ export default function Overview({ company }) {
       )}
 
       {/* ── KPI Row ───────────────────────────────────────────── */}
+      {(!d.kpis.has_shipments || !d.kpis.has_inventory) && (
+        <div style={{ marginBottom: 20, padding: '12px 16px', background: 'var(--bg-surface-2)', border: '1px solid var(--border-default)', borderRadius: 'var(--r-md)', fontSize: 13, color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {!d.kpis.has_inventory && <div><strong style={{color: 'var(--text-primary)'}}>Inventory data not available for this company.</strong> Import inventory data to unlock stockout analysis.</div>}
+          {!d.kpis.has_shipments && <div><strong style={{color: 'var(--text-primary)'}}>Shipment data not available for this company.</strong> Import shipment data to unlock delay risk models.</div>}
+        </div>
+      )}
+
       <div className="metrics stagger" style={{ marginBottom: 20 }}>
         <MetricCard label="Products" value={d.kpis.products} sub="Active products" />
-        <MetricCard label="High-risk shipments" value={d.kpis.high_risk_shipments} tone="danger" sub="Require attention" />
-        <MetricCard label="Stockout risks" value={d.kpis.stockout_risks} tone="warning" sub="Inventory exposure" />
-        <MetricCard label="Inventory units" value={d.kpis.inventory_units.toLocaleString()} sub="Total on-hand" />
+        <MetricCard label="High-risk shipments" value={d.kpis.has_shipments ? d.kpis.high_risk_shipments : 'N/A'} tone={d.kpis.has_shipments ? "danger" : ""} sub="Require attention" />
+        <MetricCard label="Stockout risks" value={d.kpis.has_inventory ? d.kpis.stockout_risks : 'N/A'} tone={d.kpis.has_inventory ? "warning" : ""} sub="Inventory exposure" />
+        <MetricCard label="Inventory units" value={d.kpis.has_inventory && d.kpis.inventory_units != null ? d.kpis.inventory_units.toLocaleString() : 'N/A'} sub="Total on-hand" />
         <MetricCard
           label="Supply-chain health"
           value={`${d.kpis.supply_chain_health}%`}
@@ -167,36 +174,44 @@ export default function Overview({ company }) {
       <div className="grid2" style={{ marginBottom: 0 }}>
         {/* Shipment risk donut */}
         <Panel title="Shipment risk distribution">
-          <div className="chart">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={risk}
-                  dataKey="value"
-                  nameKey="name"
-                  innerRadius={70}
-                  outerRadius={100}
-                  strokeWidth={0}
-                >
-                  {risk.map((x) => (
-                    <Cell
-                      key={x.name}
-                      fill={RISK_COLORS[x.name.toLowerCase()] || '#334e68'}
-                    />
-                  ))}
-                </Pie>
-                <Tooltip content={<ChartTooltip />} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="legend">
-            {risk.map(x => (
-              <span key={x.name}>
-                <i className={`dot ${x.name.toLowerCase()}`} aria-hidden="true" />
-                {x.name}: <strong style={{ color: 'var(--text-primary)', marginLeft: 2 }}>{x.value}</strong>
-              </span>
-            ))}
-          </div>
+          {d.kpis.has_shipments ? (
+            <>
+              <div className="chart">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={risk}
+                      dataKey="value"
+                      nameKey="name"
+                      innerRadius={70}
+                      outerRadius={100}
+                      strokeWidth={0}
+                    >
+                      {risk.map((x) => (
+                        <Cell
+                          key={x.name}
+                          fill={RISK_COLORS[x.name.toLowerCase()] || '#334e68'}
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip content={<ChartTooltip />} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="legend">
+                {risk.map(x => (
+                  <span key={x.name}>
+                    <i className={`dot ${x.name.toLowerCase()}`} aria-hidden="true" />
+                    {x.name}: <strong style={{ color: 'var(--text-primary)', marginLeft: 2 }}>{x.value}</strong>
+                  </span>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted)' }}>
+              Shipment data not available.
+            </div>
+          )}
         </Panel>
 
         {/* Supplier risk bar chart */}
