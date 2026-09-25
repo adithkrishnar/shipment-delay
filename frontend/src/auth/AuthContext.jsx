@@ -35,10 +35,15 @@ export const AuthProvider = ({ children }) => {
       setUser(userData);
       return { success: true };
     } catch (error) {
-      return { 
-        success: false, 
-        error: error.response?.data?.detail || "Login failed" 
-      };
+      let errorMsg = "Login failed";
+      if (error.response?.data?.detail) {
+        if (Array.isArray(error.response.data.detail)) {
+          errorMsg = error.response.data.detail.map(d => d.msg).join(', ');
+        } else {
+          errorMsg = error.response.data.detail;
+        }
+      }
+      return { success: false, error: errorMsg };
     }
   };
 
@@ -52,10 +57,15 @@ export const AuthProvider = ({ children }) => {
       setUser(userData);
       return { success: true };
     } catch (error) {
-      return { 
-        success: false, 
-        error: error.response?.data?.detail || "Registration failed" 
-      };
+      let errorMsg = "Registration failed";
+      if (error.response?.data?.detail) {
+        if (Array.isArray(error.response.data.detail)) {
+          errorMsg = error.response.data.detail.map(d => d.msg).join(', ');
+        } else {
+          errorMsg = error.response.data.detail;
+        }
+      }
+      return { success: false, error: errorMsg };
     }
   };
 

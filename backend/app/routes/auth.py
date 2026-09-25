@@ -67,6 +67,13 @@ def register_user(user_in: UserCreate, db: Session = Depends(get_db)):
             detail="The user with this username already exists in the system.",
         )
         
+    existing_company = db.query(Company).filter(Company.name == user_in.company_name).first()
+    if existing_company:
+        raise HTTPException(
+            status_code=400,
+            detail="A company with this name already exists.",
+        )
+        
     company = Company(name=user_in.company_name, industry="General")
     db.add(company)
     db.commit()
