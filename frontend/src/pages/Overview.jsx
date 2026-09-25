@@ -80,12 +80,17 @@ export default function Overview({ company }) {
   const [isExplaining, setIsExplaining] = useState(false);
   const [explainError, setExplainError] = useState('');
 
-  useEffect(() => {
+  const load = () => {
     if (company) {
+      setE('');
       getDashboard(company.id)
         .then(setD)
         .catch(x => setE(x.response?.data?.detail || x.message));
     }
+  };
+
+  useEffect(() => {
+    load();
   }, [company]);
 
   const handleExplainClick = async () => {
@@ -104,7 +109,18 @@ export default function Overview({ company }) {
     }
   };
 
-  if (e) return <div className="page"><div className="error">{e}</div></div>;
+  if (e) {
+    return (
+      <div className="page animate-fade">
+        <Panel title="Error Loading Overview">
+          <div style={{ color: 'var(--status-critical)', padding: '20px 0' }}>
+            <p style={{ marginBottom: 16 }}>{e}</p>
+            <button className="primary" onClick={load}>Retry</button>
+          </div>
+        </Panel>
+      </div>
+    );
+  }
   if (!d) return <Loader />;
 
   const risk = Object.entries(d.shipment_risk_distribution).map(([name, value]) => ({ name, value }));

@@ -96,9 +96,22 @@ export default function Shipments({ company }) {
   const [expandedId, setExpandedId] = useState(null);
   const [impactData, setImpactData] = useState(null);
   const [impactLoading, setImpactLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const load = () => {
+    if (company) {
+      setError(null);
+      getShipments(company.id)
+        .then(setD)
+        .catch(e => {
+          const detail = e.response?.data?.detail;
+          setError(typeof detail === 'string' ? detail : (Array.isArray(detail) ? JSON.stringify(detail) : (e.message || "Failed to load shipments")));
+        });
+    }
+  };
 
   useEffect(() => {
-    if (company) getShipments(company.id).then(setD);
+    load();
   }, [company]);
 
   const toggleRow = (id) => {
@@ -119,6 +132,23 @@ export default function Shipments({ company }) {
         });
     }
   };
+
+  if (error) {
+    return (
+      <div className="page animate-fade">
+        <div className="page-header">
+          <div className="page-eyebrow">Shipment Intelligence</div>
+          <h1 className="page-title">Predict disruption before arrival.</h1>
+        </div>
+        <Panel title="Error Loading Shipments">
+          <div style={{ color: 'var(--status-critical)', padding: '20px 0' }}>
+            <p style={{ marginBottom: 16 }}>{error}</p>
+            <button className="primary" onClick={load}>Retry</button>
+          </div>
+        </Panel>
+      </div>
+    );
+  }
 
   if (!d) return <Loader />;
 

@@ -66,9 +66,40 @@ function StockoutBar({ prob }) {
 export default function Inventory({ company }) {
   const [d, setD] = useState(null);
 
+  const [error, setError] = useState(null);
+
+  const load = () => {
+    if (company) {
+      setError(null);
+      getInventory(company.id)
+        .then(setD)
+        .catch(e => {
+          const detail = e.response?.data?.detail;
+          setError(typeof detail === 'string' ? detail : (Array.isArray(detail) ? JSON.stringify(detail) : (e.message || "Failed to load inventory")));
+        });
+    }
+  };
+
   useEffect(() => {
-    if (company) getInventory(company.id).then(setD);
+    load();
   }, [company]);
+
+  if (error) {
+    return (
+      <div className="page animate-fade">
+        <div className="page-header">
+          <div className="page-eyebrow">Inventory Intelligence</div>
+          <h1 className="page-title">See what can run out — and what is sitting idle.</h1>
+        </div>
+        <Panel title="Error Loading Inventory">
+          <div style={{ color: 'var(--status-critical)', padding: '20px 0' }}>
+            <p style={{ marginBottom: 16 }}>{error}</p>
+            <button className="primary" onClick={load}>Retry</button>
+          </div>
+        </Panel>
+      </div>
+    );
+  }
 
   if (!d) return <Loader />;
 

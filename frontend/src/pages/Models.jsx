@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { getModels, retrain, getJob } from '../services/api';
+import { getModels, retrain, getJob, getCompanyJobs } from '../services/api';
 import Panel from '../components/Panel';
 import Loader from '../components/Loader';
 import { RefreshCw, CheckCircle } from 'lucide-react';
@@ -96,6 +96,7 @@ export default function Models({ company }) {
   const [msg, setMsg] = useState('');
   const [msgType, setMsgType] = useState('info'); // 'info' | 'success' | 'error'
   const [activeJobs, setActiveJobs] = useState([]);
+  const [isRetraining, setIsRetraining] = useState(false);
 
   const pollIntervals = useRef({});
 
@@ -135,6 +136,7 @@ export default function Models({ company }) {
   }, [company]);
 
   const handleRetrain = async () => {
+    setIsRetraining(true);
     setMsg('Queuing background training jobs…');
     setMsgType('info');
     try {
@@ -153,6 +155,8 @@ export default function Models({ company }) {
       const detail = e.response?.data?.detail;
       setMsg(typeof detail === 'string' ? detail : (Array.isArray(detail) ? JSON.stringify(detail) : e.message));
       setMsgType('error');
+    } finally {
+      setIsRetraining(false);
     }
   };
 
@@ -192,7 +196,8 @@ export default function Models({ company }) {
         <Panel title="Error Loading Models">
           <div style={{ color: 'var(--status-critical)', padding: '20px 0' }}>
             <p><strong>Failed to load models.</strong></p>
-            <p>{error}</p>
+            <p style={{ marginBottom: 16 }}>{error}</p>
+            <button className="primary" onClick={load}>Retry</button>
           </div>
         </Panel>
       </div>
@@ -213,11 +218,11 @@ export default function Models({ company }) {
           <button
             className="primary"
             onClick={handleRetrain}
-            disabled={activeJobs.length > 0}
+            disabled={isRetraining || activeJobs.length > 0}
             style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, flexShrink: 0 }}
           >
-            <RefreshCw size={13} style={{ animation: activeJobs.length > 0 ? 'spin 1s linear infinite' : 'none' }} aria-hidden="true" />
-            {activeJobs.length > 0 ? `Training (${activeJobs.length} active)…` : 'Retrain models'}
+            <RefreshCw size={13} style={{ animation: (isRetraining || activeJobs.length > 0) ? 'spin 1s linear infinite' : 'none' }} aria-hidden="true" />
+            {isRetraining ? 'Starting...' : (activeJobs.length > 0 ? `Training (${activeJobs.length} active)…` : 'Retrain models')}
           </button>
         </div>
       </div>

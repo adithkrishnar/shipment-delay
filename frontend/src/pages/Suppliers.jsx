@@ -64,9 +64,40 @@ function RankBadge({ rank }) {
 export default function Suppliers({ company }) {
   const [d, setD] = useState(null);
 
+  const [error, setError] = useState(null);
+
+  const load = () => {
+    if (company) {
+      setError(null);
+      getSuppliers(company.id)
+        .then(setD)
+        .catch(e => {
+          const detail = e.response?.data?.detail;
+          setError(typeof detail === 'string' ? detail : (Array.isArray(detail) ? JSON.stringify(detail) : (e.message || "Failed to load suppliers")));
+        });
+    }
+  };
+
   useEffect(() => {
-    if (company) getSuppliers(company.id).then(setD);
+    load();
   }, [company]);
+
+  if (error) {
+    return (
+      <div className="page animate-fade">
+        <div className="page-header">
+          <div className="page-eyebrow">Supplier Intelligence</div>
+          <h1 className="page-title">Balance cost, reliability and disruption risk.</h1>
+        </div>
+        <Panel title="Error Loading Suppliers">
+          <div style={{ color: 'var(--status-critical)', padding: '20px 0' }}>
+            <p style={{ marginBottom: 16 }}>{error}</p>
+            <button className="primary" onClick={load}>Retry</button>
+          </div>
+        </Panel>
+      </div>
+    );
+  }
 
   if (!d) return <Loader />;
 

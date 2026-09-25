@@ -61,7 +61,7 @@ export default function Demand({ company }) {
   const [p, setP] = useState(0);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
+  const load = () => {
     if (company) {
       setError(null);
       setD(null);
@@ -75,6 +75,10 @@ export default function Demand({ company }) {
           setError(typeof detail === 'string' ? detail : (Array.isArray(detail) ? JSON.stringify(detail) : (e.message || "Failed to load demand forecast")));
         });
     }
+  };
+
+  useEffect(() => {
+    load();
   }, [company, h]);
 
   if (error) {
@@ -86,7 +90,8 @@ export default function Demand({ company }) {
         </div>
         <Panel title="Error Loading Forecast">
           <div style={{ color: 'var(--status-critical)', padding: '20px 0' }}>
-            {error}
+            <p style={{ marginBottom: 16 }}>{error}</p>
+            <button className="primary" onClick={load}>Retry</button>
           </div>
         </Panel>
       </div>
