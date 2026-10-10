@@ -18,7 +18,7 @@ export default function Data({ company, onCompanyChange }) {
     setError(null);
     try {
       await seedDemoMine();
-      setImportSuccess(true);
+      setImportSuccess({ imported_row_count: 'ALL (Demo)', skipped_row_count: 0 });
       // Reload uploads state to clear the demo data prompt if necessary
       const u = await getUploads(company.id);
       setUploads(u);
@@ -69,8 +69,8 @@ export default function Data({ company, onCompanyChange }) {
     setError(null);
     try {
       await mapUpload(result.upload_id, result.suggested_mapping);
-      await importUpload(company.id, result.upload_id);
-      setImportSuccess(true);
+      const importRes = await importUpload(company.id, result.upload_id);
+      setImportSuccess(importRes);
       const u = await getUploads(company.id);
       setUploads(u);
     } catch (e) {
@@ -200,7 +200,7 @@ export default function Data({ company, onCompanyChange }) {
 
           {importSuccess ? (
              <div style={{ marginTop: '24px', padding: '16px', background: 'var(--status-healthy-bg)', border: '1px solid var(--status-healthy-border)', borderRadius: 'var(--r-md)', color: 'var(--status-healthy)', fontWeight: 500 }}>
-                Data successfully imported and model training triggered!
+                Data successfully imported (Imported: {importSuccess.imported_row_count}, Skipped: {importSuccess.skipped_row_count}) and model training triggered!
              </div>
           ) : (
              <button className="btn-primary" style={{ marginTop: '24px', width: '100%' }} onClick={handleImport} disabled={importing}>

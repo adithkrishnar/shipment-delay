@@ -1,29 +1,57 @@
-import React, { useState } from 'react';
-import { simulate as runSimulation } from '../services/api';
+import React, { useState, useEffect } from 'react';
+import { simulate as runSimulation, getInventory } from '../services/api';
+import Loader from '../components/Loader';
 
 export default function Simulator({ company }) {
-  const [scenarioType, setScenarioType] = useState('demand_surge');
-  const [magnitude, setMagnitude] = useState(20);
+  const [inventory, setInventory] = useState([]);
+  const [productId, setProductId] = useState('');
+  const [demandMultiplier, setDemandMultiplier] = useState(1.0);
+  const [delayDays, setDelayDays] = useState(0);
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [initLoading, setInitLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  useEffect(() => {
+    if (company) {
+      setInitLoading(true);
+      getInventory(company.id)
+        .then(res => {
+           setInventory(res.inventory || []);
+           if (res.inventory && res.inventory.length > 0) {
+             setProductId(res.inventory[0].product_id);
+           }
+        })
+        .catch(e => setError(e.message))
+        .finally(() => setInitLoading(false));
+    }
+  }, [company]);
+
   const handleSimulate = () => {
-    if (!company) return;
+    if (!company || !productId) return;
     setLoading(true);
     setError(null);
-    runSimulation(company.id, {
-      scenario_type: scenarioType,
-      magnitude: magnitude/100,
-      target_entities: []
-    }).then(setResult).catch(e => setError(e.message)).finally(() => setLoading(false));
+    runSimulation({
+      company_id: company.id,
+      product_id: productId,
+      demand_multiplier: demandMultiplier,
+      delay_days: delayDays
+    }).then(setResult).catch(e => {
+        let msg = e.message;
+        if (e.response?.data?.detail) {
+           msg = typeof e.response.data.detail === 'string' ? e.response.data.detail : JSON.stringify(e.response.data.detail);
+        }
+        setError(msg);
+    }).finally(() => setLoading(false));
   };
+
+  if (initLoading) return <Loader />;
 
   return (
     <div className="page animate-fade">
       <div className="page-header">
         <h1 className="page-title">What-If Simulator</h1>
-        <p className="page-subtitle">Test operational scenarios and view impact.</p>
+        <p className="page-subtitle">Test operational scenarios and view impact using actual backend calculations.</p>
       </div>
 
       <div className="grid-2">
@@ -32,20 +60,27 @@ export default function Simulator({ company }) {
                <h2 className="section-title" style={{ marginTop: 0 }}>Scenario Controls</h2>
                
                <div className="flex-col" style={{ marginBottom: '24px' }}>
-                  <label style={{ fontSize: '12px', fontWeight: 600 }}>Type</label>
-                  <select value={scenarioType} onChange={e=>setScenarioType(e.target.value)} style={{ padding: '8px 12px', background: 'var(--bg-surface-2)', border: '1px solid var(--border-default)', borderRadius: 'var(--r-md)', color: 'var(--text-primary)' }}>
-                     <option value="demand_surge">Demand Surge</option>
-                     <option value="supplier_delay">Supplier Delay</option>
-                     <option value="transport_disruption">Transport Disruption</option>
+                  <label style={{ fontSize: '12px', fontWeight: 600 }}>Product</label>
+                  <select value={productId} onChange={e=>setProductId(Number(e.target.value))} style={{ padding: '8px 12px', background: 'var(--bg-surface-2)', border: '1px solid var(--border-default)', borderRadius: 'var(--r-md)', color: 'var(--text-primary)' }}>
+                     {inventory.map(inv => (
+                        <option key={inv.inventory_id} value={inv.product_id}>
+                           {inv.external_product_id} (Current stock: {inv.inventory_level})
+                        </option>
+                     ))}
                   </select>
                </div>
 
-               <div className="flex-col" style={{ marginBottom: '32px' }}>
-                  <label style={{ fontSize: '12px', fontWeight: 600 }}>Magnitude ({magnitude}%)</label>
-                  <input type="range" min="5" max="100" step="5" value={magnitude} onChange={e=>setMagnitude(Number(e.target.value))} />
+               <div className="flex-col" style={{ marginBottom: '24px' }}>
+                  <label style={{ fontSize: '12px', fontWeight: 600 }}>Demand Multiplier ({demandMultiplier}x)</label>
+                  <input type="range" min="0.1" max="5.0" step="0.1" value={demandMultiplier} onChange={e=>setDemandMultiplier(Number(e.target.value))} />
                </div>
 
-               <button className="btn-primary" onClick={handleSimulate} disabled={loading} style={{ width: '100%' }}>
+               <div className="flex-col" style={{ marginBottom: '32px' }}>
+                  <label style={{ fontSize: '12px', fontWeight: 600 }}>Delay Days ({delayDays})</label>
+                  <input type="range" min="0" max="60" step="1" value={delayDays} onChange={e=>setDelayDays(Number(e.target.value))} />
+               </div>
+
+               <button className="btn-primary" onClick={handleSimulate} disabled={loading || !productId} style={{ width: '100%' }}>
                   {loading ? 'Running...' : 'Run Simulation'}
                </button>
                {error && <div style={{ color: 'var(--status-critical)', marginTop: '16px' }}>{error}</div>}
@@ -61,18 +96,30 @@ export default function Simulator({ company }) {
                   <div>
                      <div className="flex-col">
                         <div className="flex-between" style={{ paddingBottom: '12px', borderBottom: '1px solid var(--border-subtle)' }}>
-                           <span style={{ color: 'var(--text-secondary)' }}>Financial Impact</span>
-                           <strong style={{ color: 'var(--status-critical)' }}>High</strong>
+                           <span style={{ color: 'var(--text-secondary)' }}>Baseline Stockout Risk</span>
+                           <strong>{result.baseline?.stockout_risk || '—'}</strong>
                         </div>
                         <div className="flex-between" style={{ padding: '12px 0', borderBottom: '1px solid var(--border-subtle)' }}>
-                           <span style={{ color: 'var(--text-secondary)' }}>Stockout Risk</span>
-                           <strong style={{ color: 'var(--status-critical)' }}>Increased by {magnitude}%</strong>
+                           <span style={{ color: 'var(--text-secondary)' }}>Scenario Stockout Risk</span>
+                           <strong style={{ color: result.scenario?.stockout_risk === 'CRITICAL' ? 'var(--status-critical)' : 'var(--text-primary)' }}>
+                             {result.scenario?.stockout_risk || '—'}
+                           </strong>
+                        </div>
+                        <div className="flex-between" style={{ padding: '12px 0', borderBottom: '1px solid var(--border-subtle)' }}>
+                           <span style={{ color: 'var(--text-secondary)' }}>Baseline Expected Shortage</span>
+                           <strong>{result.baseline?.expected_shortage?.toFixed(2) || 0}</strong>
+                        </div>
+                        <div className="flex-between" style={{ padding: '12px 0', borderBottom: '1px solid var(--border-subtle)' }}>
+                           <span style={{ color: 'var(--text-secondary)' }}>Scenario Expected Shortage</span>
+                           <strong style={{ color: result.scenario?.expected_shortage > 0 ? 'var(--status-critical)' : 'var(--text-primary)' }}>
+                              {result.scenario?.expected_shortage?.toFixed(2) || 0}
+                           </strong>
                         </div>
                      </div>
                      <div style={{ marginTop: '24px' }}>
-                        <h3 style={{ fontSize: '12px', textTransform: 'uppercase', color: 'var(--text-tertiary)', marginBottom: '8px' }}>Recommended Action</h3>
-                        <div style={{ padding: '12px', background: 'var(--status-watch-bg)', color: 'var(--status-watch)', borderRadius: 'var(--r-md)' }}>
-                           Expedite alternative shipments and review inventory thresholds.
+                        <h3 style={{ fontSize: '12px', textTransform: 'uppercase', color: 'var(--text-tertiary)', marginBottom: '8px' }}>Recommended Action (Hypothetical)</h3>
+                        <div style={{ padding: '12px', background: 'var(--status-info-bg)', color: 'var(--status-info)', borderRadius: 'var(--r-md)' }}>
+                           {result.scenario?.expected_shortage > 0 ? 'Expedite replenishment to avoid shortages.' : 'No immediate action required under this scenario.'}
                         </div>
                      </div>
                   </div>
