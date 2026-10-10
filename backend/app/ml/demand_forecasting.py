@@ -23,7 +23,7 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error
 from app.ml.feature_engineering import FEATURE_COLUMNS, build_feature_matrix
 
 TEST_FRACTION = 0.2
-RANDOM_STATE = 42
+RANDOM_STATE = None
 
 
 @dataclass
@@ -99,10 +99,10 @@ def train_demand_model(sales_df: pd.DataFrame) -> TrainedDemandModel:
 
     candidates = {
         "random_forest": RandomForestRegressor(
-            n_estimators=200, max_depth=10, min_samples_leaf=3, random_state=RANDOM_STATE, n_jobs=-1,
+            n_estimators=200, max_depth=10, min_samples_leaf=3, random_state=None, n_jobs=-1,
         ),
         "gradient_boosting": GradientBoostingRegressor(
-            n_estimators=200, max_depth=3, learning_rate=0.05, random_state=RANDOM_STATE,
+            n_estimators=200, max_depth=3, learning_rate=0.05, random_state=None,
         ),
     }
 
@@ -177,9 +177,10 @@ def forecast_product_demand(
     ('date', 'quantity', 'product_id', 'promotion') for lag/rolling features
     to be computable on the first forecasted day.
     """
-    from app.ml.feature_engineering import add_lag_and_rolling_features, add_time_features
+    from app.ml.feature_engineering import add_lag_and_rolling_features, add_time_features, build_daily_demand_table
 
     history = product_history[["date", "product_id", "quantity", "promotion"]].copy()
+    history = build_daily_demand_table(history)
     history["date"] = pd.to_datetime(history["date"])
     history = history.tail(60).copy()
     product_id = history["product_id"].iloc[0]

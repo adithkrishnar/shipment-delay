@@ -31,7 +31,7 @@ STANDARD_SCHEMA: dict[str, dict[str, list]] = {
 # Aliases: standard_field -> list of normalized (lowercase, no separators) synonyms
 FIELD_ALIASES: dict[str, list[str]] = {
     "date": ["date", "orderdate", "saledate", "transactiondate", "day"],
-    "product_id": ["productid", "sku", "itemid", "itemcode", "productcode", "product"],
+    "product_id": ["productid", "sku", "itemid", "itemcode", "productcode", "product", "cargo", "productname"],
     "quantity": ["quantity", "qtysold", "unitssold", "qty", "salesqty", "demand", "unitssold"],
     "region": ["region", "market", "territory", "zone"],
     "price": ["price", "unitprice", "saleprice"],
@@ -42,11 +42,11 @@ FIELD_ALIASES: dict[str, list[str]] = {
     "warehouse": ["warehouse", "warehousename", "location", "dc", "distributioncenter"],
     "safety_stock": ["safetystock", "minstock", "bufferstock"],
 
-    "shipment_id": ["shipmentid", "shipmentno", "shipment"],
+    "shipment_id": ["shipmentid", "shipmentno", "shipment", "orderid"],
     "origin": ["origin", "source", "shipfrom", "originport"],
     "destination": ["destination", "shipto", "destinationport"],
-    "planned_delivery": ["planneddelivery", "expecteddelivery", "eta", "plandate", "duedate"],
-    "actual_delivery": ["actualdelivery", "deliverydate", "receiveddate", "arrivaldate"],
+    "planned_delivery": ["planneddelivery", "expecteddelivery", "eta", "plandate", "duedate", "planneddeparture"],
+    "actual_delivery": ["actualdelivery", "deliverydate", "receiveddate", "arrivaldate", "actualdeparture"],
     "carrier": ["carrier", "shippingcarrier", "transporter", "courier"],
     "distance": ["distance", "distancekm", "distancemiles"],
     "weight": ["weight", "weightkg", "shipmentweight"],

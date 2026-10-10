@@ -33,7 +33,7 @@ from sklearn.utils.class_weight import compute_sample_weight
 from app.ml.feature_engineering_shipment import build_shipment_feature_matrix, encode_categoricals
 
 TEST_FRACTION = 0.2
-RANDOM_STATE = 42
+RANDOM_STATE = None
 
 
 @dataclass
@@ -273,18 +273,44 @@ def predict_shipment_risk(
             if col == "Shipping Mode":
                 row_dict[col] = mode_map.get(str(shipment_row.iloc[0].get("transport_mode", "")).lower(), "Standard Class")
             elif col == "Order City":
-                row_dict[col] = shipment_row.iloc[0].get("destination", "")
+                row_dict[col] = shipment_row.iloc[0].get("destination", "Unknown")
             elif col == "Order State":
-                row_dict[col] = shipment_row.iloc[0].get("origin", "")
-            elif col in ["order_month", "order_day", "order_dayofweek", "order_year"]:
+                row_dict[col] = shipment_row.iloc[0].get("origin", "Unknown")
+            elif col == "order_month":
                 order_date = pd.to_datetime(shipment_row.iloc[0].get("order_date"))
-                if pd.notna(order_date):
-                    if col == "order_month": row_dict[col] = order_date.month
-                    elif col == "order_day": row_dict[col] = order_date.day
-                    elif col == "order_dayofweek": row_dict[col] = order_date.dayofweek
-                    elif col == "order_year": row_dict[col] = order_date.year
-                else:
-                    row_dict[col] = 0
+                row_dict[col] = order_date.month if pd.notna(order_date) else 1
+            elif col == "order_day":
+                order_date = pd.to_datetime(shipment_row.iloc[0].get("order_date"))
+                row_dict[col] = order_date.day if pd.notna(order_date) else 1
+            elif col == "order_dayofweek":
+                order_date = pd.to_datetime(shipment_row.iloc[0].get("order_date"))
+                row_dict[col] = order_date.dayofweek if pd.notna(order_date) else 0
+            elif col == "order_year":
+                order_date = pd.to_datetime(shipment_row.iloc[0].get("order_date"))
+                row_dict[col] = order_date.year if pd.notna(order_date) else 2026
+            elif col == "Days for shipment (scheduled)":
+                planned = pd.to_datetime(shipment_row.iloc[0].get("planned_delivery"))
+                order_date = pd.to_datetime(shipment_row.iloc[0].get("order_date"))
+                row_dict[col] = (planned - order_date).days if pd.notna(planned) and pd.notna(order_date) else 2.0
+            elif col == "Order Item Quantity":
+                row_dict[col] = float(shipment_row.iloc[0].get("quantity", 1.0) or 1.0)
+            elif col in ["Order Item Product Price", "Product Price", "Sales", "Order Item Total"]:
+                row_dict[col] = 100.0
+            elif col in ["Order Item Discount", "Order Item Discount Rate"]:
+                row_dict[col] = 0.0
+            elif col == "Order Item Profit Ratio":
+                row_dict[col] = 0.1
+            elif col == "Type": row_dict[col] = "DEBIT"
+            elif col == "Category Name": row_dict[col] = "Electronics"
+            elif col == "Customer City": row_dict[col] = "Unknown"
+            elif col == "Customer Country": row_dict[col] = "India"
+            elif col == "Customer Segment": row_dict[col] = "Consumer"
+            elif col == "Customer State": row_dict[col] = "Unknown"
+            elif col == "Department Name": row_dict[col] = "Technology"
+            elif col == "Market": row_dict[col] = "Asia Pacific"
+            elif col == "Order Country": row_dict[col] = "India"
+            elif col == "Order Region": row_dict[col] = "South Asia"
+            elif col == "Product Name": row_dict[col] = "Demo Product"
             else:
                 row_dict[col] = 0
         
@@ -343,17 +369,40 @@ def predict_shipment_risk_batch(
             if col == "Shipping Mode":
                 X[col] = shipments_df.get("transport_mode", pd.Series(index=shipments_df.index)).fillna("").astype(str).str.lower().map(mode_map).fillna("Standard Class")
             elif col == "Order City":
-                X[col] = shipments_df.get("destination", "")
+                X[col] = shipments_df.get("destination", "Unknown")
             elif col == "Order State":
-                X[col] = shipments_df.get("origin", "")
+                X[col] = shipments_df.get("origin", "Unknown")
             elif col == "order_month":
-                X[col] = pd.to_datetime(shipments_df.get("order_date")).dt.month.fillna(0)
+                X[col] = pd.to_datetime(shipments_df.get("order_date")).dt.month.fillna(1)
             elif col == "order_day":
-                X[col] = pd.to_datetime(shipments_df.get("order_date")).dt.day.fillna(0)
+                X[col] = pd.to_datetime(shipments_df.get("order_date")).dt.day.fillna(1)
             elif col == "order_dayofweek":
                 X[col] = pd.to_datetime(shipments_df.get("order_date")).dt.dayofweek.fillna(0)
             elif col == "order_year":
-                X[col] = pd.to_datetime(shipments_df.get("order_date")).dt.year.fillna(0)
+                X[col] = pd.to_datetime(shipments_df.get("order_date")).dt.year.fillna(2026)
+            elif col == "Days for shipment (scheduled)":
+                s_plan = pd.to_datetime(shipments_df.get("planned_delivery"))
+                s_ord = pd.to_datetime(shipments_df.get("order_date"))
+                X[col] = (s_plan - s_ord).dt.days.fillna(2.0)
+            elif col == "Order Item Quantity":
+                X[col] = pd.to_numeric(shipments_df.get("quantity", 1.0)).fillna(1.0)
+            elif col in ["Order Item Product Price", "Product Price", "Sales", "Order Item Total"]:
+                X[col] = 100.0
+            elif col in ["Order Item Discount", "Order Item Discount Rate"]:
+                X[col] = 0.0
+            elif col == "Order Item Profit Ratio":
+                X[col] = 0.1
+            elif col == "Type": X[col] = "DEBIT"
+            elif col == "Category Name": X[col] = "Electronics"
+            elif col == "Customer City": X[col] = "Unknown"
+            elif col == "Customer Country": X[col] = "India"
+            elif col == "Customer Segment": X[col] = "Consumer"
+            elif col == "Customer State": X[col] = "Unknown"
+            elif col == "Department Name": X[col] = "Technology"
+            elif col == "Market": X[col] = "Asia Pacific"
+            elif col == "Order Country": X[col] = "India"
+            elif col == "Order Region": X[col] = "South Asia"
+            elif col == "Product Name": X[col] = "Demo Product"
             else:
                 X[col] = 0
                 

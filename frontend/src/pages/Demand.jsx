@@ -1,198 +1,106 @@
-import { useEffect, useState } from 'react';
-import { getForecast } from '../services/api';
-import Panel from '../components/Panel';
+import React, { useEffect, useState, useMemo } from 'react';
+import { getForecast as getDemandForecast } from '../services/api';
 import Loader from '../components/Loader';
-import {
-  LineChart, Line, XAxis, YAxis, Tooltip,
-  ResponsiveContainer, CartesianGrid, ReferenceLine
-} from 'recharts';
-import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
-
-/* ── Custom Tooltip ──────────────────────────────────────────── */
-function ForecastTooltip({ active, payload, label }) {
-  if (!active || !payload?.length) return null;
-  return (
-    <div style={{
-      background: 'var(--bg-surface-3)',
-      border: '1px solid var(--border-default)',
-      borderRadius: 'var(--r-md)',
-      padding: '10px 14px',
-      fontSize: 12,
-    }}>
-      <div style={{ color: 'var(--text-tertiary)', marginBottom: 6, fontWeight: 600, fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-        {label}
-      </div>
-      {payload.map((p, i) => (
-        <div key={i} style={{ color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums', fontWeight: 700 }}>
-          {p.value?.toLocaleString()} units
-        </div>
-      ))}
-    </div>
-  );
-}
-
-/* ── Trend indicator ─────────────────────────────────────────── */
-function TrendIndicator({ data }) {
-  if (!data || data.length < 2) return null;
-  const first = data[0]?.predicted_quantity || 0;
-  const last = data[data.length - 1]?.predicted_quantity || 0;
-  const pct = first > 0 ? Math.round(((last - first) / first) * 100) : 0;
-
-  if (pct > 2) return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: 'var(--status-healthy)', fontSize: 12, fontWeight: 700 }}>
-      <TrendingUp size={13} /> +{pct}%
-    </span>
-  );
-  if (pct < -2) return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: 'var(--status-critical)', fontSize: 12, fontWeight: 700 }}>
-      <TrendingDown size={13} /> {pct}%
-    </span>
-  );
-  return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: 'var(--text-tertiary)', fontSize: 12, fontWeight: 600 }}>
-      <Minus size={13} /> Stable
-    </span>
-  );
-}
+import { LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer } from 'recharts';
 
 export default function Demand({ company }) {
-  const [d, setD] = useState(null);
-  const [h, setH] = useState(30);
-  const [p, setP] = useState(0);
+  const [data, setData] = useState(null);
   const [error, setError] = useState(null);
-
-  const load = () => {
-    if (company) {
-      setError(null);
-      setD(null);
-      getForecast(company.id, h)
-        .then(x => {
-          setD(x);
-          setP(x.products[0]?.product_id || 0);
-        })
-        .catch(e => {
-          const detail = e.response?.data?.detail;
-          setError(typeof detail === 'string' ? detail : (Array.isArray(detail) ? JSON.stringify(detail) : (e.message || "Failed to load demand forecast")));
-        });
-    }
-  };
+  const [is400, setIs400] = useState(false);
 
   useEffect(() => {
-    load();
-  }, [company, h]);
+    if (company) {
+      getDemandForecast(company.id)
+        .then(setData)
+        .catch(e => {
+           if (e.response && e.response.status === 400) {
+              setIs400(true);
+           } else {
+              setError(e.message);
+           }
+        });
+    }
+  }, [company]);
 
-  if (error) {
-    return (
-      <div className="page animate-fade">
-        <div className="page-header">
-          <div className="page-eyebrow">Demand Forecasting</div>
-          <h1 className="page-title">Turn historical demand into a planning signal.</h1>
-        </div>
-        <Panel title="Error Loading Forecast">
-          <div style={{ color: 'var(--status-critical)', padding: '20px 0' }}>
-            <p style={{ marginBottom: 16 }}>{error}</p>
-            <button className="primary" onClick={load}>Retry</button>
-          </div>
-        </Panel>
-      </div>
-    );
-  }
+  const aggregatedForecast = useMemo(() => {
+    if (!data || !data.products) return [];
+    const map = {};
+    data.products.forEach(p => {
+      p.forecast?.forEach(f => {
+        if (!map[f.date]) map[f.date] = 0;
+        map[f.date] += f.projected_demand || 0;
+      });
+    });
+    return Object.entries(map)
+      .map(([date, val]) => ({ date, projected_demand: Math.round(val) }))
+      .sort((a,b) => a.date.localeCompare(b.date));
+  }, [data]);
 
-  if (!d) return <Loader />;
+  const totalExpected = useMemo(() => {
+     return aggregatedForecast.reduce((sum, f) => sum + f.projected_demand, 0);
+  }, [aggregatedForecast]);
 
-  const selected = d.products?.find(x => x.product_id === p) || d.products?.[0];
+  const trend = useMemo(() => {
+     if (aggregatedForecast.length < 2) return 'STABLE';
+     const first = aggregatedForecast[0].projected_demand;
+     const last = aggregatedForecast[aggregatedForecast.length - 1].projected_demand;
+     if (last > first * 1.05) return 'UP';
+     if (last < first * 0.95) return 'DOWN';
+     return 'STABLE';
+  }, [aggregatedForecast]);
+
+  if (error) return (
+    <div className="page animate-fade" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '50vh' }}>
+      <p style={{ color: 'var(--text-secondary)', marginBottom: '16px' }}>Unable to load this data.</p>
+      <button className="btn-secondary" onClick={() => { setError(null); getDemandForecast(company.id).then(setData).catch(e => { if(e.response?.status === 400) setIs400(true); else setError(e.message); }); }}>Retry</button>
+    </div>
+  );
+  if (!data && !is400) return <Loader />;
 
   return (
     <div className="page animate-fade">
       <div className="page-header">
-        <div className="page-eyebrow">Demand Forecasting</div>
-        <h1 className="page-title">Turn historical demand into a planning signal.</h1>
+        <h1 className="page-title">Demand Forecast</h1>
+        <p className="page-subtitle">Expected demand over the forecast horizon.</p>
       </div>
-
-      {/* ── Toolbar ───────────────────────────────────────────── */}
-      <div className="toolbar">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          <select
-            value={p}
-            onChange={e => setP(Number(e.target.value))}
-            style={{ width: 'auto', minWidth: 220 }}
-            aria-label="Select product"
-          >
-            {d.products.map(x => (
-              <option value={x.product_id} key={x.product_id}>{x.product_name}</option>
-            ))}
-          </select>
-
-          {selected && (
-            <TrendIndicator data={selected.forecast} />
-          )}
-        </div>
-
-        <div className="seg" role="group" aria-label="Forecast horizon">
-          {[7, 30, 90].map(x => (
-            <button
-              key={x}
-              className={h === x ? 'selected' : ''}
-              onClick={() => setH(x)}
-              aria-pressed={h === x}
-            >
-              {x}D
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* ── Forecast Chart ────────────────────────────────────── */}
-      {selected && (
-        <Panel
-          title={`${selected.product_name} · ${h}-day forecast`}
-          action={
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--text-tertiary)' }}>
-                <span style={{ width: 24, height: 2, background: 'var(--accent-primary)', display: 'inline-block', borderRadius: 1 }} />
-                Predicted demand
-              </span>
-            </div>
-          }
-        >
-          <div className="chart large">
+      
+      {is400 || !data?.products?.length ? (
+         <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+           No demand history available. Upload demand/sales history to generate a forecast.
+         </div>
+      ) : (
+      <div className="panel-bare" style={{ border: '1px solid var(--border-subtle)', borderRadius: 'var(--r-lg)', padding: '24px', background: 'var(--bg-surface-1)' }}>
+         <div className="flex-between" style={{ marginBottom: '24px' }}>
+            <h2 className="section-title" style={{ margin: 0, border: 'none', padding: 0 }}>Projected Volume</h2>
+         </div>
+         
+         <div style={{ height: 300, marginBottom: '32px' }}>
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={selected.forecast} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="2 6" stroke="var(--border-subtle)" vertical={false} />
-                <XAxis
-                  dataKey="date"
-                  tick={{ fill: 'var(--text-tertiary)', fontSize: 10 }}
-                  axisLine={false}
-                  tickLine={false}
-                  interval="preserveStartEnd"
-                />
-                <YAxis
-                  tick={{ fill: 'var(--text-tertiary)', fontSize: 10 }}
-                  axisLine={false}
-                  tickLine={false}
-                  width={48}
-                />
-                <Tooltip content={<ForecastTooltip />} />
-                <Line
-                  type="monotone"
-                  dataKey="predicted_quantity"
-                  stroke="var(--accent-primary)"
-                  strokeWidth={2}
-                  dot={false}
-                  activeDot={{ r: 4, fill: 'var(--accent-primary)', strokeWidth: 0 }}
-                  animationDuration={800}
-                  animationEasing="ease-out"
-                />
-              </LineChart>
+               <LineChart data={aggregatedForecast}>
+                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                 <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+                 <YAxis tick={{ fontSize: 11 }} />
+                 <Tooltip />
+                 <Line type="monotone" dataKey="projected_demand" stroke="var(--accent-primary)" strokeWidth={2} dot={false} />
+               </LineChart>
             </ResponsiveContainer>
-          </div>
+         </div>
 
-          <div className="model-note" style={{ marginTop: 14 }}>
-            Model source: <b>{selected.model_source}</b>
-            <span style={{ margin: '0 10px', color: 'var(--text-muted)' }}>·</span>
-            Last actual: <b>{selected.last_actual_quantity?.toLocaleString()}</b> units
-          </div>
-        </Panel>
+         <div className="grid-3" style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '24px' }}>
+            <div>
+               <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>Expected Total Demand</div>
+               <div style={{ fontSize: '20px', fontWeight: 600 }}>{totalExpected.toLocaleString()}</div>
+            </div>
+            <div>
+               <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>Trend</div>
+               <div style={{ fontSize: '20px', fontWeight: 600, color: trend === 'UP' ? 'var(--status-healthy)' : 'var(--text-primary)' }}>{trend}</div>
+            </div>
+            <div>
+               <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>Forecast Confidence</div>
+               <div style={{ fontSize: '20px', fontWeight: 600 }}>N/A</div>
+            </div>
+         </div>
+      </div>
       )}
     </div>
   );

@@ -2,7 +2,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel
 
-DatasetType = Literal["sales", "inventory", "shipments", "suppliers"]
+DatasetType = Literal["sales", "inventory", "shipments", "suppliers", "unified"]
 
 
 class UploadResponse(BaseModel):

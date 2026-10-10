@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import Topbar from './components/Topbar';
 import { getCompanies, seedDemo } from './services/api';
@@ -146,6 +146,14 @@ function MainApp() {
             <Route path="/recommendations" element={<Recommendations company={company} />} />
             <Route path="/models" element={<Models company={company} />} />
             <Route path="/data" element={<Data company={company} onCompanyChange={changeCompany} />} />
+            <Route path="*" element={
+              <div className="page animate-fade" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', minHeight: '60vh' }}>
+                <h1 style={{ fontSize: '48px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '16px' }}>404</h1>
+                <h2 style={{ fontSize: '24px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '24px' }}>Page Not Found</h2>
+                <p style={{ color: 'var(--text-tertiary)', marginBottom: '32px' }}>The page you are looking for does not exist or has been moved.</p>
+                <Link to="/" className="btn-primary">Return to Dashboard</Link>
+              </div>
+            } />
           </Route>
         </Routes>
       </main>

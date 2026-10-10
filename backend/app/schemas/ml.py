@@ -84,6 +84,7 @@ class DemandForecastResponse(BaseModel):
     model_source: str
     model_version: str
     products: list[ProductForecast]
+    historical_metrics: dict[str, Any] | None = None
 
 
 class RiskFactorOut(BaseModel):

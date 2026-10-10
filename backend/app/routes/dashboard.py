@@ -57,6 +57,35 @@ def dashboard(company_id: int, db: Session=Depends(get_db), *, current_user: Use
     stockout_risks = inventory_summary(inv).get('stockout_high', 0) if has_inventory else 0
     health = max(0, min(100, 100 - risk_counts.get('CRITICAL', 0) * 3 - risk_counts.get('HIGH', 0) * 1.5 - stockout_risks * 2))
     
+    # Extra Visual Data
+    demand_trend = []
+    sales = db.query(Sale).filter(Sale.company_id == company_id).all()
+    if sales:
+        import pandas as pd
+        df = pd.DataFrame([{"date": s.date, "quantity": s.quantity} for s in sales])
+        df["date"] = pd.to_datetime(df["date"])
+        grouped = df.groupby(df["date"].dt.to_period("M"))["quantity"].sum().reset_index()
+        demand_trend = [{"date": str(row["date"]), "quantity": int(row["quantity"])} for _, row in grouped.iterrows()]
+        
+    on_time_vs_late = []
+    if shipments:
+        on_time = sum(1 for s in shipments if s.actual_delivery and s.actual_delivery <= s.planned_delivery)
+        late = sum(1 for s in shipments if s.actual_delivery and s.actual_delivery > s.planned_delivery)
+        pending = sum(1 for s in shipments if not s.actual_delivery)
+        on_time_vs_late = [
+            {"name": "On Time", "value": on_time, "fill": "var(--status-healthy)"},
+            {"name": "Late", "value": late, "fill": "var(--status-critical)"},
+            {"name": "Pending", "value": pending, "fill": "var(--status-watch)"}
+        ]
+        
+    from app.services.anomaly_detection import detect_anomalies
+    anoms = detect_anomalies(db, company_id, limit=500)
+    anomaly_categories = {}
+    for a in anoms:
+        cat = a.get("category", "Other")
+        anomaly_categories[cat] = anomaly_categories.get(cat, 0) + 1
+    anomaly_categories_list = [{"name": k, "count": v} for k, v in anomaly_categories.items()]
+    
     return {
         'company': {'id': c.id, 'name': c.name, 'industry': c.industry, 'currency': c.default_currency}, 
         'kpis': {
@@ -75,7 +104,11 @@ def dashboard(company_id: int, db: Session=Depends(get_db), *, current_user: Use
         'inventory_summary': inventory_summary(inv) if has_inventory else {}, 
         'top_suppliers': suppliers[:6], 
         'top_recommendations': recommendations[:6], 
-        'model_source': entry.model_source if entry else None
+        'model_source': entry.model_source if entry else None,
+        'demand_trend': demand_trend,
+        'inventory_by_product': sorted([{"name": i["product_name"], "level": i["inventory_level"], "safety": i.get("safety_stock", 0)} for i in inv], key=lambda x: x["level"], reverse=True)[:10] if has_inventory else [],
+        'on_time_vs_late': on_time_vs_late,
+        'anomaly_categories': anomaly_categories_list
     }
 
 @router.get('/{company_id}/explain')

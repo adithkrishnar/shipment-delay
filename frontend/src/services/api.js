@@ -20,6 +20,7 @@ export const getMe = () => api.get('/v1/auth/me').then(r => r.data);
 export const register = (email, password, company_name) => api.post('/v1/auth/register', { email, password, company_name }).then(r => r.data);
 export const getCompanies=()=>api.get('/companies').then(r=>r.data)
 export const seedDemo=()=>api.post('/demo/seed').then(r=>r.data)
+export const seedDemoMine=()=>api.post('/demo/seed_mine').then(r=>r.data)
 export const getDashboard=id=>api.get(`/dashboard/${id}`).then(r=>r.data)
 export const explainDashboard=id=>api.get(`/dashboard/${id}/explain`).then(r=>r.data)
 export const getInventory=id=>api.get(`/intelligence/${id}/inventory`).then(r=>r.data)
@@ -42,4 +43,7 @@ export const validateUpload=(uploadId,mapping)=>api.post('/data/validate',{uploa
 export const mapUpload=(uploadId,mapping)=>api.post('/data/map',{upload_id:uploadId,column_mapping:mapping}).then(r=>r.data)
 export const importUpload=(companyId,uploadId)=>api.post(`/data/import?company_id=${companyId}&upload_id=${uploadId}`).then(r=>r.data)
 export const getUploads=id=>api.get(`/data/uploads/${id}`).then(r=>r.data)
+export const getCapabilities=id=>api.get(`/data/uploads/${id}/capabilities`).then(r=>r.data)
 export default api
+
+export const getMultiLegShipment = (companyId, shipmentId, scenario) => api.get(`/shipments/${companyId}/multi-leg/${shipmentId}?scenario=${scenario}`).then(r => r.data);

@@ -58,8 +58,9 @@ def add_time_features(df: pd.DataFrame) -> pd.DataFrame:
     df["day_of_week"] = df["date"].dt.dayofweek
     df["month"] = df["date"].dt.month
     df["is_weekend"] = (df["day_of_week"] >= 5).astype(int)
-    min_date = df["date"].min()
-    df["trend_index"] = (df["date"] - min_date).dt.days
+    # Use a fixed epoch for trend index to ensure consistency between training and inference
+    epoch = pd.Timestamp("2020-01-01")
+    df["trend_index"] = (df["date"] - epoch).dt.days
     return df
 
 

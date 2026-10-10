@@ -334,7 +334,7 @@ def train_company_shipment_models(db: Session, company_id: int) -> tuple[ModelRe
 
 
 def get_active_shipment_models(db: Session, company_id: int) -> tuple[TrainedDelayClassifier, TrainedDelayDurationModel | None, ModelRegistryEntry]:
-    """Returns (classifier, duration_model_or_None, classifier_registry_entry) - company-specific preferred, else base."""
+    """Returns (classifier, duration_model_or_None, classifier_registry_entry) - company-specific preferred if roc_auc >= 0.70, else genuine DataCo base."""
     clf_entry = (
         db.query(ModelRegistryEntry)
         .filter(
@@ -345,27 +345,41 @@ def get_active_shipment_models(db: Session, company_id: int) -> tuple[TrainedDel
         .order_by(ModelRegistryEntry.training_date.desc())
         .first()
     )
-    source_company_id = company_id
-    if not clf_entry:
-        clf_entry = (
-            db.query(ModelRegistryEntry)
-            .filter(
-                ModelRegistryEntry.company_id.is_(None),
-                ModelRegistryEntry.model_type == MODEL_TYPE_DELAY_CLASSIFIER,
-                ModelRegistryEntry.status == "active",
-            )
-            .order_by(ModelRegistryEntry.training_date.desc())
-            .first()
-        )
-        source_company_id = None
+    
+    use_company = False
+    if clf_entry:
+        try:
+            metrics = json.loads(clf_entry.metrics_json)
+            # Find roc_auc in nested dicts if needed
+            roc_auc = 0.0
+            if "comparison" in metrics:
+                model_name = metrics.get("selected_model")
+                roc_auc = metrics["comparison"].get(model_name, {}).get("roc_auc") or 0.0
+            if roc_auc >= 0.70:
+                use_company = True
+        except Exception:
+            pass
 
-    if not clf_entry:
-        raise FileNotFoundError(
-            "No shipment delay classifier available for this company and no base model has been trained yet. "
-            "Call POST /api/models/train/base first."
-        )
+    source_company_id = company_id if use_company else None
 
-    classifier = _cached_load_shipment(str(clf_entry.model_path))
+    if use_company:
+        classifier = _cached_load_shipment(str(clf_entry.model_path))
+    else:
+        # Load genuine DataCo model
+        import joblib
+        from pathlib import Path
+        base_path = Path(settings.TRAINED_MODELS_DIR) / "shipment_delay_classifier.pkl"
+        if not base_path.exists():
+            raise FileNotFoundError(f"Genuine DataCo model not found at {base_path}")
+        raw_dict = joblib.load(str(base_path))
+        classifier = TrainedDelayClassifier(
+            model_name=raw_dict.get("model_name", "dataco_base"),
+            model=raw_dict["model"],
+            feature_columns=raw_dict["feature_columns"],
+            metrics={"dataco_trained": True, "encoder": raw_dict["encoder"]}
+        )
+        # Dummy entry for the API response
+        clf_entry = ModelRegistryEntry(model_source="Genuine DataCo Historical")
 
     dur_entry = (
         db.query(ModelRegistryEntry)

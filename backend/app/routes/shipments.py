@@ -74,3 +74,12 @@ def get_shipment_risk(company_id: int, shipment_id: int, db: Session=Depends(get
         actual_was_delayed = delta > 0
         actual_delay_days = float(delta)
     return ShipmentRiskOut(shipment_id=shipment.id, external_shipment_id=shipment.external_shipment_id, product_id=shipment.product_id, supplier_id=shipment.supplier_id, origin=shipment.origin, destination=shipment.destination, carrier=shipment.carrier, transport_mode=shipment.transport_mode, order_date=str(shipment.order_date) if shipment.order_date else None, planned_delivery=str(shipment.planned_delivery), actual_delivery=str(shipment.actual_delivery) if shipment.actual_delivery else None, is_completed=is_completed, actual_was_delayed=actual_was_delayed, actual_delay_days=actual_delay_days, delay_probability=risk['delay_probability'], risk_tier=risk['risk_tier'], expected_delay_days=risk['expected_delay_days'], top_risk_factors=[RiskFactorOut(**f) for f in risk['top_risk_factors']], model_source=clf_entry.model_source)
+@router.get('/{company_id}/multi-leg/{shipment_id}')
+def get_multi_leg_shipment(company_id: int, shipment_id: int, scenario: int = 1, db: Session=Depends(get_db), current_user: User=Depends(get_current_user)):
+    from app.services.multi_leg_service import analyze_multi_leg_shipment
+    if not current_user.is_superuser and current_user.company_id != company_id:
+        raise HTTPException(403, "Not authorized to access this company's data")
+    try:
+        return analyze_multi_leg_shipment(db, company_id, shipment_id, scenario)
+    except ValueError as e:
+        raise HTTPException(404, str(e))

@@ -50,7 +50,7 @@ def suggest_column_mapping(dataset_type: str, source_columns: list[str]) -> dict
     A standard field is only suggested once - if two source columns would
     both fuzzy-match the same standard field, only the stronger match keeps it.
     """
-    if dataset_type not in STANDARD_SCHEMA:
+    if dataset_type != "unified" and dataset_type not in STANDARD_SCHEMA:
         raise ValueError(f"Unknown dataset_type: {dataset_type}")
 
     # Suggest mappings for ALL known fields, regardless of chosen dataset_type, 
@@ -90,6 +90,8 @@ def suggest_column_mapping(dataset_type: str, source_columns: list[str]) -> dict
 
 
 def unmapped_required_fields(dataset_type: str, column_mapping: dict[str, str | None]) -> list[str]:
+    if dataset_type == "unified":
+        return []
     required = STANDARD_SCHEMA[dataset_type]["required"]
     mapped_targets = {v for v in column_mapping.values() if v is not None}
     return [f for f in required if f not in mapped_targets]

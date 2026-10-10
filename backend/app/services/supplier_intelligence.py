@@ -19,11 +19,21 @@ def analyze_suppliers(db: Session, company_id: int) -> list[dict]:
         cost = float(s.cost_index or 1.0)
         risk_score = float(np.clip((1-reliability)*60 + delay_rate*25 + defect*100*0.1 + max(0,cost-1)*10, 0, 100))
         risk = "CRITICAL" if risk_score >= 70 else "HIGH" if risk_score >= 45 else "MEDIUM" if risk_score >= 25 else "LOW"
+        risk_factors = []
+        if delay_rate > 0.2:
+            risk_factors.append({"factor": "High Delay Rate", "value": f"{delay_rate*100:.1f}%"})
+        if reliability < 0.9:
+            risk_factors.append({"factor": "Low Reliability", "value": f"{reliability*100:.1f}%"})
+        if defect > 0.05:
+            risk_factors.append({"factor": "High Defect Rate", "value": f"{defect*100:.1f}%"})
+        if cost > 1.2:
+            risk_factors.append({"factor": "High Cost", "value": f"{cost}x"})
+            
         results.append({
             "supplier_id": s.id, "external_supplier_id": s.external_supplier_id, "name": s.name,
             "lead_time_days": round(float(s.lead_time_days or 0), 1), "reliability": round(reliability, 3),
             "cost_index": round(cost, 3), "defect_rate": round(defect, 4), "shipment_count": len(shipments),
             "completed_shipments": len(completed), "delay_rate": round(delay_rate, 4), "avg_delay_days": round(avg_delay, 2),
-            "risk_score": round(risk_score, 1), "risk_tier": risk,
+            "risk_score": round(risk_score, 1), "risk_tier": risk, "top_risk_factors": risk_factors
         })
     return sorted(results, key=lambda x: x["risk_score"])

@@ -36,8 +36,8 @@ async def upload_dataset(company_id: int=Form(...), dataset_type: str=Form(...),
     if not current_user.is_superuser and current_user.company_id != company_id:
         raise HTTPException(403, "Not authorized to access this company's data")
     _require_company(db, company_id)
-    if dataset_type not in VALID_DATASET_TYPES:
-        raise HTTPException(status_code=400, detail=f'dataset_type must be one of {sorted(VALID_DATASET_TYPES)}')
+    if dataset_type != "unified" and dataset_type not in VALID_DATASET_TYPES:
+        raise HTTPException(status_code=400, detail=f'dataset_type must be one of {sorted(VALID_DATASET_TYPES)} or "unified"')
     allowed_content_types = ['text/csv', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']
     if file.content_type not in allowed_content_types:
         raise HTTPException(status_code=400, detail='Invalid Content-Type. Only CSV and Excel are allowed.')
@@ -74,6 +74,8 @@ async def upload_dataset(company_id: int=Form(...), dataset_type: str=Form(...),
 @router.post('/data/validate', response_model=ValidationReport)
 def validate_upload(payload: ValidateRequest, db: Session=Depends(get_db), *, current_user: User=Depends(get_current_user)):
     upload = _require_upload(db, payload.upload_id)
+    if not current_user.is_superuser and upload.company_id != current_user.company_id:
+        raise HTTPException(403, "Not authorized to access this company's data")
     df = read_tabular_file(Path(upload.stored_path))
     mapped_df = apply_mapping(df, payload.column_mapping)
     report = revalidate_after_mapping(upload.dataset_type, mapped_df)
@@ -86,6 +88,8 @@ def validate_upload(payload: ValidateRequest, db: Session=Depends(get_db), *, cu
 @router.post('/data/map', response_model=MapResponse)
 def map_upload(payload: MapRequest, db: Session=Depends(get_db), *, current_user: User=Depends(get_current_user)):
     upload = _require_upload(db, payload.upload_id)
+    if not current_user.is_superuser and upload.company_id != current_user.company_id:
+        raise HTTPException(403, "Not authorized to access this company's data")
     missing = unmapped_required_fields(upload.dataset_type, payload.column_mapping)
     upload.column_mapping_json = json.dumps(payload.column_mapping)
     upload.status = 'mapped' if not missing else 'mapped_incomplete'
@@ -131,3 +135,21 @@ def list_uploads(company_id: int, db: Session=Depends(get_db), *, current_user: 
     _require_company(db, company_id)
     uploads = db.query(DatasetUpload).filter(DatasetUpload.company_id == company_id).order_by(DatasetUpload.uploaded_at.desc()).all()
     return [{'upload_id': u.id, 'dataset_type': u.dataset_type, 'original_filename': u.original_filename, 'status': u.status, 'row_count': u.row_count, 'data_quality_score': u.data_quality_score, 'uploaded_at': u.uploaded_at.isoformat(), 'imported_at': u.imported_at.isoformat() if u.imported_at else None} for u in uploads]
+
+from app.services.capability_engine import detect_capabilities
+
+@router.get('/data/uploads/{upload_id}/capabilities')
+def get_capabilities(upload_id: int, db: Session=Depends(get_db), *, current_user: User=Depends(get_current_user)):
+    upload = _require_upload(db, upload_id)
+    if not current_user.is_superuser and upload.company_id != current_user.company_id:
+        raise HTTPException(403, "Not authorized to access this upload.")
+        
+    mapped_fields = []
+    if upload.column_mapping_json:
+        mapping = json.loads(upload.column_mapping_json)
+        mapped_fields = [v for v in mapping.values() if v is not None]
+        
+    return {
+        "upload_id": upload.id,
+        "capabilities": detect_capabilities(mapped_fields)
+    }

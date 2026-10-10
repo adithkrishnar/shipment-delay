@@ -43,6 +43,25 @@ def get_demand_forecast(company_id: int, product_id: int | None=Query(None, desc
         history_df['product_id'] = product.id
         forecast_df = forecast_product_demand(trained, history_df, horizon_days=horizon)
         product_forecasts.append(ProductForecast(product_id=product.id, external_product_id=product.external_product_id, product_name=product.name, last_actual_date=str(history_df['date'].iloc[-1]), last_actual_quantity=float(history_df['quantity'].iloc[-1]), horizon_days=horizon, model_source=model_entry.model_source, forecast=[ForecastPoint(**row) for row in forecast_df.to_dict(orient='records')]))
+    # Calculate Historical Metrics
+    all_sales = db.query(Sale).join(Product).filter(Sale.company_id == company_id).all()
+    historical_metrics = {}
+    if all_sales:
+        df_all = pd.DataFrame([{"date": s.date, "quantity": s.quantity, "product_id": s.product_id, "product_name": s.product.name, "category": s.product.category} for s in all_sales])
+        df_all["date"] = pd.to_datetime(df_all["date"])
+        
+        # Demand Trend over time (monthly)
+        trend = df_all.groupby(df_all["date"].dt.to_period("M"))["quantity"].sum().reset_index()
+        historical_metrics["trend"] = [{"date": str(row["date"]), "quantity": int(row["quantity"])} for _, row in trend.iterrows()]
+        
+        # Top 10 products
+        top_products = df_all.groupby("product_name")["quantity"].sum().reset_index().sort_values("quantity", ascending=False).head(10)
+        historical_metrics["top_products"] = [{"name": row["product_name"], "volume": int(row["quantity"])} for _, row in top_products.iterrows()]
+        
+        # Category breakdown
+        cats = df_all.groupby("category")["quantity"].sum().reset_index()
+        historical_metrics["categories"] = [{"name": row["category"], "value": int(row["quantity"])} for _, row in cats.iterrows()]
+    
     if not product_forecasts:
         raise HTTPException(status_code=400, detail='No product had enough sales history to forecast. Upload more sales data first.')
-    return DemandForecastResponse(company_id=company_id, horizon_days=horizon, model_source=model_entry.model_source, model_version=model_entry.version, products=product_forecasts)
+    return DemandForecastResponse(company_id=company_id, horizon_days=horizon, model_source=model_entry.model_source, model_version=model_entry.version, products=product_forecasts, historical_metrics=historical_metrics)
