@@ -28,10 +28,11 @@ export const getSuppliers=id=>api.get(`/intelligence/${id}/suppliers`).then(r=>r
 export const getAnomalies=id=>api.get(`/intelligence/${id}/anomalies`).then(r=>r.data)
 export const getShipments=id=>api.get(`/shipments/${id}?limit=100`).then(r=>r.data)
 export const getShipmentImpact=(companyId, shipmentId)=>api.get(`/intelligence/${companyId}/shipments/${shipmentId}/impact`).then(r=>r.data)
-export const getForecast=(id,horizon=30)=>api.get(`/demand/forecast/${id}?horizon=${horizon}`).then(r=>r.data)
+export const getForecast=(id,horizon=30,productId=null)=>api.get(`/demand/forecast/${id}`,{params:{horizon,...(productId?{product_id:productId}:{})}}).then(r=>r.data)
 export const getRecommendations=id=>api.get(`/recommendations/${id}`).then(r=>r.data)
 export const getModels=id=>api.get(`/models/${id}`).then(r=>r.data)
 export const retrain=id=>api.post(`/models/retrain/${id}`).then(r=>r.data)
+export const retrainModel=id=>api.post(`/models/retrain/${id}`).then(r=>r.data)
 export const trainBaseModels=()=>api.post('/models/train/base').then(r=>r.data)
 export const getJob=jobId=>api.get(`/models/jobs/${jobId}`).then(r=>r.data)
 export const getCompanyJobs=id=>api.get(`/models/${id}/jobs`).then(r=>r.data)
@@ -47,3 +48,35 @@ export const getCapabilities=id=>api.get(`/data/uploads/${id}/capabilities`).the
 export default api
 
 export const getMultiLegShipment = (companyId, shipmentId, scenario) => api.get(`/shipments/${companyId}/multi-leg/${shipmentId}?scenario=${scenario}`).then(r => r.data);
+
+// ── Inventory Intelligence & Optimization API Endpoints ──────────
+export const getInventoryOverview = (companyId) => api.get(`/inventory/overview/${companyId}`).then(r => r.data);
+export const getInventoryExplorer = (companyId, params = {}) => api.get(`/inventory/explorer/${companyId}`, { params }).then(r => r.data);
+export const getProductInventoryDetail = (companyId, productId) => api.get(`/inventory/product/${companyId}/${productId}`).then(r => r.data);
+export const getAbcXyzInsights = (companyId) => api.get(`/inventory/insights/abc-xyz/${companyId}`).then(r => r.data);
+export const getAgingInsights = (companyId) => api.get(`/inventory/insights/aging/${companyId}`).then(r => r.data);
+export const getWarehousesAnalytics = (companyId) => api.get(`/inventory/warehouses/${companyId}`).then(r => r.data);
+export const getReplenishmentPlan = (companyId, serviceLevel = 0.95, horizonDays = 30) => api.get(`/inventory/replenishment/${companyId}`, { params: { service_level: serviceLevel, horizon_days: horizonDays } }).then(r => r.data);
+export const getWarehouseTransfers = (companyId) => api.get(`/inventory/transfers/${companyId}`).then(r => r.data);
+export const simulateDelay = (payload) => api.post('/inventory/simulate/delay', payload).then(r => r.data);
+export const simulateWhatIf = (payload) => api.post('/inventory/simulate/what-if', payload).then(r => r.data);
+
+// ── Action Center Approvals & Real Warehouse Transfers ────────────
+export const approveAction = (companyId, payload) =>
+  api.post(`/recommendations/${companyId}/approve`, payload).then(r => r.data);
+export const getActionApprovals = (companyId) =>
+  api.get(`/recommendations/${companyId}/approvals`).then(r => r.data);
+
+export const executeWarehouseTransfer = (payload) =>
+  api.post('/inventory/transfers/execute', payload).then(r => r.data);
+export const getWarehouseTransferHistory = (companyId) =>
+  api.get(`/inventory/transfers/history/${companyId}`).then(r => r.data);
+
+// ── Persistent What-If Scenarios ──────────────────────────────────
+export const saveScenario = (payload) =>
+  api.post('/inventory/scenarios', payload).then(r => r.data);
+export const getSavedScenarios = (companyId) =>
+  api.get(`/inventory/scenarios/${companyId}`).then(r => r.data);
+export const deleteSavedScenario = (companyId, scenarioId) =>
+  api.delete(`/inventory/scenarios/${companyId}/${scenarioId}`).then(r => r.data);
+

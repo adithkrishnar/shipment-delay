@@ -151,3 +151,38 @@ def test_model_registry_lists_entries_for_company(client):
     assert r.status_code == 200
     entries = r.json()
     assert any(e["model_source"] == "company_specific" for e in entries)
+
+
+def test_forecast_60_day_horizon_and_prediction_intervals(client):
+    """
+    Task 5 & Task 9 Regression Test:
+    Verifies 60-day recursive forecast horizon support and statistically computed
+    prediction intervals with non-negative lower bounds.
+    """
+    company_id = _create_company(client, "Horizon 60 Co")
+    _seed_sales_via_db(company_id, n_days=400, n_products=10)
+
+    from app.services.model_training_service import train_company_demand_model
+    from app.database import SessionLocal
+    db = SessionLocal()
+    train_company_demand_model(db, company_id)
+    db.commit()
+    db.close()
+
+    # Request 60-day horizon
+    r = client.get(f"/api/demand/forecast/{company_id}?horizon=60")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["horizon_days"] == 60
+    assert len(body["products"]) == 10
+
+    for prod in body["products"]:
+        forecast = prod["forecast"]
+        assert len(forecast) == 60
+        for pt in forecast:
+            assert "predicted_quantity" in pt
+            assert "lower_bound" in pt
+            assert "upper_bound" in pt
+            assert pt["lower_bound"] >= 0.0, f"Lower bound is negative: {pt['lower_bound']}"
+            assert pt["upper_bound"] >= pt["predicted_quantity"], "Upper bound is less than prediction"
+            assert pt["predicted_quantity"] >= pt["lower_bound"], "Prediction is less than lower bound"

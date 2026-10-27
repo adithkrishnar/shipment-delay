@@ -114,3 +114,46 @@ def test_companies_endpoint_isolates_data_per_company(client):
 
     r = client.get(f"/api/data/uploads/{company_b}")
     assert len(r.json()) == 0  # company B must never see company A's uploads
+
+
+def test_idempotent_repeated_import_does_not_duplicate_records(client):
+    company_id = _make_company(client, "Idempotent Test Co")
+
+    # First upload and import
+    r1 = client.post(
+        "/api/upload",
+        data={"company_id": company_id, "dataset_type": "sales"},
+        files={"file": ("sales_run1.csv", _csv_bytes(SAMPLE_SALES_CSV), "text/csv")},
+    )
+    assert r1.status_code == 200
+    upload1 = r1.json()
+    u1_id = upload1["upload_id"]
+    mapping = upload1["suggested_mapping"]
+
+    client.post("/api/data/map", json={"upload_id": u1_id, "column_mapping": mapping})
+    imp1 = client.post("/api/data/import", params={"company_id": company_id, "upload_id": u1_id})
+    assert imp1.status_code == 200
+    res1 = imp1.json()
+    assert res1["imported_row_count"] == 3
+    assert res1["updated_row_count"] == 0
+    assert res1["skipped_row_count"] == 2
+
+    # Second upload of identical sales data
+    r2 = client.post(
+        "/api/upload",
+        data={"company_id": company_id, "dataset_type": "sales"},
+        files={"file": ("sales_run2.csv", _csv_bytes(SAMPLE_SALES_CSV), "text/csv")},
+    )
+    assert r2.status_code == 200
+    upload2 = r2.json()
+    u2_id = upload2["upload_id"]
+
+    client.post("/api/data/map", json={"upload_id": u2_id, "column_mapping": mapping})
+    imp2 = client.post("/api/data/import", params={"company_id": company_id, "upload_id": u2_id})
+    assert imp2.status_code == 200
+    res2 = imp2.json()
+    # Should update existing records instead of duplicating them
+    assert res2["imported_row_count"] == 0
+    assert res2["updated_row_count"] == 3
+    assert res2["skipped_row_count"] == 2
+

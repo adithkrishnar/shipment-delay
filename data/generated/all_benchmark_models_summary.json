@@ -1,0 +1,41 @@
+{
+  "uci_demand": {
+    "mae": 6099.279290966063,
+    "rmse": 9268.845210130072,
+    "r2": 0.5510993328927731,
+    "wape": 0.30164249827852635,
+    "baseline_mae": 6460.154929577465,
+    "baseline_rmse": 10166.397860142217,
+    "total_raw_records": 1067371,
+    "clean_days": 711
+  },
+  "bts_air": {
+    "classifier": {
+      "roc_auc": 0.6363121783916873,
+      "f1_score": 0.4683162882394453,
+      "precision": 0.3758833366299247,
+      "recall": 0.6210338680926917,
+      "accuracy": 0.5942017834089957
+    },
+    "duration_regressor": {
+      "mae_minutes": 52.888300548689486,
+      "rmse_minutes": 108.10030212470024
+    },
+    "sample_counts": {
+      "total_flights": 584832,
+      "delayed_flights": 123721
+    }
+  },
+  "bts_road": {
+    "mae_hours": 19.542159713405418,
+    "rmse_hours": 24.45129124078143,
+    "r2_score": 0.3120955119531299,
+    "observations_evaluated": 150000
+  },
+  "multimodal": {
+    "maritime_records": 1,
+    "rail_records": 24,
+    "mean_port_congestion": 0.7825362541744268,
+    "mean_rail_congestion": 0.8787441173132283
+  }
+}

@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import {
-  LayoutDashboard, Ship, TrendingUp, Boxes, Factory,
-  TriangleAlert, SlidersHorizontal, Sparkles, UploadCloud, BrainCircuit
+  LayoutDashboard, Boxes, Warehouse, TrendingUp, RefreshCw,
+  SlidersHorizontal, FlaskConical, Sparkles, Grid3X3, UploadCloud, BrainCircuit
 } from 'lucide-react';
 
 const navGroups = [
@@ -9,25 +9,26 @@ const navGroups = [
     label: 'Operations',
     links: [
       ['/', 'Overview', LayoutDashboard],
-      ['/shipments', 'Shipments', Ship],
-      ['/demand', 'Demand', TrendingUp],
-      ['/inventory', 'Inventory', Boxes],
-      ['/suppliers', 'Suppliers', Factory],
-      ['/anomalies', 'Anomalies', TriangleAlert],
+      ['/inventory', 'Inventory Explorer', Boxes],
+      ['/products', 'Products & Warehouses', Warehouse],
+      ['/demand', 'Demand Forecasts', TrendingUp],
+      ['/replenishment', 'Replenishment', RefreshCw],
     ]
   },
   {
     label: 'Decision Support',
     links: [
-      ['/simulator', 'Simulator', SlidersHorizontal],
+      ['/delay-simulator', 'Delay Simulator', SlidersHorizontal],
+      ['/what-if', 'What-If Lab', FlaskConical],
       ['/recommendations', 'Action Center', Sparkles],
+      ['/insights', 'Inventory Insights', Grid3X3],
     ]
   },
   {
     label: 'System',
     links: [
-      ['/data', 'Data Input', UploadCloud],
-      ['/models', 'Models', BrainCircuit],
+      ['/data', 'Data & Imports', UploadCloud],
+      ['/models', 'Models & Quality', BrainCircuit],
     ]
   }
 ];

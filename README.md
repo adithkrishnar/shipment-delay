@@ -1,12 +1,8 @@
-# SupplyIQ — Supply Chain Intelligence Platform
+# SupplyIQ — Inventory Intelligence & Simulation Platform
 
-A multi-company supply-chain intelligence system: companies upload their own
-historical sales, inventory, shipment, and supplier data; the platform predicts
-demand, shipment delays, and inventory risk; propagates that risk into
-financial impact; and recommends what to do about it.
+A modern, multi-company inventory intelligence and decision-support platform: companies upload their historical sales, inventory levels, purchase orders, and supplier catalogs; the platform calculates optimal reorder points, dynamic safety stocks, and stockout risks; models discrete-event shipment disruption delays over forward daily horizons; evaluates what-if mitigation alternatives; and optimizes multi-node distribution transfers.
 
-**Build status:** Phases 1–5 are complete and tested (74 passing tests).
-See "Roadmap status" below.
+**Build status:** Fully implemented and verified on branch `inventory-intelligence` (**85 passing tests**, Vite frontend bundle passing in 910ms).
 
 ---
 
@@ -16,16 +12,8 @@ See "Roadmap status" below.
 
 ```bash
 cd backend
-python3 -m venv venv
-source venv/bin/activate        # Windows: venv\Scripts\activate
-pip install -r requirements.txt
-
-# Optional: copy the env template (the app runs fine with all defaults)
-cp ../.env.example .env
-
-# Generate the 3 built-in demo companies (Horizon Electronics, TorqueParts
-# Autoworks, FreshMart FMCG) with realistic synthetic data
-python ../scripts/generate_demo_data.py
+# Activate environment (Windows)
+./venv/Scripts/activate
 
 # Run the API
 python run.py
@@ -37,21 +25,27 @@ python run.py
 
 ```bash
 cd backend
-./venv/bin/python -m pytest tests/ -v
+./venv/Scripts/pytest tests/ -v
 ```
 
-74 tests currently cover: health check, demo data generation (including that
-shipment delays correlate with supplier reliability and inventory never goes
-negative), column-mapping fuzzy matching, data quality validation, the full
-upload → validate → map → import API pipeline, feature-engineering leakage
-checks (both demand and shipment), demand-model and shipment-delay-model
-training/evaluation, recursive multi-horizon forecasting, and the
-base-vs-company-specific model selection logic end to end via the API for
-both demand and shipment models.
+85 tests cover:
+- Discrete-Event Delay Simulation (Invariants 1–10: identity at zero delay, monotonic arrival shift, event timing precedence, non-negative stock balances, read-only database isolation, reproducibility, and cost truthfulness).
+- ABC & XYZ Portfolio Segmentation and 9-box classification.
+- Dynamic Safety Stock ($Z \cdot \sigma_d \cdot \sqrt{L}$) and Reorder Point ($ROP$) planning.
+- Inter-warehouse surplus-to-shortage transfer optimization (preserving source buffer).
+- Multi-tenant company isolation across all `/api/inventory` endpoints.
+- Time-series demand forecasting with leakage safeguards, multi-horizon recursive forecasting, and model selection.
+- Data ingestion, deterministic column aliases, data quality validation, and transactional import pipelines.
 
 ### Frontend
 
-The React + Vite frontend is fully implemented and wired to the backend API. It includes dashboards for shipments, demand, inventory, anomaly detection, suppliers, what-if simulations, and recommendations.
+```bash
+cd frontend
+npm install
+npm run dev
+# -> http://localhost:5173
+```
+Build production bundle: `npm run build` (vite build).
 
 ---
 

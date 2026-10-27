@@ -45,8 +45,16 @@ async def retrain_company_model(company_id: int, db: Session=Depends(get_db), re
     db.add(demand_job)
     db.add(shipment_job)
     db.commit()
-    await redis.enqueue_job('train_demand_for_company', demand_job.id, company_id)
-    await redis.enqueue_job('train_shipment_for_company', shipment_job.id, company_id)
+    try:
+        await redis.enqueue_job('train_demand_for_company', demand_job.id, company_id)
+        await redis.enqueue_job('train_shipment_for_company', shipment_job.id, company_id)
+    except Exception as exc:
+        demand_job.status = "failed"
+        demand_job.error_message = f"Worker queue unavailable: {exc}"
+        shipment_job.status = "failed"
+        shipment_job.error_message = f"Worker queue unavailable: {exc}"
+        db.commit()
+        raise HTTPException(status_code=503, detail=f"Model retraining queue unreachable: {exc}")
     return {'message': 'Company model retraining jobs queued', 'jobs': [{'job_id': demand_job.id, 'type': demand_job.job_type, 'status': demand_job.status}, {'job_id': shipment_job.id, 'type': shipment_job.job_type, 'status': shipment_job.status}]}
 
 @router.get('/jobs/{job_id}', response_model=JobStatusResponse)

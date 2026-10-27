@@ -28,15 +28,20 @@ STANDARD_SCHEMA: dict[str, dict[str, list]] = {
     },
 }
 
-# Aliases: standard_field -> list of normalized (lowercase, no separators) synonyms
 FIELD_ALIASES: dict[str, list[str]] = {
     "date": ["date", "orderdate", "saledate", "transactiondate", "day", "lastupdated", "updatedat"],
     "product_id": ["productid", "sku", "itemid", "itemcode", "productcode", "product", "cargo", "productname"],
-    "quantity": ["quantity", "qtysold", "unitssold", "qty", "salesqty", "demand", "unitssold"],
-    "region": ["region", "market", "territory", "zone"],
-    "price": ["price", "unitprice", "saleprice"],
+    "quantity": [
+        "quantity", "orderitemquantity", "orderquantity", "itemquantity", "orderqty",
+        "units", "unitsordered", "orderedqty", "qtysold", "unitssold", "qty", "demand"
+    ],
+    "region": ["region", "market", "territory", "zone", "destination"],
+    "price": [
+        "price", "unitprice", "saleprice", "orderitemproductprice", "sales",
+        "orderitemtotal", "revenue", "orderamount"
+    ],
     "promotion": ["promotion", "promo", "onpromotion", "ispromo"],
-    "category": ["category", "productcategory", "segment"],
+    "category": ["category", "categoryname", "productcategory", "segment"],
 
     "inventory_level": ["inventorylevel", "stock", "stocklevel", "onhand", "inventory", "qtyonhand", "currentstock"],
     "warehouse": ["warehouse", "warehousename", "location", "dc", "distributioncenter"],
@@ -56,7 +61,7 @@ FIELD_ALIASES: dict[str, list[str]] = {
     "supplier_name": ["suppliername", "vendorname", "supplier"],
     "lead_time": ["leadtime", "leadtimedays", "deliverydays", "avgleadtime", "supplierleadtime"],
     "reliability": ["reliability", "ontimerate", "reliabilityscore"],
-    "cost": ["cost", "unitcost", "costindex", "unitprice"],
+    "cost": ["cost", "unitcost", "costindex"],
     "defect_rate": ["defectrate", "qualityissuerate", "rejectrate"],
 }
 

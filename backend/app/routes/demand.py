@@ -11,11 +11,11 @@ from app.services.model_training_service import get_active_demand_model
 from app.utils.logging_config import get_logger
 router = APIRouter(prefix='/api/demand', tags=['demand'])
 logger = get_logger(__name__)
-ALLOWED_HORIZONS = (7, 30, 90)
+ALLOWED_HORIZONS = (7, 30, 60, 90)
 MIN_HISTORY_DAYS_FOR_FORECAST = 20
 
 @router.get('/forecast/{company_id}', response_model=DemandForecastResponse)
-def get_demand_forecast(company_id: int, product_id: int | None=Query(None, description='Limit to one product (internal id). Omit for all products.'), horizon: int=Query(7, description='Forecast horizon in days: 7, 30, or 90.'), db: Session=Depends(get_db), *, current_user: User=Depends(get_current_user)):
+def get_demand_forecast(company_id: int, product_id: int | None=Query(None, description='Limit to one product (internal id). Omit for all products.'), horizon: int=Query(7, description='Forecast horizon in days: 7, 30, 60, or 90.'), db: Session=Depends(get_db), *, current_user: User=Depends(get_current_user)):
     if not current_user.is_superuser and current_user.company_id != company_id:
         raise HTTPException(403, "Not authorized to access this company's data")
     company = db.query(Company).filter(Company.id == company_id).first()

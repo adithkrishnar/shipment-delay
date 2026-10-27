@@ -61,6 +61,8 @@ class RetrainResponse(BaseModel):
 class ForecastPoint(BaseModel):
     date: str
     predicted_quantity: float
+    lower_bound: float | None = None
+    upper_bound: float | None = None
 
 
 class ProductForecast(BaseModel):

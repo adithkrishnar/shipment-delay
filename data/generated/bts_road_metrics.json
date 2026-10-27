@@ -1,0 +1,6 @@
+{
+  "mae_hours": 19.542159713405418,
+  "rmse_hours": 24.45129124078143,
+  "r2_score": 0.3120955119531299,
+  "observations_evaluated": 150000
+}

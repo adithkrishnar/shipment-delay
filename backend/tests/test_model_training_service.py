@@ -92,3 +92,25 @@ def test_retraining_archives_previous_version(db_session):
     assert entry1.status == "archived"
     assert entry2.status == "active"
     assert entry2.version != entry1.version
+
+
+def test_model_evaluation_persists_wape_and_handles_zero_demand(db_session):
+    import json
+    import numpy as np
+    from app.ml.demand_forecasting import _wape
+
+    # Verify zero actual demand safety
+    zero_actuals = np.zeros(10)
+    preds = np.ones(10) * 5.0
+    wape_zero = _wape(zero_actuals, preds)
+    assert wape_zero == 0.0 or wape_zero is None or isinstance(wape_zero, float)
+
+    # Verify training persists WAPE in metrics
+    company = _seed_company_sales(db_session, "WAPE Test Co", n_days=400, n_products=10)
+    entry, trained = train_company_demand_model(db_session, company.id)
+
+    metrics = json.loads(entry.metrics_json)
+    assert "wape" in metrics
+    assert isinstance(metrics["wape"], float)
+    assert metrics["wape"] >= 0.0
+

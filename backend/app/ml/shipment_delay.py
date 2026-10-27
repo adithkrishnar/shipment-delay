@@ -253,7 +253,11 @@ def save_model(trained, path) -> None:
 
 
 def load_model(path):
-    return joblib.load(path)
+    import warnings
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", message=".*InconsistentVersionWarning.*")
+        warnings.filterwarnings("ignore", category=UserWarning)
+        return joblib.load(path)
 
 
 def predict_shipment_risk(

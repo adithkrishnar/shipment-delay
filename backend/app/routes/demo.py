@@ -1,5 +1,8 @@
-from fastapi import APIRouter, Depends
+from typing import Optional
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
+from app.config import settings
 from app.database import get_db
 from app.services.demo_data_generator import generate_demo_companies, seed_demo_for_company
 from app.auth.deps import get_current_user
@@ -10,9 +13,38 @@ from app.utils.logging_config import get_logger
 router = APIRouter(prefix="/api/demo", tags=["demo"])
 logger = get_logger(__name__)
 
+oauth2_optional = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login", auto_error=False)
+
+def get_optional_current_user(
+    db: Session = Depends(get_db),
+    token: Optional[str] = Depends(oauth2_optional),
+) -> Optional[User]:
+    if not token:
+        return None
+    try:
+        from jose import jwt
+        from app.auth.security import SECRET_KEY, ALGORITHM
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id = payload.get("sub")
+        if user_id:
+            return db.query(User).filter(User.id == int(user_id)).first()
+    except Exception:
+        return None
+    return None
+
 @router.post("/seed")
-def seed_demo_data(db: Session = Depends(get_db)):
+def seed_demo_data(
+    db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_optional_current_user),
+):
     """Regenerate the three demo companies and train the shared base models."""
+    is_prod = str(settings.ENV).strip().lower() in ("production", "prod")
+    if is_prod:
+        if not current_user or not current_user.is_superuser:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Security rejection: Global demo seeding in production environment requires active superuser authorization.",
+            )
     logger.info("Seeding demo companies...")
     from app.models import Company
     demo_companies = db.query(Company).filter(Company.is_demo == 1).all()

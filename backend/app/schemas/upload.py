@@ -61,4 +61,5 @@ class ImportResponse(BaseModel):
     dataset_type: DatasetType
     imported_row_count: int
     skipped_row_count: int
+    updated_row_count: int = 0
     status: str

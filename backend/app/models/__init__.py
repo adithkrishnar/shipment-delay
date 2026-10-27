@@ -11,6 +11,9 @@ from app.models.alert import Alert
 from app.models.dataset_upload import DatasetUpload
 from app.models.user import User
 from app.models.job import TrainingJob
+from app.models.action_approval import ActionApproval
+from app.models.warehouse_transfer import WarehouseTransfer
+from app.models.scenario import SavedScenario
 
 __all__ = [
     "Company",
@@ -26,4 +29,7 @@ __all__ = [
     "DatasetUpload",
     "User",
     "TrainingJob",
+    "ActionApproval",
+    "WarehouseTransfer",
+    "SavedScenario",
 ]

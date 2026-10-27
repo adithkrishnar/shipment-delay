@@ -49,7 +49,7 @@ def process_rail_data():
         csv_name = [n for n in z.namelist() if n.endswith('.csv') and 'MetaData' not in n][0]
         df = pd.read_csv(z.open(csv_name), usecols=['REF_DATE', 'VALUE'])
         
-    df['date'] = pd.to_datetime(df['REF_DATE'] + '-01').dt.date
+    df['date'] = pd.to_datetime(df['REF_DATE'].astype(str) + '-01').dt.date
     # Normalize VALUE to create a mock congestion index
     df['VALUE'] = pd.to_numeric(df['VALUE'], errors='coerce').fillna(0)
     daily = df.groupby('date')['VALUE'].sum().reset_index()

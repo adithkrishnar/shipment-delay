@@ -7,10 +7,14 @@ import Overview from './pages/Overview';
 import Shipments from './pages/Shipments';
 import Demand from './pages/Demand';
 import Inventory from './pages/Inventory';
+import Products from './pages/Products';
+import Replenishment from './pages/Replenishment';
 import Suppliers from './pages/Suppliers';
 import Anomalies from './pages/Anomalies';
 import Simulator from './pages/Simulator';
+import WhatIfLab from './pages/WhatIfLab';
 import Recommendations from './pages/Recommendations';
+import Insights from './pages/Insights';
 import Models from './pages/Models';
 import Data from './pages/Data';
 import Login from './pages/Login';
@@ -137,15 +141,20 @@ function MainApp() {
           <Route path="/register" element={<Register />} />
           <Route element={<ProtectedRoute />}>
             <Route path="/" element={<Overview company={company} />} />
-            <Route path="/shipments" element={<Shipments company={company} />} />
-            <Route path="/demand" element={<Demand company={company} />} />
             <Route path="/inventory" element={<Inventory company={company} />} />
+            <Route path="/products" element={<Products company={company} />} />
+            <Route path="/demand" element={<Demand company={company} />} />
+            <Route path="/replenishment" element={<Replenishment company={company} />} />
+            <Route path="/delay-simulator" element={<Simulator company={company} />} />
+            <Route path="/simulator" element={<Simulator company={company} />} />
+            <Route path="/what-if" element={<WhatIfLab company={company} />} />
+            <Route path="/recommendations" element={<Recommendations company={company} />} />
+            <Route path="/insights" element={<Insights company={company} />} />
+            <Route path="/data" element={<Data company={company} onCompanyChange={changeCompany} />} />
+            <Route path="/models" element={<Models company={company} />} />
+            <Route path="/shipments" element={<Shipments company={company} />} />
             <Route path="/suppliers" element={<Suppliers company={company} />} />
             <Route path="/anomalies" element={<Anomalies company={company} />} />
-            <Route path="/simulator" element={<Simulator company={company} />} />
-            <Route path="/recommendations" element={<Recommendations company={company} />} />
-            <Route path="/models" element={<Models company={company} />} />
-            <Route path="/data" element={<Data company={company} onCompanyChange={changeCompany} />} />
             <Route path="*" element={
               <div className="page animate-fade" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', minHeight: '60vh' }}>
                 <h1 style={{ fontSize: '48px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '16px' }}>404</h1>

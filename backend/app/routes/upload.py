@@ -111,11 +111,11 @@ def import_upload(company_id: int, upload_id: int, db: Session=Depends(get_db), 
         raise HTTPException(status_code=400, detail=f'Cannot import: required fields not mapped: {missing}')
     df = read_tabular_file(Path(upload.stored_path))
     mapped_df = apply_mapping(df, column_mapping)
-    imported, skipped = import_dataset(db, company_id, upload.dataset_type, mapped_df)
+    imported, skipped, updated = import_dataset(db, company_id, upload.dataset_type, mapped_df)
     upload.status = 'imported'
     upload.imported_at = datetime.utcnow()
     db.commit()
-    logger.info('Imported dataset upload_id=%s company=%s type=%s imported=%s skipped=%s', upload_id, company_id, upload.dataset_type, imported, skipped)
+    logger.info('Imported dataset upload_id=%s company=%s type=%s imported=%s skipped=%s updated=%s', upload_id, company_id, upload.dataset_type, imported, skipped, updated)
     if upload.dataset_type == 'sales' and imported > 0:
         try:
             ensure_company_has_a_model(db, company_id)
@@ -126,7 +126,7 @@ def import_upload(company_id: int, upload_id: int, db: Session=Depends(get_db), 
             ensure_company_has_shipment_models(db, company_id)
         except Exception:
             logger.exception('Post-import shipment model training failed for company_id=%s', company_id)
-    return ImportResponse(upload_id=upload_id, company_id=company_id, dataset_type=upload.dataset_type, imported_row_count=imported, skipped_row_count=skipped, status=upload.status)
+    return ImportResponse(upload_id=upload_id, company_id=company_id, dataset_type=upload.dataset_type, imported_row_count=imported, skipped_row_count=skipped, updated_row_count=updated, status=upload.status)
 
 @router.get('/data/uploads/{company_id}')
 def list_uploads(company_id: int, db: Session=Depends(get_db), *, current_user: User=Depends(get_current_user)):

@@ -36,7 +36,7 @@ class Settings(BaseSettings):
         "http://127.0.0.1:5173",
     ]
 
-    from pydantic import field_validator
+    from pydantic import field_validator, model_validator
     @field_validator("FRONTEND_ORIGINS", mode="before")
     @classmethod
     def assemble_cors_origins(cls, v: str | list[str]) -> list[str]:
@@ -45,6 +45,28 @@ class Settings(BaseSettings):
         elif isinstance(v, list):
             return v
         return v
+
+    @model_validator(mode="after")
+    def validate_production_security(self) -> "Settings":
+        is_prod = str(self.ENV).strip().lower() in ("production", "prod")
+        if is_prod:
+            # Enforce debug is disabled in production
+            self.DEBUG = False
+
+            # Reject insecure default secrets in production
+            insecure_defaults = {
+                "change-me-in-production-super-secret",
+                "secret",
+                "password",
+                "changeme",
+                "default",
+            }
+            if not self.SECRET_KEY or self.SECRET_KEY in insecure_defaults or len(self.SECRET_KEY) < 32:
+                raise ValueError(
+                    "INSECURE_SECRET_KEY_IN_PRODUCTION: In production mode, SECRET_KEY must be "
+                    "explicitly set to a cryptographically secure string of at least 32 characters."
+                )
+        return self
 
     # Optional external services - app must work with these unset
     AI_API_KEY: str | None = None
