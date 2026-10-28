@@ -157,12 +157,16 @@ export default function WhatIfLab({ company }) {
   const scenario = result?.scenario || {};
   const deltas = result?.deltas || {};
 
-  const comparisonChartData = [
-    { name: 'Daily Demand', Baseline: baseline.daily_demand || 0, Scenario: scenario.daily_demand || 0 },
+  const stockPolicyChartData = [
     { name: 'Safety Stock', Baseline: baseline.safety_stock || 0, Scenario: scenario.safety_stock || 0 },
-    { name: 'Reorder Point', Baseline: baseline.reorder_point || 0, Scenario: scenario.reorder_point || 0 },
+    { name: 'Reorder Point (ROP)', Baseline: baseline.reorder_point || 0, Scenario: scenario.reorder_point || 0 },
+  ];
+
+  const velocityChartData = [
+    { name: 'Daily Demand (u/d)', Baseline: baseline.daily_demand || 0, Scenario: scenario.daily_demand || 0 },
     { name: 'Coverage (Days)', Baseline: baseline.coverage_days || 0, Scenario: scenario.coverage_days || 0 },
   ];
+
 
   return (
     <div className="page" style={{ padding: '32px', maxWidth: '1440px', margin: '0 auto' }}>
@@ -342,27 +346,97 @@ export default function WhatIfLab({ company }) {
             </div>
           </div>
 
-          {/* Grouped Bar Chart */}
-          <div className="sim-panel" style={{ height: '320px' }}>
-            <h4 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '12px' }}>
-              Baseline Policy vs. What-If Scenario Policy
+          {/* Multi-Scale Separated Visualizations */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            {/* Chart 1: Stock Policy & Sizing (Units) */}
+            <div className="sim-panel" style={{ height: '260px' }}>
+              <h4 style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '8px' }}>
+                Inventory Buffers & Sizing (Units)
+              </h4>
+              <ResponsiveContainer width="100%" height="80%">
+                <BarChart data={stockPolicyChartData} margin={{ top: 5, right: 10, bottom: 5, left: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" />
+                  <XAxis dataKey="name" stroke="var(--text-tertiary)" fontSize={11} />
+                  <YAxis stroke="var(--text-tertiary)" fontSize={11} />
+                  <Tooltip contentStyle={{ background: 'var(--bg-surface-1)', borderColor: 'var(--border-default)', fontSize: '12px' }} />
+                  <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '4px' }} />
+                  <Bar dataKey="Baseline" fill="var(--accent-primary)" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="Scenario" fill="var(--status-watch)" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Chart 2: Velocity & Days of Coverage */}
+            <div className="sim-panel" style={{ height: '260px' }}>
+              <h4 style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '8px' }}>
+                Demand Velocity & Coverage Days
+              </h4>
+              <ResponsiveContainer width="100%" height="80%">
+                <BarChart data={velocityChartData} margin={{ top: 5, right: 10, bottom: 5, left: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" />
+                  <XAxis dataKey="name" stroke="var(--text-tertiary)" fontSize={11} />
+                  <YAxis stroke="var(--text-tertiary)" fontSize={11} />
+                  <Tooltip contentStyle={{ background: 'var(--bg-surface-1)', borderColor: 'var(--border-default)', fontSize: '12px' }} />
+                  <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '4px' }} />
+                  <Bar dataKey="Baseline" fill="var(--accent-primary)" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="Scenario" fill="var(--status-healthy)" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Variance Delta Table */}
+          <div className="sim-panel" style={{ padding: '16px' }}>
+            <h4 style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '12px' }}>
+              Policy Parameter & Impact Variance Table
             </h4>
-            <ResponsiveContainer width="100%" height="85%">
-              <BarChart data={comparisonChartData} margin={{ top: 10, right: 20, bottom: 5, left: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" />
-                <XAxis dataKey="name" stroke="var(--text-tertiary)" fontSize={11} />
-                <YAxis stroke="var(--text-tertiary)" fontSize={11} />
-                <Tooltip
-                  contentStyle={{ background: 'var(--bg-surface-1)', borderColor: 'var(--border-default)', fontSize: '12px' }}
-                />
-                <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '8px' }} />
-                <Bar dataKey="Baseline" fill="var(--accent-primary)" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="Scenario" fill="var(--status-watch)" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-secondary)' }}>
+                  <th style={{ padding: '6px 10px' }}>Metric</th>
+                  <th style={{ padding: '6px 10px' }}>Baseline Policy</th>
+                  <th style={{ padding: '6px 10px' }}>What-If Scenario</th>
+                  <th style={{ padding: '6px 10px' }}>Absolute Variance</th>
+                  <th style={{ padding: '6px 10px' }}>% Shift</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                  <td style={{ padding: '8px 10px', fontWeight: 600 }}>Daily Demand Pace</td>
+                  <td style={{ padding: '8px 10px' }}>{baseline.daily_demand} u/d</td>
+                  <td style={{ padding: '8px 10px', color: 'var(--accent-primary)', fontWeight: 600 }}>{scenario.daily_demand} u/d</td>
+                  <td style={{ padding: '8px 10px' }}>{deltas.demand_diff >= 0 ? `+${deltas.demand_diff}` : deltas.demand_diff} u/d</td>
+                  <td style={{ padding: '8px 10px' }}>{deltas.demand_pct_change >= 0 ? `+${deltas.demand_pct_change}` : deltas.demand_pct_change}%</td>
+                </tr>
+                <tr style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                  <td style={{ padding: '8px 10px', fontWeight: 600 }}>Dynamic Safety Stock</td>
+                  <td style={{ padding: '8px 10px' }}>{baseline.safety_stock} units</td>
+                  <td style={{ padding: '8px 10px', color: 'var(--status-watch)', fontWeight: 600 }}>{scenario.safety_stock} units</td>
+                  <td style={{ padding: '8px 10px' }}>{deltas.safety_stock_diff >= 0 ? `+${deltas.safety_stock_diff}` : deltas.safety_stock_diff} units</td>
+                  <td style={{ padding: '8px 10px' }}>{deltas.safety_stock_pct_change >= 0 ? `+${deltas.safety_stock_pct_change}` : deltas.safety_stock_pct_change}%</td>
+                </tr>
+                <tr style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                  <td style={{ padding: '8px 10px', fontWeight: 600 }}>Reorder Point (ROP)</td>
+                  <td style={{ padding: '8px 10px' }}>{baseline.reorder_point} units</td>
+                  <td style={{ padding: '8px 10px', color: 'var(--status-watch)', fontWeight: 600 }}>{scenario.reorder_point} units</td>
+                  <td style={{ padding: '8px 10px' }}>{deltas.reorder_point_diff >= 0 ? `+${deltas.reorder_point_diff}` : deltas.reorder_point_diff} units</td>
+                  <td style={{ padding: '8px 10px' }}>{deltas.reorder_point_pct_change >= 0 ? `+${deltas.reorder_point_pct_change}` : deltas.reorder_point_pct_change}%</td>
+                </tr>
+                <tr>
+                  <td style={{ padding: '8px 10px', fontWeight: 600 }}>Demand Coverage</td>
+                  <td style={{ padding: '8px 10px' }}>{baseline.coverage_days} days</td>
+                  <td style={{ padding: '8px 10px', color: scenario.coverage_days < 14 ? 'var(--status-critical)' : 'var(--status-healthy)', fontWeight: 600 }}>
+                    {scenario.coverage_days ? `${scenario.coverage_days} days` : 'Exhausted'}
+                  </td>
+                  <td style={{ padding: '8px 10px' }}>{deltas.coverage_diff >= 0 ? `+${deltas.coverage_diff}` : deltas.coverage_diff} days</td>
+                  <td style={{ padding: '8px 10px' }}>{deltas.coverage_pct_change >= 0 ? `+${deltas.coverage_pct_change}` : deltas.coverage_pct_change}%</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
+
 
       {/* Persistent Saved Scenarios Section */}
       <div style={{ background: 'var(--bg-surface-1)', border: '1px solid var(--border-default)', borderRadius: 'var(--r-lg)', overflow: 'hidden' }}>

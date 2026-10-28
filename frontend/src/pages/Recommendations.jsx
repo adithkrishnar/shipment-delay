@@ -176,7 +176,7 @@ export default function Recommendations({ company }) {
 
             return (
               <div
-                key={i}
+                key={rec.id || rec.sku || rec.target_id || `rec-${i}`}
                 style={{
                   background: 'var(--bg-surface-1)',
                   border: `1px solid ${isApproved ? 'var(--status-healthy-border)' : isCritical ? 'rgba(255, 77, 95, 0.35)' : 'var(--border-default)'}`,

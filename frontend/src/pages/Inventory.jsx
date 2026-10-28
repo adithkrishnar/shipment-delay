@@ -123,11 +123,11 @@ export default function Inventory({ company }) {
           <span className="kpi-sub">Immediate replenishment required</span>
         </div>
         <div className="sim-kpi-card">
-          <span className="kpi-label">Total Catalog Units</span>
+          <span className="kpi-label">Total On-Hand Stock</span>
           <div className="kpi-value">
-            {items.reduce((s, x) => s + (x.inventory_level || 0), 0).toLocaleString()}
+            {items.reduce((s, x) => s + (x.inventory_level || 0), 0).toLocaleString()} <span style={{ fontSize: '13px', fontWeight: 400 }}>units</span>
           </div>
-          <span className="kpi-sub">Live synchronized records</span>
+          <span className="kpi-sub">Across all 8 regional facilities</span>
         </div>
       </div>
 

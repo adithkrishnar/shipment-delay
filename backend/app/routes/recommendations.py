@@ -53,13 +53,21 @@ def recommendations(
         else:
             r["is_approved"] = False
 
+    from app.models import Product, Warehouse
+    total_skus = db.query(Product).filter(Product.company_id == company_id).count()
+    wh_count = db.query(Warehouse).filter(Warehouse.company_id == company_id).count()
+
     approved_ids = list(approval_map.keys())
     return {
         "company_id": company_id,
         "recommendations": recs,
+        "total_skus_evaluated": total_skus,
+        "facilities_evaluated": wh_count,
+        "audit_summary": f"Evaluated {total_skus} SKUs across {wh_count} distribution facilities against dynamic ROP and safety-stock thresholds.",
         "approved_action_ids": approved_ids,
         "approved_count": len(approved_ids),
     }
+
 
 
 @router.post("/{company_id}/approve")

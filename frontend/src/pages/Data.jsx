@@ -89,7 +89,7 @@ export default function Data({ company, onCompanyChange }) {
       id: 'sales',
       title: 'HISTORICAL SALES & DEMAND',
       icon: '📈',
-      desc: 'Transaction order lines, daily shipments, promotion flags, and regional demand volume.',
+      desc: 'Transaction order lines, sales order history, promotion flags, and regional demand volume.',
       formats: 'Order Date, SKU, Order Item Quantity, Unit Price, Region, Promotion',
     },
     {
@@ -350,8 +350,8 @@ export default function Data({ company, onCompanyChange }) {
               </tr>
             </thead>
             <tbody>
-              {uploads.map(u => (
-                <tr key={u.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+              {uploads.map((u, idx) => (
+                <tr key={u.id || u.upload_id || `upload-${idx}`} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
                   <td style={{ padding: '10px 16px', fontWeight: 600, color: 'var(--text-primary)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <FileSpreadsheet size={14} color="var(--accent-primary)" />

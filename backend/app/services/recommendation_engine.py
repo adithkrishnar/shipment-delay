@@ -58,7 +58,35 @@ def generate_recommendations(db: Session, company_id: int) -> List[Dict[str, Any
                 "expected_impact": f"Prevents ${lost_revenue:,.2f} projected revenue loss across {shortage:.0f} shortage units." if lost_revenue > 0 else f"Protects stock continuity for {reorder_qty} units.",
                 "status": "PENDING_REVIEW",
             })
+        elif r.get("stockout_risk") == "MEDIUM" or cov_days <= 18.0:
+            reorder_qty = max(25, r.get('recommended_order_quantity', 50))
+            order_cost = reorder_qty * price
+            recs.append({
+                "action": "Initiate Proactive Purchase Order",
+                "action_type": "PROACTIVE_REORDER",
+                "priority": "MEDIUM",
+                "title": f"Reorder {reorder_qty} units of {r['product_name']}",
+                "product_name": r['product_name'],
+                "sku": sku,
+                "target_type": "PRODUCT",
+                "target_id": sku,
+                "warehouse": r.get("warehouse_name", "Primary Regional Hub"),
+                "reason": f"Stock ({r.get('inventory_level', 0):.0f} units) is approaching reorder threshold ({r.get('reorder_point', 0):.0f} ROP) with {cov_days:.1f} days coverage against a 14-day lead time.",
+                "supporting_data": {
+                    "on_hand": round(r.get('inventory_level', 0), 1),
+                    "daily_demand": round(r.get('daily_demand', 0), 1),
+                    "safety_stock": round(r.get('safety_stock', 0), 1),
+                    "reorder_point": round(r.get('reorder_point', 0), 1),
+                    "coverage_days": round(cov_days, 1),
+                    "suggested_order_qty": reorder_qty,
+                    "unit_cost": price,
+                    "estimated_order_cost": round(order_cost, 2),
+                },
+                "expected_impact": f"Prevents buffer erosion and maintains target 95% service level before reaching safety threshold.",
+                "status": "PENDING_REVIEW",
+            })
         elif r.get("overstock_risk") in {"HIGH", "CRITICAL"}:
+
             excess = max(0, r.get('inventory_level', 0) - (r.get('daily_demand', 1) * 45))
             holding_cost = excess * price * 0.20
             recs.append({

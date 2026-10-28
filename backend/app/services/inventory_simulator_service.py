@@ -57,16 +57,21 @@ def run_delay_simulation(
         raise ValueError(f"Product {product_id} not found for company {company_id}")
 
     # 2. Get starting stock (unmutated from database)
-    inv_query = (
-        db.query(InventoryRecord)
-        .filter(InventoryRecord.company_id == company_id, InventoryRecord.product_id == product_id)
-    )
-    if warehouse_id is not None:
-        inv_query = inv_query.filter(InventoryRecord.warehouse_id == warehouse_id)
-
-    latest_inv_record = inv_query.order_by(InventoryRecord.date.desc()).first()
-    starting_stock = float(latest_inv_record.inventory_level) if latest_inv_record else 0.0
-    sim_start_date = latest_inv_record.date if latest_inv_record else date.today()
+    from app.services.inventory_intelligence import _latest_inventory
+    if warehouse_id is None:
+        latest_inv_map = _latest_inventory(db, company_id)
+        prod_snap = latest_inv_map.get(product_id)
+        starting_stock = float(prod_snap.inventory_level) if prod_snap else 0.0
+        sim_start_date = getattr(prod_snap, "date", None) or date.today()
+    else:
+        latest_inv_record = (
+            db.query(InventoryRecord)
+            .filter(InventoryRecord.company_id == company_id, InventoryRecord.product_id == product_id, InventoryRecord.warehouse_id == warehouse_id)
+            .order_by(InventoryRecord.date.desc())
+            .first()
+        )
+        starting_stock = float(latest_inv_record.inventory_level) if latest_inv_record else 0.0
+        sim_start_date = latest_inv_record.date if latest_inv_record else date.today()
 
     # 3. Compute baseline daily demand
     sales_rows = (
@@ -130,6 +135,7 @@ def run_delay_simulation(
             "quantity": float(s.quantity or 0.0),
             "baseline_day": arrival_day,
             "carrier": s.carrier,
+            "is_assumed": False,
         })
 
     # If no incoming orders in database, create a representative default incoming replenishment
@@ -140,7 +146,8 @@ def run_delay_simulation(
             "order_number": "PO-SCHEDULED-1",
             "quantity": max(50.0, round(base_daily_demand * lead_time)),
             "baseline_day": default_arrival,
-            "carrier": "Standard Freight",
+            "carrier": "Standard Replenishment",
+            "is_assumed": True,
         })
 
     # Determine which order receives the simulated delay
@@ -306,6 +313,28 @@ def run_delay_simulation(
         },
     ]
 
+    min_scen_stock = min(t["scenario_stock"] for t in timeline)
+    min_scen_day = next((t["day"] for t in timeline if t["scenario_stock"] == min_scen_stock), 1)
+    initial_coverage = round(starting_stock / base_daily_demand, 1) if base_daily_demand > 0 else 999.0
+    target_order_obj = incoming_orders[target_idx]
+    is_assumed = target_order_obj.get("is_assumed", False)
+    delayed_day = target_order_obj["baseline_day"] + int(round(delay_days))
+
+    if total_scenario_unmet <= 0:
+        assumptions_narrative = (
+            f"On-hand inventory ({starting_stock:.1f} units) provides {initial_coverage:.1f} days of demand coverage at {scenario_daily_demand:.2f} units/day. "
+            f"{'Assumed replenishment order' if is_assumed else 'Scheduled purchase order'} {target_order_obj['order_number']} ({int(target_order_obj['quantity'])} units) "
+            f"arrives on Day {delayed_day} under a +{int(round(delay_days))}d delay. "
+            f"Because this arrival occurs before stock exhaustion, inventory reaches a safe minimum of {min_scen_stock:.1f} units on Day {min_scen_day} without experiencing stockout."
+        )
+    else:
+        var_text = f"${value_at_risk:,.2f} Value at Risk" if value_at_risk is not None else "cost data unavailable"
+        assumptions_narrative = (
+            f"On-hand inventory ({starting_stock:.1f} units) provides only {initial_coverage:.1f} days of demand coverage. "
+            f"A +{int(round(delay_days))}d delay pushes arrival of {target_order_obj['order_number']} to Day {delayed_day}, "
+            f"causing a projected stockout on Day {scenario_earliest_stockout_day} with {total_scenario_unmet:.1f} unmet demand units ({var_text})."
+        )
+
     return {
         "product_id": product.id,
         "product_name": product.name,
@@ -323,6 +352,8 @@ def run_delay_simulation(
             "reorder_point": reorder_point,
             "target_order": incoming_orders[target_idx],
             "all_orders": incoming_orders,
+            "is_assumed_order": is_assumed,
+            "initial_coverage_days": initial_coverage,
         },
         "dates": {
             "baseline_receipt_date": str(baseline_receipt_date),
@@ -333,6 +364,8 @@ def run_delay_simulation(
             "starting_stock": round(starting_stock, 1),
             "ending_baseline_stock": timeline[-1]["baseline_stock"],
             "ending_scenario_stock": timeline[-1]["scenario_stock"],
+            "min_scenario_stock": round(min_scen_stock, 1),
+            "min_scenario_stock_day": min_scen_day,
             "baseline_stockout_days": baseline_stockouts,
             "scenario_stockout_days": scenario_stockouts,
             "additional_stockout_days": max(0, scenario_stockouts - baseline_stockouts),
@@ -344,7 +377,9 @@ def run_delay_simulation(
             "unit_price": unit_price,
             "has_cost_data": unit_cost is not None,
             "has_price_data": unit_price is not None,
+            "assumptions_narrative": assumptions_narrative,
         },
         "timeline": timeline,
         "alternatives": alternatives,
     }
+

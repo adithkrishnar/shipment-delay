@@ -297,9 +297,9 @@ export default function Replenishment({ company }) {
               </tr>
             </thead>
             <tbody>
-              {recommendations.slice(0, 20).map(r => (
+              {recommendations.slice(0, 20).map((r, idx) => (
                 <tr
-                  key={r.product_id}
+                  key={r.product_id || r.sku || `replen-${idx}`}
                   style={{
                     borderBottom: '1px solid var(--border-subtle)',
                     background: r.urgency === 'CRITICAL' ? 'rgba(255, 77, 95, 0.05)' : 'transparent',
@@ -317,7 +317,13 @@ export default function Replenishment({ company }) {
                   <td style={{ padding: '10px 16px', fontWeight: 700, color: r.suggested_order_qty > 0 ? 'var(--status-healthy)' : 'var(--text-tertiary)' }}>
                     {r.suggested_order_qty > 0 ? `${r.suggested_order_qty} units` : '—'}
                   </td>
-                  <td style={{ padding: '10px 16px' }}>${r.estimated_order_cost.toLocaleString()}</td>
+                  <td style={{ padding: '10px 16px' }}>
+                    {r.has_explicit_cost === false ? (
+                      <span style={{ color: 'var(--text-tertiary)', fontStyle: 'italic', fontSize: '11px' }}>Cost data unavailable</span>
+                    ) : (
+                      `$${r.estimated_order_cost.toLocaleString()}`
+                    )}
+                  </td>
                   <td style={{ padding: '10px 16px' }}>
                     <span
                       style={{

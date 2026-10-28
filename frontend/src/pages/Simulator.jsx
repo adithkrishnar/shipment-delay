@@ -420,8 +420,34 @@ export default function Simulator({ company }) {
         </div>
       </div>
 
+      {/* Scenario Assumptions & Calculation Evidence Banner */}
+      {summary.assumptions_narrative && (
+        <div style={{ marginTop: '24px', background: 'var(--bg-surface-1)', border: '1px solid var(--border-default)', borderRadius: 'var(--r-md)', padding: '18px 22px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Sparkles size={16} color="var(--accent-primary)" />
+              <h4 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
+                Scenario Assumptions & Discrete-Event Audit Narrative
+              </h4>
+            </div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '4px', background: params.is_assumed_order ? 'var(--status-watch-bg)' : 'var(--status-healthy-bg)', color: params.is_assumed_order ? 'var(--status-watch)' : 'var(--status-healthy)' }}>
+                {params.is_assumed_order ? 'Assumed Replenishment Schedule' : 'Verified Open Purchase Order'}
+              </span>
+              <span style={{ fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '4px', background: 'var(--bg-surface-2)', color: 'var(--text-secondary)' }}>
+                Min Balance: {summary.min_scenario_stock} units (Day {summary.min_scenario_stock_day})
+              </span>
+            </div>
+          </div>
+          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.5', margin: 0 }}>
+            {summary.assumptions_narrative}
+          </p>
+        </div>
+      )}
+
       {/* Decision Alternatives & Mitigation Matrix */}
-      <div style={{ marginTop: '32px' }}>
+      <div style={{ marginTop: '28px' }}>
+
         <h3 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <ShieldCheck size={18} color="var(--status-healthy)" />
           What-If Mitigation Decision Comparison

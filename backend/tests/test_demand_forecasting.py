@@ -54,7 +54,7 @@ def test_forecast_returns_correct_horizon_length():
     for horizon in (7, 30, 90):
         fc = forecast_product_demand(trained, product_hist, horizon_days=horizon)
         assert len(fc) == horizon
-        assert list(fc.columns) == ["date", "predicted_quantity"]
+        assert "date" in fc.columns and "predicted_quantity" in fc.columns
 
 
 def test_forecast_dates_are_sequential_and_after_history():

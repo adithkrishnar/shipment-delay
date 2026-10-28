@@ -106,10 +106,21 @@ export default function Products({ company }) {
                 <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{wh.total_units?.toLocaleString()} units</span>
               </div>
               <div style={{ marginTop: '6px', display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>Inventory Value:</span>
+                <span style={{ fontWeight: 600, color: 'var(--status-healthy)' }}>
+                  {wh.total_value != null ? `$${Number(wh.total_value).toLocaleString()}` : 'Cost data unavailable'}
+                </span>
+              </div>
+              <div style={{ marginTop: '6px', display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
                 <span style={{ color: 'var(--text-secondary)' }}>Active SKUs:</span>
                 <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{wh.total_skus}</span>
               </div>
+              <div style={{ marginTop: '6px', display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-tertiary)' }}>
+                <span>Snapshot Date:</span>
+                <span>{wh.last_update || 'Current'}</span>
+              </div>
             </div>
+
 
             <div style={{ marginTop: '16px', borderTop: '1px solid var(--border-subtle)', paddingTop: '12px' }}>
               {wh.utilization_pct !== null && wh.utilization_pct !== undefined ? (

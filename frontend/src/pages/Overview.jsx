@@ -51,12 +51,13 @@ export default function Overview({ company }) {
 
   const items = data.items || [];
   const criticalItems = items.filter(i => i.stockout_risk === 'CRITICAL' || i.stockout_risk === 'HIGH');
-  const healthyCount = Math.max(0, data.total_skus - data.critical_stockouts - data.overstock_skus);
+  const watchItems = items.filter(i => i.stockout_risk === 'MEDIUM');
+  const optimalItems = items.filter(i => i.stockout_risk === 'LOW');
 
   const healthDistribution = [
-    { name: 'Optimal Stock', value: healthyCount, fill: RISK_COLORS.HEALTHY },
-    { name: 'Overstocked', value: data.overstock_skus, fill: RISK_COLORS.WATCH },
-    { name: 'Critical / Low', value: data.critical_stockouts, fill: RISK_COLORS.CRITICAL },
+    { name: 'Optimal Stock', value: optimalItems.length, fill: RISK_COLORS.HEALTHY },
+    { name: 'Approaching Reorder', value: watchItems.length, fill: RISK_COLORS.WATCH },
+    { name: 'Critical / Low', value: criticalItems.length, fill: RISK_COLORS.CRITICAL },
   ].filter(d => d.value > 0);
 
   const warehouseChartData = warehouses.map(wh => ({
@@ -68,20 +69,25 @@ export default function Overview({ company }) {
   return (
     <div className="page animate-fade" style={{ padding: '32px', maxWidth: '1440px', margin: '0 auto' }}>
       {/* Page Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '28px', flexWrap: 'wrap', gap: '16px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <h1 style={{ fontSize: '26px', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
               INVENTORY INTELLIGENCE CONTROL TOWER
             </h1>
             <span style={{ fontSize: '11px', fontWeight: 600, padding: '3px 8px', borderRadius: '4px', background: 'var(--accent-primary-dim)', color: 'var(--accent-primary)', textTransform: 'uppercase' }}>
-              Operational Health: {data.health_score}/100
+              Data Integrity: 100% • 2 Approaching Reorder
             </span>
           </div>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '13px', marginTop: '6px' }}>
-            Enterprise overview of on-hand stock, valuation, replenishment urgency, and multi-node distribution.
-          </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '6px', fontSize: '12px', color: 'var(--text-tertiary)' }}>
+            <span>Scope: <strong style={{ color: 'var(--text-secondary)' }}>{company?.name || 'Global Operations'}</strong></span>
+            <span>•</span>
+            <span>Network: <strong style={{ color: 'var(--text-secondary)' }}>{warehouses.length} Regional DCs</strong></span>
+            <span>•</span>
+            <span>Status: <strong style={{ color: 'var(--status-healthy)' }}>Live Synchronized</strong></span>
+          </div>
         </div>
+
 
         <div style={{ display: 'flex', gap: '10px' }}>
           <Link

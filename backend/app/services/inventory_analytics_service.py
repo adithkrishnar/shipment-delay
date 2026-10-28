@@ -13,6 +13,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.models import Company, Product, InventoryRecord, Sale, Warehouse, Shipment
+from app.services.inventory_intelligence import _latest_inventory
 
 
 def get_abc_xyz_analysis(db: Session, company_id: int) -> Dict[str, Any]:
@@ -49,17 +50,9 @@ def get_abc_xyz_analysis(db: Session, company_id: int) -> Dict[str, Any]:
         if s.product_id in product_sales_map and s.quantity is not None:
             product_sales_map[s.product_id].append(float(s.quantity))
 
-    # Compute latest stock per product
-    latest_inv_rows = (
-        db.query(InventoryRecord)
-        .filter(InventoryRecord.company_id == company_id)
-        .order_by(InventoryRecord.product_id, InventoryRecord.date.desc())
-        .all()
-    )
-    stock_map: Dict[int, float] = {}
-    for r in latest_inv_rows:
-        if r.product_id not in stock_map:
-            stock_map[r.product_id] = float(r.inventory_level or 0.0)
+    # Compute latest stock per product using canonical company inventory
+    latest_inv_map = _latest_inventory(db, company_id)
+    stock_map: Dict[int, float] = {pid: float(item.inventory_level) for pid, item in latest_inv_map.items()}
 
     # 1. Calculate Annual Consumption Value (ACV) and CV
     evaluated_products = []
@@ -179,16 +172,8 @@ def get_inventory_aging_and_slow_moving(db: Session, company_id: int) -> Dict[st
     )
     last_sale_map = {row[0]: row[1] for row in latest_sales}
 
-    latest_inv_rows = (
-        db.query(InventoryRecord)
-        .filter(InventoryRecord.company_id == company_id)
-        .order_by(InventoryRecord.product_id, InventoryRecord.date.desc())
-        .all()
-    )
-    stock_map = {}
-    for r in latest_inv_rows:
-        if r.product_id not in stock_map:
-            stock_map[r.product_id] = float(r.inventory_level or 0.0)
+    latest_inv_map = _latest_inventory(db, company_id)
+    stock_map = {pid: float(item.inventory_level) for pid, item in latest_inv_map.items()}
 
     aging_buckets = {
         "0-30 days": {"count": 0, "units": 0, "value": 0.0},
@@ -254,7 +239,8 @@ def get_inventory_aging_and_slow_moving(db: Session, company_id: int) -> Dict[st
 
 def get_warehouses_analytics(db: Session, company_id: int) -> List[Dict[str, Any]]:
     """
-    Summarizes stock levels, valuation, and SKU counts across all company warehouses.
+    Summarizes stock levels, valuation, and SKU counts across all company warehouses
+    based on the latest available inventory snapshot date.
     Utilization is reported only when explicit capacity metrics exist; otherwise None
     to avoid fabricating storage metrics.
     """
@@ -262,21 +248,36 @@ def get_warehouses_analytics(db: Session, company_id: int) -> List[Dict[str, Any
     if not warehouses:
         return []
 
+    products = db.query(Product).filter(Product.company_id == company_id).all()
+    cost_map = {p.id: float(p.unit_cost or p.unit_price or 25.0) for p in products}
+
     results = []
     for wh in warehouses:
-        inv_records = (
-            db.query(InventoryRecord)
+        latest_date = (
+            db.query(func.max(InventoryRecord.date))
             .filter(InventoryRecord.company_id == company_id, InventoryRecord.warehouse_id == wh.id)
-            .all()
+            .scalar()
         )
-        total_units = sum(float(r.inventory_level or 0) for r in inv_records)
-        skus_in_wh = len(set(r.product_id for r in inv_records))
+        if latest_date:
+            inv_records = (
+                db.query(InventoryRecord)
+                .filter(
+                    InventoryRecord.company_id == company_id,
+                    InventoryRecord.warehouse_id == wh.id,
+                    InventoryRecord.date == latest_date
+                )
+                .all()
+            )
+        else:
+            inv_records = []
 
-        # Check capacity: only report utilization if capacity is explicitly defined
+        total_units = sum(float(r.inventory_level or 0) for r in inv_records)
+        total_value = sum(float(r.inventory_level or 0) * cost_map.get(r.product_id, 25.0) for r in inv_records)
+        skus_in_wh = len(set(r.product_id for r in inv_records if (r.inventory_level or 0) > 0))
+
         capacity = getattr(wh, "capacity", None)
         utilization_pct = round((total_units / capacity) * 100, 1) if (capacity and capacity > 0) else None
 
-        # Determine status truthfully based on stock and SKU availability
         if total_units <= 0:
             status = "CRITICAL"
         elif total_units < 50:
@@ -290,9 +291,12 @@ def get_warehouses_analytics(db: Session, company_id: int) -> List[Dict[str, Any
             "location": wh.region or "Regional Hub",
             "total_skus": skus_in_wh,
             "total_units": round(total_units, 1),
+            "total_value": round(total_value, 2),
+            "last_update": str(latest_date) if latest_date else None,
             "capacity": capacity,
             "utilization_pct": utilization_pct,
             "status": status,
         })
 
     return results
+

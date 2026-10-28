@@ -11,6 +11,17 @@ from sqlalchemy.orm import Session
 from app.models import InventoryRecord, Product, Sale, Shipment, Supplier
 
 
+class AggregatedProductInventory:
+    def __init__(self, product_id: int, inventory_level: float, safety_stock: float = 0.0, date: Any = None):
+        self.product_id = product_id
+        self.inventory_level = inventory_level
+        self.safety_stock = safety_stock
+        self.date = date
+
+    def __repr__(self) -> str:
+        return f"<AggregatedProductInventory product_id={self.product_id} level={self.inventory_level}>"
+
+
 def _latest_inventory(db: Session, company_id: int):
     rows = (
         db.query(InventoryRecord)
@@ -18,10 +29,34 @@ def _latest_inventory(db: Session, company_id: int):
         .order_by(InventoryRecord.product_id, InventoryRecord.date.desc())
         .all()
     )
-    latest = {}
+    if not rows:
+        return {}
+
+    # Identify latest date per product
+    latest_date_per_product: dict[int, Any] = {}
     for r in rows:
-        latest.setdefault(r.product_id, r)
-    return latest
+        if r.product_id not in latest_date_per_product:
+            latest_date_per_product[r.product_id] = r.date
+
+    # Sum inventory levels across all warehouses on that latest date
+    product_totals: dict[int, float] = {}
+    product_safety: dict[int, float] = {}
+    for r in rows:
+        if r.date == latest_date_per_product.get(r.product_id):
+            product_totals[r.product_id] = product_totals.get(r.product_id, 0.0) + float(r.inventory_level or 0.0)
+            if r.safety_stock is not None:
+                product_safety[r.product_id] = product_safety.get(r.product_id, 0.0) + float(r.safety_stock or 0.0)
+
+    result = {}
+    for pid, total_stock in product_totals.items():
+        result[pid] = AggregatedProductInventory(
+            product_id=pid,
+            inventory_level=round(total_stock, 1),
+            safety_stock=round(product_safety.get(pid, 0.0), 1),
+            date=latest_date_per_product[pid],
+        )
+    return result
+
 
 
 def _daily_demand(db: Session, company_id: int, product_id: int, days: int = 30) -> float:

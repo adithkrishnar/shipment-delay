@@ -11,7 +11,7 @@ import numpy as np
 from sqlalchemy.orm import Session
 
 from app.models import Company, Product, InventoryRecord, Sale, Warehouse, Supplier, Shipment
-from app.services.inventory_intelligence import calculate_safety_stock, get_supplier_lead_time_stats
+from app.services.inventory_intelligence import calculate_safety_stock, get_supplier_lead_time_stats, _latest_inventory
 
 
 SERVICE_LEVEL_Z_FACTORS = {
@@ -35,17 +35,9 @@ def compute_replenishment_plan(
     z_factor = SERVICE_LEVEL_Z_FACTORS.get(round(service_level, 2), 1.65)
     products = db.query(Product).filter(Product.company_id == company_id).all()
 
-    # Fetch latest inventory per product
-    latest_inv_rows = (
-        db.query(InventoryRecord)
-        .filter(InventoryRecord.company_id == company_id)
-        .order_by(InventoryRecord.product_id, InventoryRecord.date.desc())
-        .all()
-    )
-    stock_map = {}
-    for r in latest_inv_rows:
-        if r.product_id not in stock_map:
-            stock_map[r.product_id] = float(r.inventory_level or 0.0)
+    # Fetch latest canonical inventory per product across all facilities
+    latest_inv_map = _latest_inventory(db, company_id)
+    stock_map = {pid: float(item.inventory_level) for pid, item in latest_inv_map.items()}
 
     # Fetch open incoming shipments
     open_shipments = (
@@ -116,8 +108,9 @@ def compute_replenishment_plan(
         # Target inventory for horizon
         target_inventory = (daily_demand * planning_horizon_days) + safety_stock
 
-        # Needs reorder if effective inventory <= reorder_point
-        needs_reorder = effective_inventory <= reorder_point
+        # Needs reorder if effective inventory <= reorder_point or within 2 days of ROP (approaching reorder)
+        approaching_reorder = effective_inventory <= (reorder_point + (daily_demand * 2.0))
+        needs_reorder = approaching_reorder or (effective_inventory <= reorder_point)
         suggested_qty = max(0, math.ceil(target_inventory - effective_inventory)) if needs_reorder else 0
 
         # Minimum Order Quantity (MOQ) logic
@@ -125,7 +118,8 @@ def compute_replenishment_plan(
         if suggested_qty > 0 and suggested_qty < moq:
             suggested_qty = moq
 
-        unit_cost = float(p.unit_cost) if p.unit_cost is not None else float(p.unit_price or 20.0)
+        has_explicit_cost = p.unit_cost is not None
+        unit_cost = float(p.unit_cost) if has_explicit_cost else float(p.unit_price or 20.0)
         estimated_cost = suggested_qty * unit_cost
 
         if needs_reorder:
@@ -135,7 +129,8 @@ def compute_replenishment_plan(
         urgency = (
             "CRITICAL" if on_hand <= (daily_demand * 3)
             else "HIGH" if on_hand <= safety_stock
-            else "MEDIUM" if needs_reorder
+            else "MEDIUM" if effective_inventory <= reorder_point
+            else "WATCH" if approaching_reorder
             else "OPTIMAL"
         )
 
@@ -155,6 +150,7 @@ def compute_replenishment_plan(
             "reorder_point": round(reorder_point, 1),
             "suggested_order_qty": suggested_qty,
             "unit_cost": unit_cost,
+            "has_explicit_cost": has_explicit_cost,
             "estimated_order_cost": round(estimated_cost, 2),
             "needs_reorder": needs_reorder,
             "urgency": urgency,
