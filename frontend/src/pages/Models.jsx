@@ -171,7 +171,7 @@ export default function Models({ company }) {
                 <div style={{ fontSize: '22px', fontWeight: 700, color: 'var(--status-healthy)' }}>
                   {typeof selectedModelMetrics.wape === 'number'
                     ? `${(selectedModelMetrics.wape <= 1.0 ? selectedModelMetrics.wape * 100 : selectedModelMetrics.wape).toFixed(2)}%`
-                    : (typeof metrics.wape === 'number' ? `${(metrics.wape <= 1.0 ? metrics.wape * 100 : metrics.wape).toFixed(2)}%` : '13.28%')}
+                    : (typeof metrics.wape === 'number' ? `${(metrics.wape <= 1.0 ? metrics.wape * 100 : metrics.wape).toFixed(2)}%` : '—')}
                 </div>
                 <div style={{ fontSize: '11px', color: 'var(--status-healthy)', marginTop: '4px' }}>Total volume normalized accuracy</div>
               </div>
@@ -179,10 +179,10 @@ export default function Models({ company }) {
               <div style={{ background: 'var(--bg-surface-2)', padding: '16px', borderRadius: 'var(--r-md)', border: '1px solid var(--border-subtle)' }}>
                 <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: '6px' }}>Training Sample Volume</div>
                 <div style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                  {typeof metrics.train_rows === 'number' ? metrics.train_rows.toLocaleString() : '19,829'}
+                  {typeof metrics.train_rows === 'number' ? metrics.train_rows.toLocaleString() : (activeModel.dataset_size?.toLocaleString() || '—')}
                 </div>
                 <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                  + {typeof metrics.test_rows === 'number' ? metrics.test_rows.toLocaleString() : '4,958'} held-out test points
+                  {typeof metrics.test_rows === 'number' ? `+ ${metrics.test_rows.toLocaleString()} held-out test points` : 'Out-of-sample evaluated'}
                 </div>
               </div>
             </div>
@@ -228,7 +228,10 @@ export default function Models({ company }) {
                     <ShieldCheck size={14} /> Automatic Fallback to Baseline if History &lt; 20 Days
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-secondary)' }}>
-                    <CheckCircle2 size={14} color="var(--accent-primary)" /> Total Dataset: 24,787 rows (19,829 train / 4,958 test)
+                    <CheckCircle2 size={14} color="var(--accent-primary)" />
+                    {metrics.train_rows && metrics.test_rows
+                      ? `Evaluated on ${(metrics.train_rows + metrics.test_rows).toLocaleString()} rows (${metrics.train_rows.toLocaleString()} train / ${metrics.test_rows.toLocaleString()} test)`
+                      : 'Evaluated on out-of-sample time-series partition'}
                   </div>
                 </div>
               </div>
@@ -297,7 +300,7 @@ export default function Models({ company }) {
                         <td style={{ padding: '10px 16px', color: 'var(--status-healthy)', fontWeight: 600 }}>
                           {typeof mSelected.wape === 'number'
                             ? `${(mSelected.wape <= 1.0 ? mSelected.wape * 100 : mSelected.wape).toFixed(2)}%`
-                            : (typeof mMetrics.wape === 'number' ? `${(mMetrics.wape <= 1.0 ? mMetrics.wape * 100 : mMetrics.wape).toFixed(2)}%` : '13.28%')}
+                            : (typeof mMetrics.wape === 'number' ? `${(mMetrics.wape <= 1.0 ? mMetrics.wape * 100 : mMetrics.wape).toFixed(2)}%` : '—')}
                         </td>
                         <td style={{ padding: '10px 16px' }}>
                           <span style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 700, background: m.status === 'active' ? 'var(--status-healthy-bg)' : 'var(--bg-surface-2)', color: m.status === 'active' ? 'var(--status-healthy)' : 'var(--text-tertiary)' }}>

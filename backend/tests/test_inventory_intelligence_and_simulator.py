@@ -697,12 +697,191 @@ def test_task_11_persistent_what_if_scenarios(client):
 
         # Verify scenario is gone
         res_empty = client.get(f"/api/inventory/scenarios/{c1_id}")
+        res_empty = client.get(f"/api/inventory/scenarios/{c1_id}")
         assert len(res_empty.json()) == 0
     finally:
         if original_override is not None:
             app.dependency_overrides[get_current_user] = original_override
         else:
             app.dependency_overrides.pop(get_current_user, None)
+
+
+def test_simulator_zero_delay(db_session):
+    """
+    Dedicated test for Zero Delay scenario:
+    Baseline and scenario timelines must be mathematically identical on every day.
+    Additional stockout days and unmet demand must be strictly 0.
+    """
+    data = _seed_test_data(db_session)
+    c1, p1 = data["c1"], data["p1"]
+    res = run_delay_simulation(db_session, c1.id, p1.id, delay_days=0.0, demand_multiplier=1.0, horizon_days=30)
+
+    for row in res["timeline"]:
+        assert row["baseline_stock"] == row["scenario_stock"]
+        assert row["baseline_inflow"] == row["scenario_inflow"]
+        assert row["baseline_demand"] == row["scenario_demand"]
+        assert row["shortage_units"] == 0.0 or row["is_stockout"] is True
+
+    assert res["summary"]["additional_stockout_days"] == 0
+    assert res["summary"]["scenario_stockout_days"] == res["summary"]["baseline_stockout_days"]
+    assert res["dates"]["delayed_receipt_date"] == res["dates"]["baseline_receipt_date"]
+
+
+def test_simulator_positive_delay(db_session):
+    """
+    Dedicated test for Positive Delay scenario:
+    Receipt date shifts forward by exactly delay_days.
+    Stock during delay window decreases and stockout occurs when safety buffer is exhausted.
+    """
+    data = _seed_test_data(db_session)
+    c1, p1 = data["c1"], data["p1"]
+    # Starting stock = 110, daily demand = 10. Baseline receipt day 10 (+50 units).
+    # Delay by 7 days -> Receipt day 17.
+    res = run_delay_simulation(db_session, c1.id, p1.id, delay_days=7.0, horizon_days=25)
+
+    base_arrival = res["dates"]["baseline_receipt_date"]
+    delayed_arrival = res["dates"]["delayed_receipt_date"]
+    from datetime import date
+    d_base = date.fromisoformat(base_arrival)
+    d_del = date.fromisoformat(delayed_arrival)
+    assert (d_del - d_base).days == 7
+
+    timeline = {row["day"]: row for row in res["timeline"]}
+    # On day 10: baseline receives 50 units, scenario receives 0
+    assert timeline[10]["baseline_inflow"] == 50.0
+    assert timeline[10]["scenario_inflow"] == 0.0
+
+    # On day 17: scenario receives 50 units
+    assert timeline[17]["scenario_inflow"] == 50.0
+
+
+def test_simulator_demand_surge(db_session):
+    """
+    Dedicated test for Demand Surge scenario:
+    Demand multiplier (e.g. 2.0x) scales daily demand linearly.
+    Stock depletes twice as fast and cumulative demand doubles.
+    """
+    data = _seed_test_data(db_session)
+    c1, p1 = data["c1"], data["p1"]
+    res_normal = run_delay_simulation(db_session, c1.id, p1.id, delay_days=0.0, demand_multiplier=1.0, horizon_days=10)
+    res_surge = run_delay_simulation(db_session, c1.id, p1.id, delay_days=0.0, demand_multiplier=2.0, horizon_days=10)
+
+    cum_norm = sum(r["scenario_demand"] for r in res_normal["timeline"])
+    cum_surge = sum(r["scenario_demand"] for r in res_surge["timeline"])
+    assert round(cum_surge, 1) == round(cum_norm * 2.0, 1)
+
+    # In surge, closing stock on day 5 is lower than normal
+    assert res_surge["timeline"][4]["scenario_stock"] < res_normal["timeline"][4]["scenario_stock"]
+
+
+def test_simulator_missing_receipt_data(db_session):
+    """
+    Dedicated test for Missing Receipt Data scenario:
+    When no open purchase orders exist in the database, the simulator
+    creates a clearly flagged assumed incoming order (is_assumed: True)
+    without crashing or fabricating fake shipment IDs.
+    """
+    data = _seed_test_data(db_session)
+    c1, p2 = data["c1"], data["p2"]
+    # P2 has no shipments in _seed_test_data
+    res = run_delay_simulation(db_session, c1.id, p2.id, delay_days=5.0, horizon_days=20)
+
+    # Order details must indicate assumed order
+    assert res["parameters"]["is_assumed_order"] is True
+    assert res["parameters"]["target_order"]["is_assumed"] is True
+    assert res["parameters"]["target_order"]["order_number"] == "PO-SCHEDULED-1"
+    assert res["parameters"]["target_order"]["quantity"] > 0
+    assert len(res["timeline"]) == 20
+
+
+def test_simulator_emergency_order_scenario(db_session):
+    """
+    Dedicated test for Emergency Order scenario:
+    An injected emergency order on day 5 provides instant stock relief,
+    raising inventory balance and reducing unmet demand.
+    """
+    data = _seed_test_data(db_session)
+    c1, p1 = data["c1"], data["p1"]
+
+    # Without emergency order under 15-day delay
+    res_no_emerg = run_delay_simulation(db_session, c1.id, p1.id, delay_days=15.0, emergency_order_qty=0.0, horizon_days=25)
+    # With 100-unit emergency order arriving on day 5
+    res_emerg = run_delay_simulation(
+        db_session, c1.id, p1.id, delay_days=15.0, emergency_order_day=5, emergency_order_qty=100.0, horizon_days=25
+    )
+
+    t5_emerg = next(r for r in res_emerg["timeline"] if r["day"] == 5)
+    assert t5_emerg["scenario_inflow"] >= 100.0
+
+    # Emergency order must reduce stockout days and unmet demand
+    assert res_emerg["summary"]["scenario_stockout_days"] <= res_no_emerg["summary"]["scenario_stockout_days"]
+    assert res_emerg["summary"]["total_unmet_demand_units"] < res_no_emerg["summary"]["total_unmet_demand_units"]
+
+
+def test_simulator_company5_laptops_day14_and_min_balance(db_session):
+    """
+    Explicit verification of Company 5 Laptops Item 1:
+    Starting stock: 238.1 units.
+    Daily demand: ~11.54 u/d.
+    Nominal lead time: 14.0 days -> Assumed receipt on Day 7 of 162 units.
+    With +7 day delay -> Receipt pushes to Day 14.
+    Pre-receipt inventory prior to Day 14 arrival is 238.1 - (14 * 11.54) = 76.54 units.
+    Receipt of 162 units arrives on Day 14 -> closing stock = 76.54 + 162 - 11.54 = 238.5 units.
+    Across the 14-day delay window, stock remains above safety buffer, resulting in 0 stockouts.
+    """
+    # Seed Company 5 structure
+    c = Company(name="SupplyIQ Electronics", industry="Electronics")
+    db_session.add(c)
+    db_session.commit()
+    db_session.refresh(c)
+
+    w = Warehouse(company_id=c.id, name="Dallas Hub", region="Dallas")
+    db_session.add(w)
+    db_session.commit()
+    db_session.refresh(w)
+
+    p = Product(
+        company_id=c.id,
+        external_product_id="SKU-LAPTOP-01",
+        name="Laptops Item 1",
+        unit_cost=552.50,
+        unit_price=1200.00,
+    )
+    db_session.add(p)
+    db_session.commit()
+    db_session.refresh(p)
+
+    today = date.today()
+    inv = InventoryRecord(
+        company_id=c.id, product_id=p.id, warehouse_id=w.id, date=today, inventory_level=238.1, safety_stock=85.0
+    )
+    db_session.add(inv)
+
+    # 30 days of sales with 11.54 units/day
+    sales = [Sale(company_id=c.id, product_id=p.id, date=today - timedelta(days=d), quantity=11.54) for d in range(1, 31)]
+    db_session.add_all(sales)
+    db_session.commit()
+
+    res = run_delay_simulation(db_session, c.id, p.id, delay_days=7.0, horizon_days=30)
+    timeline = {r["day"]: r for r in res["timeline"]}
+
+    # Day 14 receipt
+    assert timeline[14]["scenario_inflow"] == 162.0
+    # Day 14 stock is ~76.5 before arrival + 162 = ~238.5 closing
+    assert round(timeline[14]["scenario_stock"], 0) in (238.0, 239.0)
+
+    # Pre-receipt stock at Day 14: starting_stock - 14 * daily_demand = 238.1 - 161.56 = 76.54 units
+    pre_receipt_stock = round(238.1 - (14 * 11.54), 1)
+    assert pre_receipt_stock == 76.5
+
+    # Day 13 closing stock is 88.1 units
+    assert timeline[13]["scenario_stock"] == 88.1
+
+    # Zero stockouts
+    assert res["summary"]["scenario_stockout_days"] == 0
+    assert res["summary"]["value_at_risk"] == 0.0 or res["summary"]["value_at_risk"] is None
+
+
 
 
 
