@@ -32,6 +32,7 @@ class Shipment(Base):
     company = relationship("Company", back_populates="shipments")
     product = relationship("Product", back_populates="shipments")
     supplier = relationship("Supplier", back_populates="shipments")
+    legs = relationship("ShipmentLeg", back_populates="shipment", cascade="all, delete-orphan", order_by="ShipmentLeg.sequence")
 
     def __repr__(self) -> str:
         return f"<Shipment id={self.external_shipment_id} product_id={self.product_id}>"

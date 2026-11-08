@@ -1,39 +1,51 @@
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, Boxes, Warehouse, TrendingUp, RefreshCw,
-  SlidersHorizontal, FlaskConical, Sparkles, Grid3X3, UploadCloud, BrainCircuit
+  SlidersHorizontal, FlaskConical, Sparkles, Grid3X3, UploadCloud, BrainCircuit, Truck
 } from 'lucide-react';
-
-const navGroups = [
-  {
-    label: 'Operations',
-    links: [
-      ['/', 'Overview', LayoutDashboard],
-      ['/inventory', 'Inventory Explorer', Boxes],
-      ['/products', 'Products & Warehouses', Warehouse],
-      ['/demand', 'Demand Forecasts', TrendingUp],
-      ['/replenishment', 'Replenishment', RefreshCw],
-    ]
-  },
-  {
-    label: 'Decision Support',
-    links: [
-      ['/delay-simulator', 'Delay Simulator', SlidersHorizontal],
-      ['/what-if', 'What-If Lab', FlaskConical],
-      ['/recommendations', 'Action Center', Sparkles],
-      ['/insights', 'Inventory Insights', Grid3X3],
-    ]
-  },
-  {
-    label: 'System',
-    links: [
-      ['/data', 'Data & Imports', UploadCloud],
-      ['/models', 'Models & Quality', BrainCircuit],
-    ]
-  }
-];
+import { useAuth } from '../auth/AuthContext';
 
 export default function Sidebar() {
+  const { user } = useAuth();
+  const isTransporter = user?.role === 'transporter';
+
+  // If transporter, strictly show ONLY the Carrier Operations Portal
+  const navGroups = isTransporter ? [
+    {
+      label: 'Carrier Portal',
+      links: [
+        ['/transporter', 'My Corridors & Disruption Reports', Truck],
+      ]
+    }
+  ] : [
+    {
+      label: 'Operations',
+      links: [
+        ['/', 'Overview', LayoutDashboard],
+        ['/inventory', 'Inventory Explorer', Boxes],
+        ['/products', 'Products & Warehouses', Warehouse],
+        ['/demand', 'Demand Forecasts', TrendingUp],
+        ['/replenishment', 'Replenishment', RefreshCw],
+      ]
+    },
+    {
+      label: 'Decision Support',
+      links: [
+        ['/delay-simulator', 'Delay Simulator', SlidersHorizontal],
+        ['/what-if', 'What-If Lab', FlaskConical],
+        ['/recommendations', 'Action Center', Sparkles],
+        ['/insights', 'Inventory Insights', Grid3X3],
+      ]
+    },
+    {
+      label: 'System',
+      links: [
+        ['/data', 'Data & Imports', UploadCloud],
+        ['/models', 'Models & Quality', BrainCircuit],
+      ]
+    }
+  ];
+
   return (
     <aside className="sidebar">
       <div className="sidebar-brand">

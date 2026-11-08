@@ -17,7 +17,11 @@ export default function Login() {
     const result = await login(email, password);
     setLoading(false);
     if (result.success) {
-      navigate('/');
+      if (result.user?.role === 'transporter') {
+        navigate('/transporter');
+      } else {
+        navigate('/');
+      }
     } else {
       setError(result.error);
     }
@@ -102,7 +106,32 @@ export default function Login() {
             </button>
           </form>
 
-          <div style={{ marginTop: '24px', textAlign: 'center', fontSize: '13px', color: 'var(--text-secondary)' }}>
+          {/* Quick Demo Role Switcher Pills */}
+          <div style={{ marginTop: '20px', padding: '12px', background: 'var(--bg-surface-2)', borderRadius: 'var(--r-md)', border: '1px solid var(--border-subtle)' }}>
+            <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-tertiary)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              One-Click Role Demonstration
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <button
+                type="button"
+                onClick={() => { setEmail('admin@dataco.com'); setPassword('password123'); }}
+                style={{ padding: '8px 10px', fontSize: '12px', textAlign: 'left', background: 'var(--bg-base)', border: '1px solid var(--border-subtle)', borderRadius: '6px', color: 'var(--text-primary)', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+              >
+                <span>🏢 <strong>Company: DataCo Global</strong></span>
+                <span style={{ color: 'var(--text-tertiary)', fontSize: '11px' }}>admin@dataco.com</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => { setEmail('carrier@datacotransport.com'); setPassword('password123'); }}
+                style={{ padding: '8px 10px', fontSize: '12px', textAlign: 'left', background: 'var(--bg-base)', border: '1px solid var(--border-subtle)', borderRadius: '6px', color: 'var(--text-primary)', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+              >
+                <span>🚚 <strong>Transporter: DataCo Linehaul</strong></span>
+                <span style={{ color: 'var(--text-tertiary)', fontSize: '11px' }}>carrier@datacotransport.com</span>
+              </button>
+            </div>
+          </div>
+
+          <div style={{ marginTop: '20px', textAlign: 'center', fontSize: '13px', color: 'var(--text-secondary)' }}>
             Don't have an account? <Link to="/register" style={{ color: 'var(--accent-primary)', fontWeight: 500 }}>Register</Link>
           </div>
         </div>

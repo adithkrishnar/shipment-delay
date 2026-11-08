@@ -80,3 +80,16 @@ export const getSavedScenarios = (companyId) =>
 export const deleteSavedScenario = (companyId, scenarioId) =>
   api.delete(`/inventory/scenarios/${companyId}/${scenarioId}`).then(r => r.data);
 
+// ── Transporter & Collaborative Disruption Endpoints ──────────
+export const registerTransporter = (payload) =>
+  api.post('/v1/transporter/register', payload).then(r => r.data);
+export const getAssignedShipments = () =>
+  api.get('/v1/transporter/assigned-shipments').then(r => r.data);
+export const getShipmentLegs = (shipmentId) =>
+  api.get(`/v1/transporter/shipments/${shipmentId}/legs`).then(r => r.data);
+export const reportLegDisruption = (shipmentId, legId, payload) =>
+  api.post(`/v1/transporter/shipments/${shipmentId}/legs/${legId}/report-disruption`, payload).then(r => r.data);
+export const getRecentDisruptions = () =>
+  api.get('/v1/transporter/recent-disruptions').then(r => r.data);
+
+

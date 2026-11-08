@@ -17,6 +17,7 @@ import Recommendations from './pages/Recommendations';
 import Insights from './pages/Insights';
 import Models from './pages/Models';
 import Data from './pages/Data';
+import TransporterPortal from './pages/TransporterPortal';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -141,6 +142,7 @@ function MainApp() {
           <Route path="/register" element={<Register />} />
           <Route element={<ProtectedRoute />}>
             <Route path="/" element={<Overview company={company} />} />
+            <Route path="/transporter" element={<TransporterPortal company={company} />} />
             <Route path="/inventory" element={<Inventory company={company} />} />
             <Route path="/products" element={<Products company={company} />} />
             <Route path="/demand" element={<Demand company={company} />} />

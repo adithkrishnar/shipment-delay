@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   SlidersHorizontal, AlertTriangle, ShieldCheck, Clock, DollarSign,
-  TrendingDown, ArrowRight, RefreshCw, CheckCircle2, Package
+  TrendingDown, ArrowRight, RefreshCw, CheckCircle2, Package, Sparkles
 } from 'lucide-react';
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip,

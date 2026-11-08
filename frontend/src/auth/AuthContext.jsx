@@ -33,7 +33,7 @@ export const AuthProvider = ({ children }) => {
       
       const userData = await getMe();
       setUser(userData);
-      return { success: true };
+      return { success: true, user: userData };
     } catch (error) {
       let errorMsg = "Login failed";
       if (error.response?.data?.detail) {
@@ -55,7 +55,7 @@ export const AuthProvider = ({ children }) => {
       
       const userData = await getMe();
       setUser(userData);
-      return { success: true };
+      return { success: true, user: userData };
     } catch (error) {
       let errorMsg = "Registration failed";
       if (error.response?.data?.detail) {
