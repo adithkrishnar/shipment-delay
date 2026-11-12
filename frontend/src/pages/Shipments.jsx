@@ -2,7 +2,8 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { getShipments, getShipmentImpact, getTransporterOrgs, createShipment } from '../services/api';
 import Loader from '../components/Loader';
 import MultiLegDemo from '../components/MultiLegDemo';
-import { Plus, X, Truck, CheckCircle2 } from 'lucide-react';
+import NetworkMapModal from '../components/NetworkMapModal';
+import { Plus, X, Truck, CheckCircle2, Globe } from 'lucide-react';
 
 export default function Shipments({ company }) {
   const [d, setD] = useState(null);
@@ -11,6 +12,7 @@ export default function Shipments({ company }) {
   const [impactLoading, setImpactLoading] = useState(false);
   const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
+  const [showMap, setShowMap] = useState(false);
 
   // Shipment Creation Modal
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -111,13 +113,34 @@ export default function Shipments({ company }) {
           <h1 className="page-title">Shipment Control Tower</h1>
           <p className="page-subtitle">Track movements, manage carrier assignments, and predict delivery risks.</p>
         </div>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="btn-primary"
-          style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', fontSize: '13px' }}
-        >
-          <Plus size={16} /> Create & Assign Shipment
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <button
+            onClick={() => setShowMap(true)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 18px',
+              fontSize: '13px',
+              fontWeight: 700,
+              borderRadius: 'var(--r-md, 6px)',
+              background: 'linear-gradient(135deg, #1d4ed8 0%, #0284c7 100%)',
+              color: '#ffffff',
+              border: '1px solid #38bdf8',
+              boxShadow: '0 2px 10px rgba(56, 189, 248, 0.35)',
+              cursor: 'pointer'
+            }}
+          >
+            <Globe size={16} /> Live Global Corridor & Warehouse Mesh
+          </button>
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="btn-primary"
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', fontSize: '13px' }}
+          >
+            <Plus size={16} /> Create & Assign Shipment
+          </button>
+        </div>
       </div>
 
       <div className="kpi-strip">
@@ -406,6 +429,13 @@ export default function Shipments({ company }) {
           </div>
         </div>
       )}
+
+      {/* Global Multimodal Corridor & Warehouse Network Map Modal */}
+      <NetworkMapModal
+        isOpen={showMap}
+        onClose={() => setShowMap(false)}
+        companyId={company?.id || 17}
+      />
     </div>
   );
 }

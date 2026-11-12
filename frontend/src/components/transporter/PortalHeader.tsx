@@ -7,6 +7,7 @@ interface PortalHeaderProps {
   companyName: string;
   onRefresh: () => void;
   isRefreshing?: boolean;
+  onOpenMap?: () => void;
 }
 
 export function PortalHeader({
@@ -14,6 +15,7 @@ export function PortalHeader({
   companyName,
   onRefresh,
   isRefreshing = false,
+  onOpenMap,
 }: PortalHeaderProps) {
   const { logout } = useAuth();
 
@@ -89,6 +91,29 @@ export function PortalHeader({
 
       {/* Action Controls */}
       <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+        {onOpenMap && (
+          <button
+            onClick={onOpenMap}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "8px",
+              padding: "8px 16px",
+              fontSize: "13px",
+              fontWeight: 700,
+              cursor: "pointer",
+              borderRadius: "var(--r-md, 6px)",
+              background: "linear-gradient(135deg, #1d4ed8 0%, #0284c7 100%)",
+              color: "#ffffff",
+              border: "1px solid #38bdf8",
+              boxShadow: "0 2px 10px rgba(56, 189, 248, 0.35)",
+            }}
+          >
+            <span style={{ fontSize: "14px" }}>🌐</span>
+            Live Global Corridor Map
+          </button>
+        )}
+
         <button
           onClick={onRefresh}
           disabled={isRefreshing}
