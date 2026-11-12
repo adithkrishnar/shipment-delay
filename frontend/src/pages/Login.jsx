@@ -114,7 +114,23 @@ export default function Login() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <button
                 type="button"
-                onClick={() => { setEmail('admin@dataco.com'); setPassword('password123'); }}
+                onClick={() => { setEmail('admin@vanguard-aero.com'); setPassword('vanguard123'); }}
+                style={{ padding: '8px 10px', fontSize: '12px', textAlign: 'left', background: 'var(--bg-base)', border: '1px solid var(--border-subtle)', borderRadius: '6px', color: 'var(--text-primary)', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+              >
+                <span>🚀 <strong>Company: Vanguard Aero</strong></span>
+                <span style={{ color: 'var(--text-tertiary)', fontSize: '11px' }}>admin@vanguard-aero.com</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => { setEmail('ops@pacificintermodal.com'); setPassword('pacific123'); }}
+                style={{ padding: '8px 10px', fontSize: '12px', textAlign: 'left', background: 'var(--bg-base)', border: '1px solid var(--border-subtle)', borderRadius: '6px', color: 'var(--text-primary)', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+              >
+                <span>🚢 <strong>Carrier: Pacific Intermodal</strong></span>
+                <span style={{ color: 'var(--text-tertiary)', fontSize: '11px' }}>ops@pacificintermodal.com</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => { setEmail('admin@dataco.com'); setPassword('admin123'); }}
                 style={{ padding: '8px 10px', fontSize: '12px', textAlign: 'left', background: 'var(--bg-base)', border: '1px solid var(--border-subtle)', borderRadius: '6px', color: 'var(--text-primary)', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
               >
                 <span>🏢 <strong>Company: DataCo Global</strong></span>
@@ -122,7 +138,7 @@ export default function Login() {
               </button>
               <button
                 type="button"
-                onClick={() => { setEmail('carrier@datacotransport.com'); setPassword('password123'); }}
+                onClick={() => { setEmail('carrier@datacotransport.com'); setPassword('carrier123'); }}
                 style={{ padding: '8px 10px', fontSize: '12px', textAlign: 'left', background: 'var(--bg-base)', border: '1px solid var(--border-subtle)', borderRadius: '6px', color: 'var(--text-primary)', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
               >
                 <span>🚚 <strong>Transporter: DataCo Linehaul</strong></span>

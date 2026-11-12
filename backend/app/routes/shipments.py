@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.ml.shipment_delay import predict_shipment_risk
-from app.models import Company, Shipment, Supplier
+from app.models import Company, Shipment, Supplier, Product
 from app.schemas.ml import RiskFactorOut, ShipmentListResponse, ShipmentRiskOut
 from app.services.model_training_service import get_active_shipment_models
 from app.utils.logging_config import get_logger
@@ -83,3 +83,87 @@ def get_multi_leg_shipment(company_id: int, shipment_id: int, scenario: int = 1,
         return analyze_multi_leg_shipment(db, company_id, shipment_id, scenario)
     except ValueError as e:
         raise HTTPException(404, str(e))
+
+
+@router.post('/{company_id}', status_code=201)
+def create_shipment(
+    company_id: int,
+    payload: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Company Admin creates a new shipment and assigns an eligible transporter organization.
+    """
+    if not current_user.is_superuser and current_user.company_id != company_id:
+        raise HTTPException(403, "Not authorized to create shipments for this company")
+
+    from app.models.transporter_org import TransporterOrganization
+    from app.services.collaborative_disruption_service import ensure_shipment_legs
+    from datetime import datetime, date
+
+    # Validate product
+    product_id = payload.get("product_id")
+    product = db.query(Product).filter(Product.id == product_id, Product.company_id == company_id).first()
+    if not product:
+        raise HTTPException(400, "Valid product_id belonging to this company is required")
+
+    # Resolve transporter organization if provided
+    transporter_org_id = payload.get("transporter_org_id")
+    carrier_name = payload.get("carrier")
+    if transporter_org_id:
+        t_org = db.query(TransporterOrganization).filter(TransporterOrganization.id == transporter_org_id).first()
+        if not t_org:
+            raise HTTPException(400, "Specified transporter organization does not exist")
+        carrier_name = t_org.name
+
+    planned_del_val = payload.get("planned_delivery")
+    if isinstance(planned_del_val, str):
+        planned_del = datetime.strptime(planned_del_val, "%Y-%m-%d").date()
+    else:
+        planned_del = planned_del_val or date.today()
+
+    order_date_val = payload.get("order_date")
+    if isinstance(order_date_val, str):
+        order_date = datetime.strptime(order_date_val, "%Y-%m-%d").date()
+    else:
+        order_date = order_date_val or date.today()
+
+    shipment = Shipment(
+        company_id=company_id,
+        product_id=product.id,
+        supplier_id=payload.get("supplier_id"),
+        external_shipment_id=payload.get("external_shipment_id") or f"SHP-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}",
+        origin=payload.get("origin") or "Primary Manufacturing Hub",
+        destination=payload.get("destination") or "Central Distribution Center",
+        carrier=carrier_name,
+        transporter_org_id=transporter_org_id,
+        assignment_status="ACCEPTED" if transporter_org_id else "PENDING",
+        transport_mode=(payload.get("transport_mode") or "ROAD").upper(),
+        distance_km=float(payload.get("distance_km") or 650.0),
+        weight_kg=float(payload.get("weight_kg") or 250.0),
+        quantity=float(payload.get("quantity") or 100.0),
+        order_date=order_date,
+        planned_delivery=planned_del,
+        current_eta=planned_del,
+    )
+    db.add(shipment)
+    db.commit()
+    db.refresh(shipment)
+
+    # Provision multi-modal legs
+    legs = ensure_shipment_legs(db, shipment)
+
+    return {
+        "id": shipment.id,
+        "external_shipment_id": shipment.external_shipment_id,
+        "company_id": shipment.company_id,
+        "carrier": shipment.carrier,
+        "transporter_org_id": shipment.transporter_org_id,
+        "assignment_status": shipment.assignment_status,
+        "origin": shipment.origin,
+        "destination": shipment.destination,
+        "planned_delivery": str(shipment.planned_delivery),
+        "legs_count": len(legs)
+    }
+

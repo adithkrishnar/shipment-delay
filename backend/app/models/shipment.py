@@ -20,6 +20,9 @@ class Shipment(Base):
     destination = Column(String(255), nullable=True)
     carrier = Column(String(120), nullable=True)
     transport_mode = Column(String(50), nullable=True)  # road/rail/air/sea
+    transporter_org_id = Column(Integer, ForeignKey("transporter_organizations.id", ondelete="SET NULL"), nullable=True, index=True)
+    assignment_status = Column(String(50), default="PENDING", nullable=False)  # PENDING, ACCEPTED, REJECTED, IN_TRANSIT, DELIVERED, CANCELLED
+    current_eta = Column(Date, nullable=True)
 
     distance_km = Column(Float, nullable=True)
     weight_kg = Column(Float, nullable=True)
@@ -32,6 +35,7 @@ class Shipment(Base):
     company = relationship("Company", back_populates="shipments")
     product = relationship("Product", back_populates="shipments")
     supplier = relationship("Supplier", back_populates="shipments")
+    transporter_org = relationship("TransporterOrganization", back_populates="shipments")
     legs = relationship("ShipmentLeg", back_populates="shipment", cascade="all, delete-orphan", order_by="ShipmentLeg.sequence")
 
     def __repr__(self) -> str:

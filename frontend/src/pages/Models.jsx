@@ -196,7 +196,11 @@ export default function Models({ company }) {
                 <div style={{ fontSize: '13px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span style={{ color: 'var(--text-tertiary)' }}>Model Family:</span>
-                    <strong style={{ color: 'var(--text-primary)' }}>GradientBoostingRegressor (Ensemble)</strong>
+                    <strong style={{ color: 'var(--text-primary)' }}>
+                      {activeModel.metrics?.selected_model
+                        ? (activeModel.metrics.selected_model.includes('random') ? 'RandomForestRegressor' : 'GradientBoostingRegressor')
+                        : 'Ensemble Regressor'}
+                    </strong>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span style={{ color: 'var(--text-tertiary)' }}>Comparison Candidates:</span>

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import Topbar from './components/Topbar';
 import { getCompanies, seedDemo } from './services/api';
@@ -37,14 +37,23 @@ function BrandMark() {
 
 function MainApp() {
   const { user, isAuthenticated } = useAuth();
+  const location = useLocation();
   const [companies, setCompanies] = useState([]);
   const [id, setId] = useState(Number(localStorage.getItem('supplyiq_company') || 0));
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
 
+  const isAuthPage = location.pathname === '/login' || location.pathname === '/register';
+
   const load = () => {
     // Only load companies if user is authenticated
     if (!isAuthenticated) {
+      setLoading(false);
+      return;
+    }
+
+    // Transporter users do not need or belong to global company lists
+    if (user?.role === 'transporter') {
       setLoading(false);
       return;
     }
@@ -108,7 +117,7 @@ function MainApp() {
     </div>
   );
 
-  if (isAuthenticated && !companies.length) return (
+  if (isAuthenticated && !companies.length && user?.role !== 'transporter') return (
     <div className="boot">
       <BrandMark />
       <h2>No company data yet</h2>
@@ -120,17 +129,22 @@ function MainApp() {
 
   const company = companies.find(x => x.id === id) || (id ? { id, name: 'Loading...' } : companies[0]);
 
+  // Show sidebar ONLY for company users (Transporter has its own dedicated portal header)
+  const isTransporter = user?.role === 'transporter';
+  const showSidebar = isAuthenticated && !isAuthPage && !isTransporter;
+  const showTopbar = isAuthenticated && !isAuthPage && !isTransporter;
+
   return (
     <div className="app">
-      {isAuthenticated && <Sidebar />}
+      {showSidebar && <Sidebar />}
       <main
         className="main"
         style={{
-          width: isAuthenticated ? `calc(100% - var(--sidebar-w))` : '100%',
-          marginLeft: isAuthenticated ? 'var(--sidebar-w)' : '0'
+          width: showSidebar ? `calc(100% - var(--sidebar-w))` : '100%',
+          marginLeft: showSidebar ? 'var(--sidebar-w)' : '0'
         }}
       >
-        {isAuthenticated && (
+        {showTopbar && (
           <Topbar
             company={company}
             companies={user?.is_superuser ? companies : (company ? [company] : [])}

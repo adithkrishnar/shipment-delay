@@ -43,6 +43,11 @@ class DisruptionReport(Base):
     leg_id = Column(Integer, ForeignKey("shipment_legs.id", ondelete="CASCADE"), nullable=False, index=True)
     shipment_id = Column(Integer, ForeignKey("shipments.id", ondelete="CASCADE"), nullable=False, index=True)
     reporter_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    transporter_org_id = Column(Integer, ForeignKey("transporter_organizations.id", ondelete="SET NULL"), nullable=True, index=True)
+    idempotency_key = Column(String(120), unique=True, nullable=True, index=True)
+    incident_location = Column(String(255), nullable=True)
+    evidence_url = Column(String(500), nullable=True)
+    status = Column(String(30), default="SUBMITTED", nullable=False)  # SUBMITTED, ACKNOWLEDGED, RESOLVED
     
     delay_hours = Column(Float, nullable=False)
     disruption_reason = Column(String(120), nullable=False)  # e.g., "Vehicle Breakdown", "Customs Hold", "Adverse Weather", "Port Congestion"

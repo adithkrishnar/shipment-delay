@@ -14,6 +14,8 @@ class User(Base):
     role = Column(String(50), default="company", nullable=False)  # "company" or "transporter"
     carrier_name = Column(String(120), nullable=True)  # e.g. "Blue Dart", "Maersk", "DHL"
     
-    company_id = Column(Integer, ForeignKey("companies.id", ondelete="CASCADE"), nullable=False, index=True)
+    company_id = Column(Integer, ForeignKey("companies.id", ondelete="CASCADE"), nullable=True, index=True)
+    transporter_org_id = Column(Integer, ForeignKey("transporter_organizations.id", ondelete="SET NULL"), nullable=True, index=True)
     
     company = relationship("Company")
+    transporter_org = relationship("TransporterOrganization", back_populates="users")

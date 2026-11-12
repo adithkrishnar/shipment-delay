@@ -6,6 +6,8 @@ from app.models.sales import Sale
 from app.models.inventory import InventoryRecord
 from app.models.shipment import Shipment
 from app.models.shipment_leg import ShipmentLeg, DisruptionReport
+from app.models.shipment_delay import ShipmentDelay, DelayReasonEnum
+from app.models.transporter_org import TransporterOrganization, TransporterInvitation
 from app.models.model_registry import ModelRegistryEntry
 from app.models.recommendation import Recommendation
 from app.models.alert import Alert
@@ -25,7 +27,11 @@ __all__ = [
     "InventoryRecord",
     "Shipment",
     "ShipmentLeg",
+    "ShipmentDelay",
+    "DelayReasonEnum",
     "DisruptionReport",
+    "TransporterOrganization",
+    "TransporterInvitation",
     "ModelRegistryEntry",
     "Recommendation",
     "Alert",

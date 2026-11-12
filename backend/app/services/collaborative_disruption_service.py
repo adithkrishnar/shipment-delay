@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
-from app.models import Company, Shipment, Product, Supplier, User
+from app.models import Company, Shipment, Product, Supplier, User, Sale, InventoryRecord, Warehouse
 from app.models.shipment_leg import ShipmentLeg, DisruptionReport
 from app.services.inventory_intelligence import analyze_product
 
@@ -165,13 +165,35 @@ def simulate_downstream_impact(
     from app.models import Warehouse, InventoryRecord
     dest_wh = db.query(Warehouse).filter(Warehouse.company_id == shipment.company_id, Warehouse.name == shipment.destination).first() if shipment.destination else None
     
-    inv_analysis = analyze_product(db, shipment.company_id, shipment.product_id, delay_days=total_delay_days)
+    # Check if inventory and sales data exist for this product/company
+    has_inventory_data = bool(db.query(InventoryRecord).filter(
+        InventoryRecord.company_id == shipment.company_id,
+        InventoryRecord.product_id == shipment.product_id
+    ).first())
+    has_sales_data = bool(db.query(Sale).filter(
+        Sale.company_id == shipment.company_id,
+        Sale.product_id == shipment.product_id
+    ).first())
+
+    inventory_assessment_available = has_inventory_data and has_sales_data
+
+    if inventory_assessment_available:
+        inv_analysis = analyze_product(db, shipment.company_id, shipment.product_id, delay_days=total_delay_days)
+    else:
+        inv_analysis = {
+            "inventory_level": None,
+            "daily_demand": None,
+            "safety_stock": None,
+            "stockout_risk": "DATA_UNAVAILABLE",
+            "expected_shortage": None
+        }
+
     product = db.query(Product).filter(Product.id == shipment.product_id).first()
     unit_price = float(product.unit_price if (product and product.unit_price) else 85.0)
 
     # Check warehouse-level stock if destination warehouse is known
     wh_stock = None
-    if dest_wh:
+    if dest_wh and inventory_assessment_available:
         wh_rec = db.query(InventoryRecord).filter(
             InventoryRecord.company_id == shipment.company_id,
             InventoryRecord.product_id == shipment.product_id,
@@ -180,27 +202,44 @@ def simulate_downstream_impact(
         if wh_rec:
             wh_stock = float(wh_rec.inventory_level or 0.0)
 
-    daily_rate = float(inv_analysis.get("daily_demand", 10.0))
-    # If destination warehouse is known and has localized demand (daily / num_warehouses)
-    daily_facility_demand = round(daily_rate / 5.0, 2) if dest_wh else daily_rate
+    if inventory_assessment_available:
+        daily_rate = float(inv_analysis.get("daily_demand") or 10.0)
+        daily_facility_demand = round(daily_rate / 5.0, 2) if dest_wh else daily_rate
 
-    # If facility stock is provided, calculate local shortage if delayed beyond local safety buffer
-    if wh_stock is not None:
-        local_lead = float(inv_analysis.get("effective_lead_time_days", 14.0))
-        facility_needed = daily_facility_demand * local_lead
-        expected_shortage_units = round(max(0.0, facility_needed - wh_stock), 1)
-        stockout_predicted = 1 if (wh_stock < facility_needed or wh_stock <= 25.0) else 0
+        if wh_stock is not None:
+            local_lead = float(inv_analysis.get("effective_lead_time_days") or 14.0)
+            facility_needed = daily_facility_demand * local_lead
+            expected_shortage_units = round(max(0.0, facility_needed - wh_stock), 1)
+            stockout_predicted = 1 if (wh_stock < facility_needed or wh_stock <= 25.0) else 0
+        else:
+            expected_shortage_units = float(inv_analysis.get("expected_shortage") or 0.0)
+            stockout_predicted = 1 if inv_analysis.get("stockout_risk") in ["HIGH", "CRITICAL"] or expected_shortage_units > 0 else 0
+
+        revenue_loss = expected_shortage_units * unit_price
+        sla_penalty = 1500.0 if expected_shortage_units > 0 else 0.0
+        total_cost_loss = round(revenue_loss + sla_penalty, 2)
     else:
-        expected_shortage_units = float(inv_analysis.get("expected_shortage", 0.0))
-        stockout_predicted = 1 if inv_analysis.get("stockout_risk") in ["HIGH", "CRITICAL"] or expected_shortage_units > 0 else 0
-
-    revenue_loss = expected_shortage_units * unit_price
-    sla_penalty = 1500.0 if expected_shortage_units > 0 else 0.0
-    total_cost_loss = round(revenue_loss + sla_penalty, 2)
+        # DATA LIMITATION HONORED: Do NOT invent stockouts or loss without inventory/sales records
+        daily_facility_demand = None
+        expected_shortage_units = None
+        stockout_predicted = 0
+        revenue_loss = 0.0
+        sla_penalty = 0.0
+        total_cost_loss = 0.0
 
     # 5. Formulate Prescriptive AI Mitigations
     mitigations = []
-    if stockout_predicted:
+    if not inventory_assessment_available:
+        mitigations.append({
+            "option_id": "INSUFFICIENT_INVENTORY_DATA",
+            "title": "Insufficient Inventory Baseline Data",
+            "description": "Historical sales demand or warehouse inventory records are not yet linked to this SKU. Transit delay is logged without simulated stockout.",
+            "estimated_cost": 0.0,
+            "net_savings": 0.0,
+            "priority": "INFO",
+            "why_best": "SUPPLYIQ preserves data integrity by withholding stockout predictions until verified warehouse stock records are provided."
+        })
+    elif stockout_predicted:
         mitigations.append({
             "option_id": "INTER_HUB_TRANSFER",
             "title": "Emergency Inter-Warehouse Stock Transfer",

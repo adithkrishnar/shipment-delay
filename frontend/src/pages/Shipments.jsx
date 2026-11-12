@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { getShipments, getShipmentImpact } from '../services/api';
+import { getShipments, getShipmentImpact, getTransporterOrgs, createShipment } from '../services/api';
 import Loader from '../components/Loader';
 import MultiLegDemo from '../components/MultiLegDemo';
+import { Plus, X, Truck, CheckCircle2 } from 'lucide-react';
 
 export default function Shipments({ company }) {
   const [d, setD] = useState(null);
@@ -11,13 +12,62 @@ export default function Shipments({ company }) {
   const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
 
-  useEffect(() => {
+  // Shipment Creation Modal
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [transporterOrgs, setTransporterOrgs] = useState([]);
+  const [creating, setCreating] = useState(false);
+  const [createMsg, setCreateMsg] = useState('');
+  const [formData, setFormData] = useState({
+    external_shipment_id: '',
+    product_id: '',
+    origin: '',
+    destination: '',
+    transport_mode: 'ROAD',
+    planned_delivery: '',
+    transporter_org_id: '',
+    quantity: 100,
+    distance_km: 650
+  });
+
+  const loadShipments = () => {
     if (company) {
       getShipments(company.id)
         .then(setD)
         .catch(e => setError(e.message));
     }
+  };
+
+  useEffect(() => {
+    loadShipments();
+    getTransporterOrgs().then(setTransporterOrgs).catch(() => {});
   }, [company]);
+
+  const handleCreateSubmit = async (e) => {
+    e.preventDefault();
+    if (!company) return;
+    setCreating(true);
+    setCreateMsg('');
+    try {
+      // If product_id not provided, pick first from existing shipments
+      const fallbackPid = d?.shipments?.[0]?.product_id || 1;
+      const payload = {
+        ...formData,
+        product_id: formData.product_id ? parseInt(formData.product_id, 10) : fallbackPid,
+        transporter_org_id: formData.transporter_org_id ? parseInt(formData.transporter_org_id, 10) : null,
+      };
+      await createShipment(company.id, payload);
+      setCreateMsg('Shipment created and assigned successfully!');
+      setTimeout(() => {
+        setShowCreateModal(false);
+        setCreateMsg('');
+        loadShipments();
+      }, 1000);
+    } catch (err) {
+      alert(err.response?.data?.detail || err.message || 'Creation failed');
+    } finally {
+      setCreating(false);
+    }
+  };
 
   const toggleRow = (id) => {
     if (expandedId === id) {
@@ -56,9 +106,18 @@ export default function Shipments({ company }) {
 
   return (
     <div className="page animate-fade">
-      <div className="page-header">
-        <h1 className="page-title">Shipment Control Tower</h1>
-        <p className="page-subtitle">Track movements and predict delivery risks.</p>
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
+        <div>
+          <h1 className="page-title">Shipment Control Tower</h1>
+          <p className="page-subtitle">Track movements, manage carrier assignments, and predict delivery risks.</p>
+        </div>
+        <button
+          onClick={() => setShowCreateModal(true)}
+          className="btn-primary"
+          style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', fontSize: '13px' }}
+        >
+          <Plus size={16} /> Create & Assign Shipment
+        </button>
       </div>
 
       <div className="kpi-strip">
@@ -192,6 +251,159 @@ export default function Shipments({ company }) {
               })}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Create & Assign Shipment Modal */}
+      {showCreateModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.7)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 1000,
+          padding: '16px'
+        }}>
+          <div style={{
+            background: 'var(--bg-surface-1)',
+            border: '1px solid var(--border-default)',
+            borderRadius: 'var(--r-xl)',
+            width: '100%',
+            maxWidth: '560px',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            padding: '24px 28px',
+            boxShadow: 'var(--shadow-lg)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Truck size={20} color="var(--accent-primary)" />
+                <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
+                  Create & Assign Shipment
+                </h2>
+              </div>
+              <button onClick={() => setShowCreateModal(false)} style={{ background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer' }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            {createMsg && (
+              <div style={{ background: 'rgba(45, 212, 167, 0.15)', border: '1px solid #2DD4A7', color: '#2DD4A7', padding: '10px 14px', borderRadius: '6px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
+                <CheckCircle2 size={16} /> {createMsg}
+              </div>
+            )}
+
+            <form onSubmit={handleCreateSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                  Shipment Reference / PO Number *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. DC-PO-00812"
+                  value={formData.external_shipment_id}
+                  onChange={(e) => setFormData({ ...formData, external_shipment_id: e.target.value })}
+                  style={{ width: '100%', padding: '8px 10px', background: 'var(--bg-base)', border: '1px solid var(--border-default)', borderRadius: '6px', color: 'var(--text-primary)', fontSize: '13px' }}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                    Origin Waypoint *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Shenzhen Port"
+                    value={formData.origin}
+                    onChange={(e) => setFormData({ ...formData, origin: e.target.value })}
+                    style={{ width: '100%', padding: '8px 10px', background: 'var(--bg-base)', border: '1px solid var(--border-default)', borderRadius: '6px', color: 'var(--text-primary)', fontSize: '13px' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                    Destination DC *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. DataCo USCA DC"
+                    value={formData.destination}
+                    onChange={(e) => setFormData({ ...formData, destination: e.target.value })}
+                    style={{ width: '100%', padding: '8px 10px', background: 'var(--bg-base)', border: '1px solid var(--border-default)', borderRadius: '6px', color: 'var(--text-primary)', fontSize: '13px' }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                    Primary Mode *
+                  </label>
+                  <select
+                    value={formData.transport_mode}
+                    onChange={(e) => setFormData({ ...formData, transport_mode: e.target.value })}
+                    style={{ width: '100%', padding: '8px 10px', background: 'var(--bg-base)', border: '1px solid var(--border-default)', borderRadius: '6px', color: 'var(--text-primary)', fontSize: '13px' }}
+                  >
+                    <option value="ROAD">ROAD</option>
+                    <option value="SEA">SEA</option>
+                    <option value="RAIL">RAIL</option>
+                    <option value="AIR">AIR</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                    Planned Delivery Date *
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={formData.planned_delivery}
+                    onChange={(e) => setFormData({ ...formData, planned_delivery: e.target.value })}
+                    style={{ width: '100%', padding: '8px 10px', background: 'var(--bg-base)', border: '1px solid var(--border-default)', borderRadius: '6px', color: 'var(--text-primary)', fontSize: '13px' }}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                  Assign Transporter Organization *
+                </label>
+                <select
+                  value={formData.transporter_org_id}
+                  onChange={(e) => setFormData({ ...formData, transporter_org_id: e.target.value })}
+                  style={{ width: '100%', padding: '8px 10px', background: 'var(--bg-base)', border: '1px solid var(--border-default)', borderRadius: '6px', color: 'var(--text-primary)', fontSize: '13px' }}
+                >
+                  <option value="">-- Select Eligible Transporter Partner --</option>
+                  {transporterOrgs.map(org => (
+                    <option key={org.id} value={org.id}>
+                      {org.name} ({org.code || 'CARRIER'})
+                    </option>
+                  ))}
+                </select>
+                <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '4px' }}>
+                  Assigning establishes strict tenant relationship. Only this transporter will see this shipment.
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '16px' }}>
+                <button type="button" onClick={() => setShowCreateModal(false)} className="btn-secondary" style={{ padding: '8px 14px' }}>
+                  Cancel
+                </button>
+                <button type="submit" disabled={creating} className="btn-primary" style={{ padding: '8px 18px' }}>
+                  {creating ? 'Saving...' : 'Create & Assign'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

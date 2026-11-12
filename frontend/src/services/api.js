@@ -92,4 +92,21 @@ export const reportLegDisruption = (shipmentId, legId, payload) =>
 export const getRecentDisruptions = () =>
   api.get('/v1/transporter/recent-disruptions').then(r => r.data);
 
+export const getTransporterOrgs = () =>
+  api.get('/v1/transporter/organizations').then(r => r.data);
+
+export const createShipment = (companyId, payload) =>
+  api.post(`/shipments/${companyId}`, payload).then(r => r.data);
+
+export const inviteTransporter = (payload) =>
+  api.post('/v1/transporter/invite', payload).then(r => r.data);
+
+export const updateAssignmentAction = (shipmentId, payload) =>
+  api.post(`/v1/transporter/shipments/${shipmentId}/assignment-action`, payload).then(r => r.data);
+
+export const reportShipmentDelay = (shipmentId, payload) =>
+  api.post(`/transporter/shipments/${shipmentId}/delay`, payload).then(r => r.data);
+
+
+
 

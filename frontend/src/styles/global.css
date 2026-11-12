@@ -931,3 +931,33 @@ tbody tr:hover {
 .xyz-tag.Y { color: #F5B942; }
 .xyz-tag.Z { color: #FF4D5F; }
 
+
+/* --- Carrier Portal Mobile & Responsive Styles ------------------------- */
+@media (max-width: 768px) {
+  .transporter-portal-page {
+    padding: 12px 14px !important;
+  }
+  .portal-header-container {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 12px !important;
+  }
+  .shipment-filters-bar {
+    padding: 12px !important;
+  }
+  .disruption-modal-body {
+    padding: 16px !important;
+    max-height: 95vh !important;
+  }
+  .disruption-modal-grid-2,
+  .disruption-modal-grid-3 {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+  .shipment-table th:nth-child(2),
+  .shipment-table td:nth-child(2),
+  .shipment-table th:nth-child(5),
+  .shipment-table td:nth-child(5) {
+    display: none;
+  }
+}
