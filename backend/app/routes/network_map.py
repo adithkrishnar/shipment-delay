@@ -182,3 +182,4 @@ def get_network_map_data(
         "shipment_routes": shipment_routes,
         "rebalancing_links": rebalancing_links
     }
+

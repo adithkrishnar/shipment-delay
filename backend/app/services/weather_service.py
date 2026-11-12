@@ -149,3 +149,4 @@ def get_live_weather(lat: float, lon: float) -> Dict[str, Any]:
             "risk_factor": "Clear corridor conditions",
             "source": "Cached Baseline Telemetry"
         }
+
