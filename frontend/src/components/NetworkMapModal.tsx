@@ -25,27 +25,29 @@ const createPillIcon = (label: string, color: string, iconChar: string) => {
     className: 'custom-map-node',
     html: `
       <div style="
-        background: rgba(15, 23, 42, 0.92);
+        background: #0f172a;
         border: 2px solid ${color};
-        box-shadow: 0 0 14px ${color}88, 0 4px 10px rgba(0,0,0,0.5);
-        color: #fff;
-        padding: 4px 10px;
-        border-radius: 20px;
-        font-family: sans-serif;
+        box-shadow: 0 0 10px ${color};
+        color: #f8fafc;
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         font-size: 11px;
         font-weight: 700;
-        display: flex;
+        display: inline-flex;
         align-items: center;
-        gap: 6px;
+        gap: 5px;
         white-space: nowrap;
+        position: absolute;
         transform: translate(-50%, -50%);
+        pointer-events: auto;
       ">
-        <span style="font-size: 13px;">${iconChar}</span>
+        <span>${iconChar}</span>
         <span>${label}</span>
       </div>
     `,
-    iconSize: [0, 0],
-    iconAnchor: [0, 0]
+    iconSize: [120, 26],
+    iconAnchor: [60, 13]
   });
 };
 
@@ -248,54 +250,76 @@ export default function NetworkMapModal({ isOpen, onClose, companyId = 17, highl
 
               {/* 1. Warehouse Nodes */}
               {data?.warehouses?.map((wh: any) => (
-                <Marker
-                  key={`wh-${wh.id}`}
-                  position={[wh.lat, wh.lon]}
-                  icon={createPillIcon(wh.name, wh.health_color, '🏢')}
-                >
-                  <Popup className="dark-popup">
-                    <div style={{ padding: '8px', color: '#0f172a', minWidth: '220px' }}>
-                      <div style={{ fontSize: '13px', fontWeight: 700, marginBottom: '4px' }}>{wh.name}</div>
-                      <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '8px' }}>Region: {wh.region} • {wh.country}</div>
-                      
-                      <div style={{ background: '#f8fafc', padding: '8px', borderRadius: '6px', marginBottom: '8px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginBottom: '4px' }}>
-                          <span>Current Stock:</span>
-                          <strong>{wh.total_stock_units} units</strong>
+                <React.Fragment key={`wh-grp-${wh.id}`}>
+                  <CircleMarker
+                    center={[wh.lat, wh.lon]}
+                    radius={8}
+                    pathOptions={{
+                      color: wh.health_color || '#3b82f6',
+                      fillColor: wh.health_color || '#3b82f6',
+                      fillOpacity: 0.9,
+                      weight: 2
+                    }}
+                  />
+                  <Marker
+                    position={[wh.lat, wh.lon]}
+                    icon={createPillIcon(wh.name, wh.health_color, '🏢')}
+                  >
+                    <Popup className="dark-popup">
+                      <div style={{ padding: '8px', color: '#0f172a', minWidth: '220px' }}>
+                        <div style={{ fontSize: '13px', fontWeight: 700, marginBottom: '4px' }}>{wh.name}</div>
+                        <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '8px' }}>Region: {wh.region} • {wh.country}</div>
+                        
+                        <div style={{ background: '#f8fafc', padding: '8px', borderRadius: '6px', marginBottom: '8px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginBottom: '4px' }}>
+                            <span>Current Stock:</span>
+                            <strong>{wh.total_stock_units} units</strong>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px' }}>
+                            <span>Target Safety Stock:</span>
+                            <strong>{wh.safety_stock_units} units</strong>
+                          </div>
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px' }}>
-                          <span>Target Safety Stock:</span>
-                          <strong>{wh.safety_stock_units} units</strong>
-                        </div>
-                      </div>
 
-                      {wh.weather && (
-                        <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '6px', padding: '6px', fontSize: '11px' }}>
-                          <div><strong>🌦️ Live Weather:</strong> {wh.weather.condition} ({wh.weather.temperature_c}°C)</div>
-                          <div style={{ color: '#1e40af', marginTop: '2px' }}>Wind: {wh.weather.windspeed_kmh} km/h • <em>{wh.weather.risk_factor}</em></div>
-                        </div>
-                      )}
-                    </div>
-                  </Popup>
-                </Marker>
+                        {wh.weather && (
+                          <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '6px', padding: '6px', fontSize: '11px' }}>
+                            <div><strong>🌦️ Live Weather:</strong> {wh.weather.condition} ({wh.weather.temperature_c}°C)</div>
+                            <div style={{ color: '#1e40af', marginTop: '2px' }}>Wind: {wh.weather.windspeed_kmh} km/h • <em>{wh.weather.risk_factor}</em></div>
+                          </div>
+                        )}
+                      </div>
+                    </Popup>
+                  </Marker>
+                </React.Fragment>
               ))}
 
               {/* 2. Supplier Nodes */}
               {data?.suppliers?.map((sup: any) => (
-                <Marker
-                  key={`sup-${sup.id}`}
-                  position={[sup.lat, sup.lon]}
-                  icon={createPillIcon(sup.name, '#8b5cf6', '🏭')}
-                >
-                  <Popup>
-                    <div style={{ padding: '6px', color: '#0f172a' }}>
-                      <div style={{ fontWeight: 700 }}>{sup.name}</div>
-                      <div style={{ fontSize: '11px', color: '#64748b' }}>Tier-1 Component Manufacturer</div>
-                      <div style={{ fontSize: '11px', marginTop: '4px' }}>Reliability Rating: <strong>{(sup.reliability * 100).toFixed(0)}%</strong></div>
-                      <div style={{ fontSize: '11px' }}>Lead Time: <strong>{sup.lead_time_days} days</strong></div>
-                    </div>
-                  </Popup>
-                </Marker>
+                <React.Fragment key={`sup-grp-${sup.id}`}>
+                  <CircleMarker
+                    center={[sup.lat, sup.lon]}
+                    radius={6}
+                    pathOptions={{
+                      color: '#8b5cf6',
+                      fillColor: '#8b5cf6',
+                      fillOpacity: 0.9,
+                      weight: 2
+                    }}
+                  />
+                  <Marker
+                    position={[sup.lat, sup.lon]}
+                    icon={createPillIcon(sup.name, '#8b5cf6', '🏭')}
+                  >
+                    <Popup>
+                      <div style={{ padding: '6px', color: '#0f172a' }}>
+                        <div style={{ fontWeight: 700 }}>{sup.name}</div>
+                        <div style={{ fontSize: '11px', color: '#64748b' }}>Tier-1 Component Manufacturer</div>
+                        <div style={{ fontSize: '11px', marginTop: '4px' }}>Reliability Rating: <strong>{(sup.reliability * 100).toFixed(0)}%</strong></div>
+                        <div style={{ fontSize: '11px' }}>Lead Time: <strong>{sup.lead_time_days} days</strong></div>
+                      </div>
+                    </Popup>
+                  </Marker>
+                </React.Fragment>
               ))}
 
               {/* 3. Inter-Warehouse Rebalancing Links (Network Self-Healing) */}
