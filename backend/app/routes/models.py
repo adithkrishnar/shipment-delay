@@ -27,9 +27,26 @@ async def train_base_model(db: Session=Depends(get_db), redis: ArqRedis=Depends(
     db.add(demand_job)
     db.add(shipment_job)
     db.commit()
-    await redis.enqueue_job('train_base_demand', demand_job.id)
-    await redis.enqueue_job('train_base_shipment', shipment_job.id)
-    return {'message': 'Base model training jobs queued', 'jobs': [{'job_id': demand_job.id, 'type': demand_job.job_type, 'status': demand_job.status}, {'job_id': shipment_job.id, 'type': shipment_job.job_type, 'status': shipment_job.status}]}
+    try:
+        await redis.enqueue_job('train_base_demand', demand_job.id)
+        await redis.enqueue_job('train_base_shipment', shipment_job.id)
+    except Exception as exc:
+        logger.warning("Redis worker queue unreachable (%s). Training base models synchronously...", exc)
+        from app.services.model_training_service import train_base_demand_model, train_base_shipment_models
+        try:
+            train_base_demand_model(db)
+            demand_job.status = JobStatus.COMPLETED.value
+        except Exception as e_d:
+            logger.exception("Base demand model training failed: %s", e_d)
+            demand_job.status = JobStatus.FAILED.value
+        try:
+            train_base_shipment_models(db)
+            shipment_job.status = JobStatus.COMPLETED.value
+        except Exception as e_s:
+            logger.exception("Base shipment model training failed: %s", e_s)
+            shipment_job.status = JobStatus.FAILED.value
+        db.commit()
+    return {'message': 'Base model training executed/queued', 'jobs': [{'job_id': demand_job.id, 'type': demand_job.job_type, 'status': demand_job.status}, {'job_id': shipment_job.id, 'type': shipment_job.job_type, 'status': shipment_job.status}]}
 
 @router.post('/retrain/{company_id}')
 async def retrain_company_model(company_id: int, db: Session=Depends(get_db), redis: ArqRedis=Depends(get_redis_pool), current_user: User = Depends(get_current_user)):
@@ -49,13 +66,28 @@ async def retrain_company_model(company_id: int, db: Session=Depends(get_db), re
         await redis.enqueue_job('train_demand_for_company', demand_job.id, company_id)
         await redis.enqueue_job('train_shipment_for_company', shipment_job.id, company_id)
     except Exception as exc:
-        demand_job.status = "failed"
-        demand_job.error_message = f"Worker queue unavailable: {exc}"
-        shipment_job.status = "failed"
-        shipment_job.error_message = f"Worker queue unavailable: {exc}"
+        logger.warning("Redis worker queue unreachable (%s). Executing model training synchronously as fallback...", exc)
+        from app.services.model_training_service import train_company_demand_model, train_company_shipment_models
+        try:
+            entry_d, reason_d = train_company_demand_model(db, company_id)
+            demand_job.status = JobStatus.COMPLETED.value
+            demand_job.result = json.dumps({"reason": reason_d, "version": entry_d.version if entry_d else None})
+        except Exception as e_d:
+            logger.exception("Synchronous demand model training failed: %s", e_d)
+            demand_job.status = JobStatus.FAILED.value
+            demand_job.error_message = str(e_d)
+
+        try:
+            clf_e, dur_e, reason_s = train_company_shipment_models(db, company_id)
+            shipment_job.status = JobStatus.COMPLETED.value
+            shipment_job.result = json.dumps({"reason": reason_s})
+        except Exception as e_s:
+            logger.exception("Synchronous shipment model training failed: %s", e_s)
+            shipment_job.status = JobStatus.FAILED.value
+            shipment_job.error_message = str(e_s)
+
         db.commit()
-        raise HTTPException(status_code=503, detail=f"Model retraining queue unreachable: {exc}")
-    return {'message': 'Company model retraining jobs queued', 'jobs': [{'job_id': demand_job.id, 'type': demand_job.job_type, 'status': demand_job.status}, {'job_id': shipment_job.id, 'type': shipment_job.job_type, 'status': shipment_job.status}]}
+    return {'message': 'Company model retraining executed/queued', 'jobs': [{'job_id': demand_job.id, 'type': demand_job.job_type, 'status': demand_job.status}, {'job_id': shipment_job.id, 'type': shipment_job.job_type, 'status': shipment_job.status}]}
 
 @router.get('/jobs/{job_id}', response_model=JobStatusResponse)
 def get_job_status(job_id: str, db: Session=Depends(get_db), *, current_user: User=Depends(get_current_user)):
