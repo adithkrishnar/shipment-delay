@@ -5,6 +5,7 @@ All external services (AI API, weather API, news API) are OPTIONAL.
 The application must run completely with defaults and no keys set.
 """
 from pathlib import Path
+from typing import Any
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BASE_DIR = Path(__file__).resolve().parent.parent  # backend/
@@ -31,7 +32,7 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
 
     # CORS
-    FRONTEND_ORIGINS: list[str] = [
+    FRONTEND_ORIGINS: Any = [
         "http://localhost:5173",
         "http://127.0.0.1:5173",
     ]
