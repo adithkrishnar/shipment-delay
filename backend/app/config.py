@@ -31,19 +31,42 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
 
     # CORS
-    FRONTEND_ORIGINS: list[str] | str = [
+    FRONTEND_ORIGINS: list[str] = [
         "http://localhost:5173",
         "http://127.0.0.1:5173",
     ]
+    FRONTEND_ORIGIN_REGEX: str | None = r"https://.*\.vercel\.app"
 
     from pydantic import field_validator, model_validator
+
+    @field_validator("DATABASE_URL", mode="before")
+    @classmethod
+    def normalize_database_url(cls, v: str) -> str:
+        if isinstance(v, str):
+            # Render PostgreSQL URLs start with postgres:// which SQLAlchemy 1.4+ deprecates in favor of postgresql://
+            if v.startswith("postgres://"):
+                v = v.replace("postgres://", "postgresql://", 1)
+            # Ensure standard psycopg2 driver if no specific driver is designated
+            if v.startswith("postgresql://") and not v.startswith("postgresql+"):
+                v = v.replace("postgresql://", "postgresql+psycopg2://", 1)
+        return v
+
     @field_validator("FRONTEND_ORIGINS", mode="before")
     @classmethod
     def assemble_cors_origins(cls, v: str | list[str]) -> list[str]:
-        if isinstance(v, str) and not v.startswith("["):
-            return [i.strip() for i in v.split(",")]
+        if isinstance(v, str):
+            v_str = v.strip()
+            if v_str.startswith("[") and v_str.endswith("]"):
+                import json
+                try:
+                    parsed = json.loads(v_str)
+                    if isinstance(parsed, list):
+                        return [str(item).strip() for item in parsed]
+                except Exception:
+                    pass
+            return [i.strip() for i in v_str.split(",") if i.strip()]
         elif isinstance(v, list):
-            return v
+            return [str(item).strip() for item in v if str(item).strip()]
         return v
 
     @model_validator(mode="after")

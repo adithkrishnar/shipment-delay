@@ -12,7 +12,6 @@ import { ReportDelayModal } from "../components/transporter/ReportDelayModal";
 import { CheckCircle2, AlertOctagon, X, Clock } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
 import { reportLegDisruption } from "../services/api";
-import NetworkMapModal from "../components/NetworkMapModal";
 import { useAlert } from "../context/AlertContext";
 
 export default function TransporterPortal() {
@@ -20,10 +19,6 @@ export default function TransporterPortal() {
   const { triggerAlert } = useAlert();
   const carrierName = user?.carrier_name || MOCK_CARRIER_NAME;
   const companyName = user?.company?.name || "DataCo Global Supply Chain";
-
-  // Map modal state
-  const [isMapOpen, setIsMapOpen] = useState<boolean>(false);
-  const [mapTargetRef, setMapTargetRef] = useState<string | undefined>(undefined);
 
   // Shipments state seeded from high-fidelity multi-modal sample dataset
   const [shipments, setShipments] = useState<Shipment[]>(MOCK_SHIPMENTS);
@@ -326,10 +321,6 @@ export default function TransporterPortal() {
         companyName={companyName}
         onRefresh={handleRefresh}
         isRefreshing={isRefreshing}
-        onOpenMap={() => {
-          setMapTargetRef(undefined);
-          setIsMapOpen(true);
-        }}
       />
 
       {/* 2. Operational Summary KPI Cards */}
@@ -457,14 +448,6 @@ export default function TransporterPortal() {
           onDelayReported={handleDelayReported}
         />
       )}
-
-      {/* 8. Global Multimodal Corridor & Warehouse Network Map */}
-      <NetworkMapModal
-        isOpen={isMapOpen}
-        onClose={() => setIsMapOpen(false)}
-        companyId={user?.company_id || 17}
-        highlightShipmentRef={mapTargetRef}
-      />
     </div>
   );
 }

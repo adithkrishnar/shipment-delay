@@ -1,5 +1,13 @@
 import axios from 'axios'
-const api=axios.create({baseURL:import.meta.env.VITE_API_URL||'http://127.0.0.1:8000/api',timeout:120000})
+
+// Resolve API base URL: remove any trailing slashes to guarantee clean routing
+const rawBase = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
+const cleanBase = rawBase.replace(/\/+$/, '');
+
+const api = axios.create({
+  baseURL: cleanBase,
+  timeout: 120000
+});
 
 api.interceptors.request.use(config => {
   const token = localStorage.getItem('token');

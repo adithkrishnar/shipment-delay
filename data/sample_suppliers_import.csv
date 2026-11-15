@@ -1,0 +1,8 @@
+supplier_id,supplier_name,lead_time_days,reliability,cost_index,defect_rate
+SUP-001,Kyoto Precision Semiconductor Ltd,14.0,0.96,1.12,0.005
+SUP-002,Titanium Aerospace Forgings GmbH,21.0,0.92,1.05,0.012
+SUP-003,Silicon Valley Micro-Photonics,7.0,0.98,1.25,0.003
+SUP-004,Singapore Advanced Composites Corp,18.0,0.94,0.98,0.008
+SUP-005,Bavaria Guidance Systems AG,16.0,0.95,1.18,0.006
+SUP-006,Seoul High-Torque Servos Inc,12.0,0.97,1.02,0.004
+SUP-007,Texas Avionics Fabrication,5.0,0.99,1.1,0.002
