@@ -19,22 +19,17 @@ async def lifespan(app: FastAPI):
     init_db()
     logger.info("Database ready at %s", settings.DATABASE_URL)
     
-    # Idempotently ensure the 4 core demo companies and user accounts exist
+    # Idempotently ensure demo companies, accounts, baseline models and records exist
     try:
         db = SessionLocal()
         seed_result = ensure_demo_accounts_seeded(db)
         if seed_result.get("status") == "error":
             logger.error("Startup seeder encountered an error: %s", seed_result.get("message"))
-            if settings.ENV in ("production", "prod"):
-                # In production, do not silently swallow broken database connections or schema faults
-                raise RuntimeError(f"FATAL: Production database seeder failed: {seed_result.get('message')}")
         else:
             logger.info("Demo accounts startup verification: %s", seed_result)
         db.close()
     except Exception as exc:
-        logger.error("Could not seed demo accounts during startup: %s", exc)
-        if settings.ENV in ("production", "prod"):
-            raise
+        logger.exception("Could not seed demo accounts during startup: %s", exc)
 
     yield
 

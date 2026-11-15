@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     APP_NAME: str = "SupplyIQ Intelligence Platform"
     ENV: str = "development"
     DEBUG: bool = True
+    BASE_DIR: Path = BASE_DIR
 
     # Database - SQLite by default, structured so PostgreSQL can be swapped in later
     DATABASE_URL: str = f"sqlite:///{(BASE_DIR / 'supplyiq.db').as_posix()}"

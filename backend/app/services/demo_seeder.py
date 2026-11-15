@@ -217,7 +217,7 @@ def ensure_baseline_data_and_models(db: Session):
             logger.warning("Could not auto-register base shipment model on startup: %s", e)
 
     # 3. Auto-seed datasets for companies if records are low
-    from app.config import settings
+    from app.config import settings, BASE_DIR
     import pandas as pd
     from app.services.column_mapping import suggest_column_mapping
     from app.services.data_import import apply_mapping, import_dataset
@@ -231,9 +231,9 @@ def ensure_baseline_data_and_models(db: Session):
             sales_count = db.query(Sale).filter(Sale.company_id == comp.id).count()
             if sales_count < 10:
                 logger.info("%s has %d sales records. Auto-seeding from %s...", comp_name, sales_count, dataset_fname)
-                p = settings.BASE_DIR / "data" / dataset_fname
+                p = BASE_DIR / "data" / dataset_fname
                 if not p.exists():
-                    p = settings.BASE_DIR.parent / "data" / dataset_fname
+                    p = BASE_DIR.parent / "data" / dataset_fname
                 if p.exists():
                     try:
                         df = pd.read_csv(p)

@@ -22,7 +22,7 @@ import json
 import pandas as pd
 from sqlalchemy.orm import Session
 
-from app.config import settings
+from app.config import BASE_DIR, settings
 from app.ml.demand_forecasting import TrainedDemandModel, load_model, save_model, train_demand_model
 from app.ml.shipment_delay import (
     TrainedDelayClassifier,
@@ -144,7 +144,7 @@ def train_base_demand_model(db: Session) -> ModelRegistryEntry:
 
     # Fast-activate pre-calibrated base weights if present on disk
     if not model_path.exists():
-        alt_path = settings.BASE_DIR / "trained_models" / "base" / "demand_model.pkl"
+        alt_path = BASE_DIR / "trained_models" / "base" / "demand_model.pkl"
         if alt_path.exists():
             import shutil
             shutil.copy2(alt_path, model_path)
@@ -167,13 +167,13 @@ def train_base_demand_model(db: Session) -> ModelRegistryEntry:
     sales_df = _sales_dataframe(db, company_id=None)
     if sales_df.empty or len(sales_df) < 50:
         # Check if backend/data or parent data directory contains seed CSV to initialize base model
-        seed_path = settings.BASE_DIR / "data" / "SupplyIQ_Master_Enterprise_Dataset.csv"
+        seed_path = BASE_DIR / "data" / "SupplyIQ_Master_Enterprise_Dataset.csv"
         if not seed_path.exists():
-            seed_path = settings.BASE_DIR.parent / "data" / "SupplyIQ_Master_Enterprise_Dataset.csv"
+            seed_path = BASE_DIR.parent / "data" / "SupplyIQ_Master_Enterprise_Dataset.csv"
         if not seed_path.exists():
-            seed_path = settings.BASE_DIR / "data" / "sample_sales_demand_import.csv"
+            seed_path = BASE_DIR / "data" / "sample_sales_demand_import.csv"
         if not seed_path.exists():
-            seed_path = settings.BASE_DIR.parent / "data" / "sample_sales_demand_import.csv"
+            seed_path = BASE_DIR.parent / "data" / "sample_sales_demand_import.csv"
         if seed_path.exists():
             raw = pd.read_csv(seed_path)
             raw.columns = [str(c).strip().lower() for c in raw.columns]
