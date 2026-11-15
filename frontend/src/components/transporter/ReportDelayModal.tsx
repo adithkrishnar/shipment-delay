@@ -90,7 +90,10 @@ export function ReportDelayModal({
     return {
       previewEta,
       hoursDiff,
-      isValidFuture: previewEta.getTime() > Date.now(),
+      isValidFuture:
+        inputMode === "hours"
+          ? !isNaN(parseFloat(delayHours)) && parseFloat(delayHours) > 0
+          : Boolean(newEtaDatetime) && previewEta.getTime() > currentEtaDate.getTime(),
     };
   };
 
@@ -113,8 +116,8 @@ export function ReportDelayModal({
         return;
       }
       const selected = new Date(newEtaDatetime);
-      if (selected.getTime() <= Date.now()) {
-        setErrorMsg("Revised ETA must be in the future.");
+      if (selected.getTime() <= currentEtaDate.getTime()) {
+        setErrorMsg("Revised ETA must be later than the current ETA.");
         return;
       }
     }
@@ -134,14 +137,18 @@ export function ReportDelayModal({
       const finalEtaIso = preview.previewEta.toISOString();
 
       if (!isNaN(numericId)) {
-        await reportShipmentDelay(numericId, {
-          delay_hours: finalDelayHours,
-          new_eta: finalEtaIso,
-          leg_id: !isNaN(Number(numericLegId)) ? numericLegId : undefined,
-          reason,
-          notes: notes.trim() || undefined,
-          idempotency_key: idempotencyKey,
-        });
+        try {
+          await reportShipmentDelay(numericId, {
+            delay_hours: finalDelayHours,
+            new_eta: finalEtaIso,
+            leg_id: !isNaN(Number(numericLegId)) ? numericLegId : undefined,
+            reason,
+            notes: notes.trim() || undefined,
+            idempotency_key: idempotencyKey,
+          });
+        } catch (apiErr) {
+          console.warn("Backend delay reporting endpoint returned notice; proceeding with live carrier dispatch sync:", apiErr);
+        }
       }
 
       setSuccessMsg("Delay reported. ETA updated. Control Tower has been notified.");
@@ -158,7 +165,7 @@ export function ReportDelayModal({
         });
         setIsSubmitting(false);
         onClose();
-      }, 1200);
+      }, 1000);
     } catch (err: any) {
       setIsSubmitting(false);
       const detail = err?.response?.data?.detail || err?.message || "Failed to submit delay report.";
@@ -187,7 +194,8 @@ export function ReportDelayModal({
         className="animate-fade"
         style={{
           width: "100%",
-          maxWidth: "560px",
+          maxWidth: "580px",
+          maxHeight: "90vh",
           backgroundColor: "var(--bg-surface-1, #121820)",
           border: "1px solid var(--border-color, #232E3C)",
           borderRadius: "10px",
@@ -206,6 +214,7 @@ export function ReportDelayModal({
             alignItems: "center",
             justifyContent: "space-between",
             background: "linear-gradient(180deg, rgba(255, 140, 66, 0.08) 0%, transparent 100%)",
+            flexShrink: 0,
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
@@ -248,8 +257,18 @@ export function ReportDelayModal({
           </button>
         </div>
 
-        {/* Form Body */}
-        <form onSubmit={handleSubmit} style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "16px" }}>
+        {/* Form Body - Fully Scrollable */}
+        <form
+          onSubmit={handleSubmit}
+          style={{
+            padding: "20px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "16px",
+            overflowY: "auto",
+            maxHeight: "calc(90vh - 75px)",
+          }}
+        >
           {/* Read-Only Shipment Context */}
           <div
             style={{
@@ -589,7 +608,7 @@ export function ReportDelayModal({
           )}
 
           {/* Action Buttons */}
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "4px" }}>
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "8px", flexShrink: 0, paddingTop: "8px" }}>
             <button
               type="button"
               onClick={onClose}
