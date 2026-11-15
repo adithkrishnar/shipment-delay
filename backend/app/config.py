@@ -24,7 +24,7 @@ class Settings(BaseSettings):
 
     # Storage locations
     UPLOAD_DIR: Path = BASE_DIR / "uploads"
-    TRAINED_MODELS_DIR: Path = BASE_DIR.parent / "trained_models"
+    TRAINED_MODELS_DIR: Path = (BASE_DIR / "trained_models") if (BASE_DIR / "trained_models").exists() else (BASE_DIR.parent / "trained_models")
 
     # JWT Authentication
     SECRET_KEY: str = "change-me-in-production-super-secret"

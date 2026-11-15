@@ -76,5 +76,7 @@ Thumbs.db
 *.sln
 *.sw?
 
-trained_models/
+# trained_models/
+!trained_models/*.pkl
+!backend/trained_models/*.pkl
 data/raw/

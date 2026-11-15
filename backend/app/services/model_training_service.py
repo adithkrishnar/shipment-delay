@@ -140,8 +140,12 @@ def train_base_demand_model(db: Session) -> ModelRegistryEntry:
     """Trains the shared base demand model by pooling sales across every company."""
     sales_df = _sales_dataframe(db, company_id=None)
     if sales_df.empty or len(sales_df) < 50:
-        # Check if project data directory contains seed CSV to initialize base model
-        seed_path = settings.BASE_DIR.parent / "data" / "SupplyIQ_Master_Enterprise_Dataset.csv"
+        # Check if backend/data or parent data directory contains seed CSV to initialize base model
+        seed_path = settings.BASE_DIR / "data" / "SupplyIQ_Master_Enterprise_Dataset.csv"
+        if not seed_path.exists():
+            seed_path = settings.BASE_DIR.parent / "data" / "SupplyIQ_Master_Enterprise_Dataset.csv"
+        if not seed_path.exists():
+            seed_path = settings.BASE_DIR / "data" / "sample_sales_demand_import.csv"
         if not seed_path.exists():
             seed_path = settings.BASE_DIR.parent / "data" / "sample_sales_demand_import.csv"
         if seed_path.exists():

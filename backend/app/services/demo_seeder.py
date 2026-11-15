@@ -148,9 +148,73 @@ def ensure_demo_accounts_seeded(db: Session) -> Dict[str, Any]:
             created_users,
             updated_users,
         )
+        # Ensure baseline ML models and master enterprise dataset records exist
+        ensure_baseline_data_and_models(db)
         return {"status": "success", "created": created_users, "updated": updated_users}
     except Exception as exc:
         db.rollback()
         logger.error("Failed to seed demo accounts: %s", exc)
         return {"status": "error", "message": str(exc)}
+
+
+def ensure_baseline_data_and_models(db: Session):
+    """
+    Guarantees that on any platform (Render, Docker, local), the database has:
+    1. Base demand forecasting model registered and trained.
+    2. Base shipment delay classifier model registered.
+    3. DataCo operational records seeded from master enterprise dataset if empty.
+    """
+    from app.models import Company, Sale, ModelRegistryEntry
+    from app.services.model_training_service import (
+        MODEL_TYPE_DEMAND,
+        MODEL_TYPE_DELAY_CLASSIFIER,
+        train_base_demand_model,
+        train_base_shipment_models,
+    )
+    
+    # 1. Base demand model
+    has_demand = db.query(ModelRegistryEntry).filter(
+        ModelRegistryEntry.model_type == MODEL_TYPE_DEMAND
+    ).first()
+    if not has_demand:
+        try:
+            logger.info("Initializing baseline demand model on startup...")
+            train_base_demand_model(db)
+        except Exception as e:
+            logger.warning("Could not auto-train base demand model on startup: %s", e)
+
+    # 2. Base shipment model
+    has_shipment = db.query(ModelRegistryEntry).filter(
+        ModelRegistryEntry.model_type == MODEL_TYPE_DELAY_CLASSIFIER
+    ).first()
+    if not has_shipment:
+        try:
+            logger.info("Initializing baseline shipment model on startup...")
+            train_base_shipment_models(db)
+        except Exception as e:
+            logger.warning("Could not auto-register base shipment model on startup: %s", e)
+
+    # 3. If DataCo (company 1) has fewer than 10 sales records, auto-import master dataset
+    dataco = db.query(Company).filter(Company.name == "DataCo Global Supply Chain").first()
+    if dataco:
+        sales_count = db.query(Sale).filter(Sale.company_id == dataco.id).count()
+        if sales_count < 10:
+            logger.info("DataCo has %d sales records. Auto-seeding from Master Enterprise Dataset...", sales_count)
+            from app.config import settings
+            import pandas as pd
+            from app.services.column_mapping import suggest_column_mapping
+            from app.services.data_import import apply_mapping, import_dataset
+            
+            p = settings.BASE_DIR / "data" / "SupplyIQ_Master_Enterprise_Dataset.csv"
+            if not p.exists():
+                p = settings.BASE_DIR.parent / "data" / "SupplyIQ_Master_Enterprise_Dataset.csv"
+            if p.exists():
+                try:
+                    df = pd.read_csv(p)
+                    mapping = suggest_column_mapping("unified", list(df.columns))
+                    mapped = apply_mapping(df, mapping)
+                    imp, skp, upd = import_dataset(db, dataco.id, "unified", mapped)
+                    logger.info("Auto-seeded Master Enterprise Dataset for DataCo: imported=%d, updated=%d", imp, upd)
+                except Exception as e:
+                    logger.warning("Could not auto-seed master dataset for DataCo: %s", e)
 
