@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
+import { Building2, Plane, Ship, Truck } from 'lucide-react';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -144,7 +145,7 @@ export default function Login() {
                 onClick={() => { setEmail('admin@dataco.com'); setPassword('admin123'); }}
                 style={{ padding: '8px 10px', fontSize: '12px', textAlign: 'left', background: '#121315', border: '1px solid #232426', borderRadius: '4px', color: '#F0F1F2', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: 'border-color 0.15s ease' }}
               >
-                <span>🏢 <strong>DataCo Global</strong></span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Building2 size={13} color="#5E6BFF" /> <strong>DataCo Global</strong></span>
                 <span style={{ color: '#9A9DA3', fontSize: '11px', fontFamily: 'JetBrains Mono' }}>admin@dataco.com</span>
               </button>
               <button
@@ -152,7 +153,7 @@ export default function Login() {
                 onClick={() => { setEmail('admin@vanguard-aero.com'); setPassword('vanguard123'); }}
                 style={{ padding: '8px 10px', fontSize: '12px', textAlign: 'left', background: '#121315', border: '1px solid #232426', borderRadius: '4px', color: '#F0F1F2', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: 'border-color 0.15s ease' }}
               >
-                <span>🚀 <strong>Vanguard Aero</strong></span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Plane size={13} color="#50D8E9" /> <strong>Vanguard Aero</strong></span>
                 <span style={{ color: '#9A9DA3', fontSize: '11px', fontFamily: 'JetBrains Mono' }}>admin@vanguard-aero.com</span>
               </button>
               <button
@@ -160,7 +161,7 @@ export default function Login() {
                 onClick={() => { setEmail('ops@pacificintermodal.com'); setPassword('pacific123'); }}
                 style={{ padding: '8px 10px', fontSize: '12px', textAlign: 'left', background: '#121315', border: '1px solid #232426', borderRadius: '4px', color: '#F0F1F2', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: 'border-color 0.15s ease' }}
               >
-                <span>🚢 <strong>Pacific Intermodal</strong></span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Ship size={13} color="#38D39F" /> <strong>Pacific Intermodal</strong></span>
                 <span style={{ color: '#9A9DA3', fontSize: '11px', fontFamily: 'JetBrains Mono' }}>ops@pacificintermodal.com</span>
               </button>
               <button
@@ -168,7 +169,7 @@ export default function Login() {
                 onClick={() => { setEmail('carrier@datacotransport.com'); setPassword('carrier123'); }}
                 style={{ padding: '8px 10px', fontSize: '12px', textAlign: 'left', background: '#121315', border: '1px solid #232426', borderRadius: '4px', color: '#F0F1F2', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: 'border-color 0.15s ease' }}
               >
-                <span>🚚 <strong>DataCo Linehaul</strong></span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Truck size={13} color="#FF9F43" /> <strong>DataCo Linehaul</strong></span>
                 <span style={{ color: '#9A9DA3', fontSize: '11px', fontFamily: 'JetBrains Mono' }}>carrier@datacotransport.com</span>
               </button>
             </div>

@@ -516,7 +516,7 @@ export default function Overview({ company }) {
                     fontSize: '12px',
                     borderLeft: '3px solid var(--accent-primary)'
                   }}>
-                    <strong style={{ color: 'var(--text-primary)' }}>💡 Why this is the optimal mitigation: </strong>
+                    <strong style={{ color: 'var(--accent-primary)', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Optimal Mitigation Rationale: </strong>
                     <span style={{ color: 'var(--text-secondary)' }}>
                       {m.why_best || 'Delivers highest cost-benefit ratio and eliminates risk of SLA breach.'}
                     </span>

@@ -251,8 +251,9 @@ export default function Recommendations({ company }) {
                   )}
 
                   {/* Expected Impact */}
-                  <div style={{ marginTop: '10px', fontSize: '12px', color: 'var(--status-healthy)', fontWeight: 500 }}>
-                    💡 Expected Outcome: {rec.expected_impact}
+                  <div style={{ marginTop: '10px', fontSize: '12px', color: 'var(--status-healthy)', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.04em', background: 'var(--status-healthy-bg)', border: '1px solid var(--status-healthy-border)', padding: '2px 6px', borderRadius: '3px' }}>Expected Outcome</span>
+                    <span>{rec.expected_impact}</span>
                   </div>
                 </div>
 

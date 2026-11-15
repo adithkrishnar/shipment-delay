@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { uploadDataset as uploadCsv, getUploads, mapUpload, importUpload, seedDemoMine } from '../services/api';
-import { UploadCloud, CheckCircle2, AlertTriangle, Database, Layers, ArrowRight, ShieldCheck, FileSpreadsheet } from 'lucide-react';
+import { UploadCloud, CheckCircle2, AlertTriangle, Database, Layers, ArrowRight, ShieldCheck, FileSpreadsheet, TrendingUp, Boxes, Warehouse } from 'lucide-react';
 
 export default function Data({ company, onCompanyChange }) {
   const [selectedCategory, setSelectedCategory] = useState('unified');
@@ -76,39 +76,6 @@ export default function Data({ company, onCompanyChange }) {
       setImporting(false);
     }
   };
-
-  const uploadCategories = [
-    {
-      id: 'unified',
-      title: 'ENTERPRISE MASTER DATASET (UNIFIED)',
-      icon: '⚡',
-      badge: 'RECOMMENDED',
-      desc: 'All-in-one dataset (e.g. SupplyIQ_Master_Enterprise_Dataset.csv) combining sales transactions, inventory snapshots, and supplier parameters in one single ingestion.',
-      formats: 'date, product_id, quantity, unit_price, warehouse, inventory_level, safety_stock, supplier_id, lead_time_days, promotion',
-    },
-    {
-      id: 'sales',
-      title: 'HISTORICAL SALES & DEMAND',
-      icon: '📈',
-      badge: 'TRAINS ML FORECASTER',
-      desc: 'Transaction order lines, sales order history, promotion flags, and regional demand volume. Ingesting sales history trains machine learning forecasting models.',
-      formats: 'Order Date, SKU, Order Item Quantity, Unit Price, Region, Promotion',
-    },
-    {
-      id: 'inventory',
-      title: 'CURRENT INVENTORY & SNAPSHOTS',
-      icon: '📦',
-      desc: 'On-hand stock levels, warehouse distribution, reserved quantities, and safety thresholds.',
-      formats: 'SKU, Warehouse ID, Current Stock, Safety Stock, Date',
-    },
-    {
-      id: 'suppliers',
-      title: 'SUPPLIERS & LEAD TIMES',
-      icon: '🏭',
-      desc: 'Vendor profiles, contracted lead times, historical reliability, and procurement costs.',
-      formats: 'Supplier ID, Supplier Name, Lead Time Days, Reliability %, Defect Rate',
-    },
-  ];
 
   const hasImportedData = uploads && uploads.length > 0;
 
@@ -192,67 +159,92 @@ export default function Data({ company, onCompanyChange }) {
         </div>
       </div>
 
-      {/* Category Selector Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', marginBottom: '28px' }}>
-        {uploadCategories.map(cat => {
-          const isSelected = selectedCategory === cat.id;
-          return (
-            <div
-              key={cat.id}
-              onClick={() => { setSelectedCategory(cat.id); setActiveFile(null); setResult(null); }}
-              style={{
-                background: isSelected ? 'var(--bg-surface-1)' : 'var(--bg-surface-2)',
-                border: `1px solid ${isSelected ? 'var(--accent-primary)' : 'var(--border-subtle)'}`,
-                boxShadow: isSelected ? '0 0 16px rgba(94, 107, 255, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.08)' : 'none',
-                borderRadius: 'var(--r-lg)',
-                padding: '20px',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-                position: 'relative',
-              }}
-            >
-              {cat.badge && (
-                <div style={{
-                  position: 'absolute',
-                  top: '12px',
-                  right: '12px',
-                  fontSize: '9px',
-                  fontFamily: 'var(--font-mono)',
-                  fontWeight: 700,
-                  letterSpacing: '0.08em',
-                  padding: '2px 6px',
-                  borderRadius: '3px',
-                  background: cat.badge === 'RECOMMENDED' ? 'rgba(80, 216, 233, 0.15)' : 'var(--accent-primary-dim)',
-                  color: cat.badge === 'RECOMMENDED' ? 'var(--accent-secondary)' : 'var(--accent-primary)',
-                  border: `1px solid ${cat.badge === 'RECOMMENDED' ? 'rgba(80, 216, 233, 0.3)' : 'rgba(94, 107, 255, 0.3)'}`,
-                }}>
-                  {cat.badge}
-                </div>
-              )}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-                <span style={{ fontSize: '20px' }}>{cat.icon}</span>
-                <span style={{ fontSize: '13px', fontWeight: 700, fontFamily: 'var(--font-heading)', color: isSelected ? 'var(--accent-primary)' : 'var(--text-primary)', paddingRight: cat.badge ? '80px' : '0' }}>
-                  {cat.title}
+      {/* Unified Master Ingestion Specification Panel */}
+      <div
+        style={{
+          background: 'var(--bg-surface-1)',
+          border: '1px solid var(--border-default)',
+          boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.05)',
+          borderRadius: 'var(--r-lg)',
+          padding: '24px 28px',
+          marginBottom: '28px',
+          position: 'relative',
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px', marginBottom: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ width: '40px', height: '40px', borderRadius: 'var(--r-md)', background: 'var(--accent-primary-dim)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent-primary)' }}>
+              <Layers size={22} />
+            </div>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <h2 style={{ fontSize: '16px', fontWeight: 700, fontFamily: 'var(--font-heading)', color: 'var(--text-primary)', margin: 0 }}>
+                  ENTERPRISE MASTER DATASET (UNIFIED INGESTION)
+                </h2>
+                <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', fontWeight: 700, letterSpacing: '0.08em', padding: '2px 8px', borderRadius: '3px', background: 'rgba(80, 216, 233, 0.15)', color: 'var(--accent-secondary)', border: '1px solid rgba(80, 216, 233, 0.3)' }}>
+                  ALL-IN-ONE PIPELINE
                 </span>
               </div>
-              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.4, margin: '0 0 12px 0' }}>
-                {cat.desc}
+              <p style={{ fontSize: '12.5px', color: 'var(--text-secondary)', marginTop: '4px', margin: 0 }}>
+                Single file ingestion for complete operational synchronization. Ingests sales orders, multi-DC inventory, and supplier lead times simultaneously.
               </p>
-              <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>
-                <strong style={{ color: 'var(--text-secondary)' }}>Fields:</strong> {cat.formats}
-              </div>
             </div>
-          );
-        })}
+          </div>
+          <div style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--accent-primary)', padding: '6px 12px', background: 'var(--accent-primary-dim)', borderRadius: 'var(--r-sm)', border: '1px solid rgba(94, 107, 255, 0.3)' }}>
+            AUTO-CALIBRATES ML MODELS
+          </div>
+        </div>
+
+        {/* 3 Core Capability Sub-Modules Grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '14px', paddingTop: '16px', borderTop: '1px solid var(--border-subtle)' }}>
+          <div style={{ background: 'var(--bg-surface-2)', padding: '14px 16px', borderRadius: 'var(--r-md)', border: '1px solid var(--border-subtle)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+              <TrendingUp size={14} color="var(--accent-secondary)" />
+              <strong style={{ fontSize: '12px', color: 'var(--text-primary)' }}>Historical Sales &amp; Demand</strong>
+            </div>
+            <p style={{ fontSize: '11px', color: 'var(--text-secondary)', margin: '0 0 6px 0', lineHeight: 1.4 }}>
+              3,675+ daily transaction lines across all SKUs. Automatically fits Gradient Boosting and Random Forest forecasters.
+            </p>
+            <div style={{ fontSize: '10px', color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>
+              date, product_id, quantity, unit_price, promotion, region
+            </div>
+          </div>
+
+          <div style={{ background: 'var(--bg-surface-2)', padding: '14px 16px', borderRadius: 'var(--r-md)', border: '1px solid var(--border-subtle)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+              <Boxes size={14} color="var(--status-healthy)" />
+              <strong style={{ fontSize: '12px', color: 'var(--text-primary)' }}>Warehouse Inventory Balances</strong>
+            </div>
+            <p style={{ fontSize: '11px', color: 'var(--text-secondary)', margin: '0 0 6px 0', lineHeight: 1.4 }}>
+              On-hand balances, warehouse assignments, and initial safety buffer thresholds across regional DCs.
+            </p>
+            <div style={{ fontSize: '10px', color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>
+              warehouse, inventory_level, safety_stock
+            </div>
+          </div>
+
+          <div style={{ background: 'var(--bg-surface-2)', padding: '14px 16px', borderRadius: 'var(--r-md)', border: '1px solid var(--border-subtle)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+              <Warehouse size={14} color="var(--status-watch)" />
+              <strong style={{ fontSize: '12px', color: 'var(--text-primary)' }}>Supplier Lead Times &amp; Quality</strong>
+            </div>
+            <p style={{ fontSize: '11px', color: 'var(--text-secondary)', margin: '0 0 6px 0', lineHeight: 1.4 }}>
+              Supplier profiles, contracted lead-time days, reliability ratings, and defect rate parameters for bivariate SS.
+            </p>
+            <div style={{ fontSize: '10px', color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>
+              supplier_id, supplier_name, lead_time_days, reliability, defect_rate
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* File Dropzone & Processing Area */}
       <div style={{ background: 'var(--bg-surface-1)', border: '1px solid var(--border-default)', borderRadius: 'var(--r-lg)', padding: '28px', marginBottom: '28px' }}>
         <h3 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px' }}>
-          Upload File: {uploadCategories.find(c => c.id === selectedCategory)?.title}
+          Upload File: Enterprise Master Dataset (CSV or XLSX)
         </h3>
         <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginBottom: '20px' }}>
-          Accepts UTF-8 CSV or XLSX spreadsheets up to 50MB. Columns will be automatically matched to internal standards.
+          Accepts SupplyIQ_Master_Enterprise_Dataset.csv or standard enterprise spreadsheets up to 50MB. Columns will be automatically matched to internal standards.
         </p>
 
         <input
@@ -293,7 +285,7 @@ export default function Data({ company, onCompanyChange }) {
             disabled={loading}
             style={{ width: '100%', marginTop: '16px', padding: '10px' }}
           >
-            {loading ? 'Validating File Structure...' : `Process & Map ${uploadCategories.find(c => c.id === selectedCategory)?.title}`}
+            {loading ? 'Validating File Structure...' : 'Process & Map Enterprise Master Dataset'}
           </button>
         )}
       </div>

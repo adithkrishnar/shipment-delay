@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
+import { AlertTriangle, Radio } from 'lucide-react';
 
 export interface ToastAlert {
   id: string;
@@ -97,8 +98,8 @@ export const AlertProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               animation: 'slideIn 0.3s ease-out'
             }}
           >
-            <div style={{ fontSize: '20px', lineHeight: 1 }}>
-              {alert.severity === 'critical' ? '🚨' : '📡'}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', borderRadius: '6px', background: alert.severity === 'critical' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(59, 130, 246, 0.2)' }}>
+              {alert.severity === 'critical' ? <AlertTriangle size={16} color="#ef4444" /> : <Radio size={16} color="#3b82f6" />}
             </div>
             <div style={{ flex: 1 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>

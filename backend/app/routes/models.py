@@ -27,11 +27,18 @@ async def train_base_model(db: Session=Depends(get_db), redis: ArqRedis=Depends(
     db.add(demand_job)
     db.add(shipment_job)
     db.commit()
-    try:
-        await redis.enqueue_job('train_base_demand', demand_job.id)
-        await redis.enqueue_job('train_base_shipment', shipment_job.id)
-    except Exception as exc:
-        logger.warning("Redis worker queue unreachable (%s). Training base models synchronously...", exc)
+    trained_sync = False
+    if redis is not None:
+        try:
+            await redis.enqueue_job('train_base_demand', demand_job.id)
+            await redis.enqueue_job('train_base_shipment', shipment_job.id)
+        except Exception as exc:
+            logger.warning("Redis worker queue unreachable (%s). Training base models synchronously...", exc)
+            trained_sync = True
+    else:
+        trained_sync = True
+
+    if trained_sync:
         from app.services.model_training_service import train_base_demand_model, train_base_shipment_models
         try:
             train_base_demand_model(db)
@@ -62,11 +69,18 @@ async def retrain_company_model(company_id: int, db: Session=Depends(get_db), re
     db.add(demand_job)
     db.add(shipment_job)
     db.commit()
-    try:
-        await redis.enqueue_job('train_demand_for_company', demand_job.id, company_id)
-        await redis.enqueue_job('train_shipment_for_company', shipment_job.id, company_id)
-    except Exception as exc:
-        logger.warning("Redis worker queue unreachable (%s). Executing model training synchronously as fallback...", exc)
+    trained_sync = False
+    if redis is not None:
+        try:
+            await redis.enqueue_job('train_demand_for_company', demand_job.id, company_id)
+            await redis.enqueue_job('train_shipment_for_company', shipment_job.id, company_id)
+        except Exception as exc:
+            logger.warning("Redis worker queue unreachable (%s). Executing model training synchronously as fallback...", exc)
+            trained_sync = True
+    else:
+        trained_sync = True
+
+    if trained_sync:
         from app.services.model_training_service import train_company_demand_model, train_company_shipment_models, ensure_company_has_a_model
         try:
             entry_d, reason_d = train_company_demand_model(db, company_id)
@@ -125,4 +139,16 @@ def list_models_for_company(company_id: int, db: Session=Depends(get_db), *, cur
         raise HTTPException(status_code=404, detail='Company not found.')
     own_entries = db.query(ModelRegistryEntry).filter(ModelRegistryEntry.company_id == company_id).order_by(ModelRegistryEntry.training_date.desc()).all()
     base_entries = db.query(ModelRegistryEntry).filter(ModelRegistryEntry.company_id.is_(None)).order_by(ModelRegistryEntry.training_date.desc()).all()
-    return [_to_registry_out(e) for e in own_entries + base_entries]
+    all_entries = list(own_entries) + list(base_entries)
+    
+    # Ensure there is always a registered demand forecasting model available
+    has_demand = any(e.model_type == 'demand_forecast' for e in all_entries)
+    if not has_demand:
+        from app.services.model_training_service import ensure_company_has_a_model
+        try:
+            entry = ensure_company_has_a_model(db, company_id)
+            if entry:
+                all_entries.insert(0, entry)
+        except Exception as exc:
+            logger.warning("Could not auto-ensure demand model on list_models_for_company: %s", exc)
+    return [_to_registry_out(e) for e in all_entries]
