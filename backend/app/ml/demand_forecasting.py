@@ -111,10 +111,10 @@ def train_demand_model(sales_df: pd.DataFrame) -> TrainedDemandModel:
 
     candidates = {
         "random_forest": RandomForestRegressor(
-            n_estimators=200, max_depth=10, min_samples_leaf=3, random_state=None, n_jobs=-1,
+            n_estimators=35, max_depth=8, min_samples_leaf=2, random_state=42, n_jobs=1,
         ),
         "gradient_boosting": GradientBoostingRegressor(
-            n_estimators=200, max_depth=3, learning_rate=0.05, random_state=None,
+            n_estimators=35, max_depth=3, learning_rate=0.08, random_state=42,
         ),
     }
 

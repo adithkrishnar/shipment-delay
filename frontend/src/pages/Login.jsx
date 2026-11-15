@@ -150,19 +150,19 @@ export default function Login() {
               </button>
               <button
                 type="button"
-                onClick={() => { setEmail('admin@vanguard-aero.com'); setPassword('vanguard123'); }}
-                style={{ padding: '8px 10px', fontSize: '12px', textAlign: 'left', background: '#121315', border: '1px solid #232426', borderRadius: '4px', color: '#F0F1F2', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: 'border-color 0.15s ease' }}
+                onClick={() => { setEmail('admin@nexus-global.com'); setPassword('nexus123'); }}
+                style={{ padding: '8px 10px', fontSize: '12px', textAlign: 'left', background: '#121315', border: '1px solid rgba(80, 216, 233, 0.4)', borderRadius: '4px', color: '#F0F1F2', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: 'border-color 0.15s ease' }}
               >
-                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Plane size={13} color="#50D8E9" /> <strong>Vanguard Aero</strong></span>
-                <span style={{ color: '#9A9DA3', fontSize: '11px', fontFamily: 'JetBrains Mono' }}>admin@vanguard-aero.com</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Building2 size={13} color="#50D8E9" /> <strong>Nexus Global (New)</strong></span>
+                <span style={{ color: '#9A9DA3', fontSize: '11px', fontFamily: 'JetBrains Mono' }}>admin@nexus-global.com</span>
               </button>
               <button
                 type="button"
-                onClick={() => { setEmail('ops@pacificintermodal.com'); setPassword('pacific123'); }}
-                style={{ padding: '8px 10px', fontSize: '12px', textAlign: 'left', background: '#121315', border: '1px solid #232426', borderRadius: '4px', color: '#F0F1F2', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: 'border-color 0.15s ease' }}
+                onClick={() => { setEmail('fleet@nexus-logistics.com'); setPassword('nexus123'); }}
+                style={{ padding: '8px 10px', fontSize: '12px', textAlign: 'left', background: '#121315', border: '1px solid rgba(80, 216, 233, 0.4)', borderRadius: '4px', color: '#F0F1F2', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: 'border-color 0.15s ease' }}
               >
-                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Ship size={13} color="#38D39F" /> <strong>Pacific Intermodal</strong></span>
-                <span style={{ color: '#9A9DA3', fontSize: '11px', fontFamily: 'JetBrains Mono' }}>ops@pacificintermodal.com</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Truck size={13} color="#50D8E9" /> <strong>Nexus Fleetways</strong></span>
+                <span style={{ color: '#9A9DA3', fontSize: '11px', fontFamily: 'JetBrains Mono' }}>fleet@nexus-logistics.com</span>
               </button>
               <button
                 type="button"

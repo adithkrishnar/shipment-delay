@@ -38,6 +38,28 @@ DEMO_ACCOUNTS: List[Dict[str, Any]] = [
         "carrier_name": "DataCo Express Linehaul",
     },
     {
+        "company_name": "Nexus Global Logistics",
+        "industry": "Global Multimodal Freight & Electronics Distribution",
+        "user_email": "admin@nexus-global.com",
+        "password": "nexus123",
+        "role": "company",
+        "is_superuser": False,
+        "org_name": None,
+        "carrier_code": None,
+        "carrier_name": None,
+    },
+    {
+        "company_name": "Nexus Global Logistics",
+        "industry": "Global Multimodal Freight & Electronics Distribution",
+        "user_email": "fleet@nexus-logistics.com",
+        "password": "nexus123",
+        "role": "transporter",
+        "is_superuser": False,
+        "org_name": "Nexus Intermodal Fleetways",
+        "carrier_code": "NX-FLEET",
+        "carrier_name": "Nexus Intermodal Fleetways",
+    },
+    {
         "company_name": "Vanguard Aerospace & Robotics",
         "industry": "Aerospace & Advanced Defense Systems",
         "user_email": "admin@vanguard-aero.com",
@@ -194,27 +216,31 @@ def ensure_baseline_data_and_models(db: Session):
         except Exception as e:
             logger.warning("Could not auto-register base shipment model on startup: %s", e)
 
-    # 3. If DataCo (company 1) has fewer than 10 sales records, auto-import master dataset
-    dataco = db.query(Company).filter(Company.name == "DataCo Global Supply Chain").first()
-    if dataco:
-        sales_count = db.query(Sale).filter(Sale.company_id == dataco.id).count()
-        if sales_count < 10:
-            logger.info("DataCo has %d sales records. Auto-seeding from Master Enterprise Dataset...", sales_count)
-            from app.config import settings
-            import pandas as pd
-            from app.services.column_mapping import suggest_column_mapping
-            from app.services.data_import import apply_mapping, import_dataset
-            
-            p = settings.BASE_DIR / "data" / "SupplyIQ_Master_Enterprise_Dataset.csv"
-            if not p.exists():
-                p = settings.BASE_DIR.parent / "data" / "SupplyIQ_Master_Enterprise_Dataset.csv"
-            if p.exists():
-                try:
-                    df = pd.read_csv(p)
-                    mapping = suggest_column_mapping("unified", list(df.columns))
-                    mapped = apply_mapping(df, mapping)
-                    imp, skp, upd = import_dataset(db, dataco.id, "unified", mapped)
-                    logger.info("Auto-seeded Master Enterprise Dataset for DataCo: imported=%d, updated=%d", imp, upd)
-                except Exception as e:
-                    logger.warning("Could not auto-seed master dataset for DataCo: %s", e)
+    # 3. Auto-seed datasets for companies if records are low
+    from app.config import settings
+    import pandas as pd
+    from app.services.column_mapping import suggest_column_mapping
+    from app.services.data_import import apply_mapping, import_dataset
+
+    for comp_name, dataset_fname in [
+        ("DataCo Global Supply Chain", "SupplyIQ_Master_Enterprise_Dataset.csv"),
+        ("Nexus Global Logistics", "Nexus_Global_Master_Enterprise_Dataset.csv"),
+    ]:
+        comp = db.query(Company).filter(Company.name == comp_name).first()
+        if comp:
+            sales_count = db.query(Sale).filter(Sale.company_id == comp.id).count()
+            if sales_count < 10:
+                logger.info("%s has %d sales records. Auto-seeding from %s...", comp_name, sales_count, dataset_fname)
+                p = settings.BASE_DIR / "data" / dataset_fname
+                if not p.exists():
+                    p = settings.BASE_DIR.parent / "data" / dataset_fname
+                if p.exists():
+                    try:
+                        df = pd.read_csv(p)
+                        mapping = suggest_column_mapping("unified", list(df.columns))
+                        mapped = apply_mapping(df, mapping)
+                        imp, skp, upd = import_dataset(db, comp.id, "unified", mapped)
+                        logger.info("Auto-seeded %s: imported=%d, updated=%d", comp_name, imp, upd)
+                    except Exception as e:
+                        logger.warning("Could not auto-seed %s: %s", comp_name, e)
 
