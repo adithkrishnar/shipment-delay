@@ -11,9 +11,9 @@ import { getInventoryOverview, getWarehousesAnalytics, getRecentDisruptions } fr
 import Loader from '../components/Loader';
 
 const RISK_COLORS = {
-  HEALTHY: '#2DD4A7',
-  WATCH: '#F5B942',
-  CRITICAL: '#FF4D5F',
+  HEALTHY: '#38E5A3',
+  WATCH: '#FFB689',
+  CRITICAL: '#FF5A6B',
 };
 
 export default function Overview({ company }) {

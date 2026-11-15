@@ -3,7 +3,7 @@ import { uploadDataset as uploadCsv, getUploads, mapUpload, importUpload, seedDe
 import { UploadCloud, CheckCircle2, AlertTriangle, Database, Layers, ArrowRight, ShieldCheck, FileSpreadsheet } from 'lucide-react';
 
 export default function Data({ company, onCompanyChange }) {
-  const [selectedCategory, setSelectedCategory] = useState('inventory');
+  const [selectedCategory, setSelectedCategory] = useState('unified');
   const [activeFile, setActiveFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
@@ -79,18 +79,27 @@ export default function Data({ company, onCompanyChange }) {
 
   const uploadCategories = [
     {
-      id: 'inventory',
-      title: 'CURRENT INVENTORY & SNAPSHOTS',
-      icon: '📦',
-      desc: 'On-hand stock levels, warehouse distribution, reserved quantities, and safety thresholds.',
-      formats: 'SKU, Warehouse ID, Current Stock, Safety Stock, Date',
+      id: 'unified',
+      title: 'ENTERPRISE MASTER DATASET (UNIFIED)',
+      icon: '⚡',
+      badge: 'RECOMMENDED',
+      desc: 'All-in-one dataset (e.g. SupplyIQ_Master_Enterprise_Dataset.csv) combining sales transactions, inventory snapshots, and supplier parameters in one single ingestion.',
+      formats: 'date, product_id, quantity, unit_price, warehouse, inventory_level, safety_stock, supplier_id, lead_time_days, promotion',
     },
     {
       id: 'sales',
       title: 'HISTORICAL SALES & DEMAND',
       icon: '📈',
-      desc: 'Transaction order lines, sales order history, promotion flags, and regional demand volume.',
+      badge: 'TRAINS ML FORECASTER',
+      desc: 'Transaction order lines, sales order history, promotion flags, and regional demand volume. Ingesting sales history trains machine learning forecasting models.',
       formats: 'Order Date, SKU, Order Item Quantity, Unit Price, Region, Promotion',
+    },
+    {
+      id: 'inventory',
+      title: 'CURRENT INVENTORY & SNAPSHOTS',
+      icon: '📦',
+      desc: 'On-hand stock levels, warehouse distribution, reserved quantities, and safety thresholds.',
+      formats: 'SKU, Warehouse ID, Current Stock, Safety Stock, Date',
     },
     {
       id: 'suppliers',
@@ -194,23 +203,43 @@ export default function Data({ company, onCompanyChange }) {
               style={{
                 background: isSelected ? 'var(--bg-surface-1)' : 'var(--bg-surface-2)',
                 border: `1px solid ${isSelected ? 'var(--accent-primary)' : 'var(--border-subtle)'}`,
+                boxShadow: isSelected ? '0 0 16px rgba(94, 107, 255, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.08)' : 'none',
                 borderRadius: 'var(--r-lg)',
                 padding: '20px',
                 cursor: 'pointer',
-                transition: 'border-color 0.15s ease',
+                transition: 'all 0.15s ease',
+                position: 'relative',
               }}
             >
+              {cat.badge && (
+                <div style={{
+                  position: 'absolute',
+                  top: '12px',
+                  right: '12px',
+                  fontSize: '9px',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: 700,
+                  letterSpacing: '0.08em',
+                  padding: '2px 6px',
+                  borderRadius: '3px',
+                  background: cat.badge === 'RECOMMENDED' ? 'rgba(80, 216, 233, 0.15)' : 'var(--accent-primary-dim)',
+                  color: cat.badge === 'RECOMMENDED' ? 'var(--accent-secondary)' : 'var(--accent-primary)',
+                  border: `1px solid ${cat.badge === 'RECOMMENDED' ? 'rgba(80, 216, 233, 0.3)' : 'rgba(94, 107, 255, 0.3)'}`,
+                }}>
+                  {cat.badge}
+                </div>
+              )}
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
                 <span style={{ fontSize: '20px' }}>{cat.icon}</span>
-                <span style={{ fontSize: '13px', fontWeight: 700, color: isSelected ? 'var(--accent-primary)' : 'var(--text-primary)' }}>
+                <span style={{ fontSize: '13px', fontWeight: 700, fontFamily: 'var(--font-heading)', color: isSelected ? 'var(--accent-primary)' : 'var(--text-primary)', paddingRight: cat.badge ? '80px' : '0' }}>
                   {cat.title}
                 </span>
               </div>
               <p style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.4, margin: '0 0 12px 0' }}>
                 {cat.desc}
               </p>
-              <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
-                <strong>Expected columns:</strong> {cat.formats}
+              <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>
+                <strong style={{ color: 'var(--text-secondary)' }}>Fields:</strong> {cat.formats}
               </div>
             </div>
           );
@@ -315,8 +344,16 @@ export default function Data({ company, onCompanyChange }) {
           </div>
 
           {importSuccess ? (
-            <div style={{ padding: '16px', background: 'var(--status-healthy-bg)', border: '1px solid var(--status-healthy-border)', borderRadius: 'var(--r-md)', color: 'var(--status-healthy)', fontWeight: 600, fontSize: '13px' }}>
-              ✓ Ingestion Complete: {importSuccess.imported_row_count} rows committed to tenant database ({importSuccess.skipped_row_count} skipped/invalid). Analytics updated.
+            <div style={{ padding: '16px', background: 'var(--status-healthy-bg)', border: '1px solid var(--status-healthy-border)', borderRadius: 'var(--r-md)', color: 'var(--status-healthy)', fontWeight: 600, fontSize: '13px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <CheckCircle2 size={16} />
+                <span>Ingestion Complete: {importSuccess.imported_row_count} rows committed to tenant database ({importSuccess.skipped_row_count} skipped/invalid).</span>
+              </div>
+              {(selectedCategory === 'sales' || selectedCategory === 'unified') && (
+                <div style={{ fontSize: '12px', color: 'var(--text-primary)', fontWeight: 500, paddingLeft: '24px' }}>
+                  ✓ Machine learning demand forecasting models & replenishment inventory buffers have been synchronized. Check <a href="/demand" style={{ color: 'var(--accent-primary)', textDecoration: 'underline' }}>Demand Forecasts</a> and <a href="/models" style={{ color: 'var(--accent-primary)', textDecoration: 'underline' }}>Models & Quality</a> to view walk-forward projections!
+                </div>
+              )}
             </div>
           ) : (
             <button

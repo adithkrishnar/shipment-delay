@@ -140,7 +140,19 @@ def train_base_demand_model(db: Session) -> ModelRegistryEntry:
     """Trains the shared base demand model by pooling sales across every company."""
     sales_df = _sales_dataframe(db, company_id=None)
     if sales_df.empty:
-        raise ValueError("No sales data exists anywhere yet - cannot train the base model.")
+        # Check if project data directory contains seed CSV to initialize base model
+        seed_path = settings.BASE_DIR.parent / "data" / "SupplyIQ_Master_Enterprise_Dataset.csv"
+        if not seed_path.exists():
+            seed_path = settings.BASE_DIR.parent / "data" / "sample_sales_demand_import.csv"
+        if seed_path.exists():
+            raw = pd.read_csv(seed_path)
+            raw.columns = [str(c).strip().lower() for c in raw.columns]
+            if "unit_price" in raw.columns and "price" not in raw.columns:
+                raw["price"] = raw["unit_price"]
+            needed = [c for c in ["date", "product_id", "quantity", "price", "promotion", "region"] if c in raw.columns]
+            sales_df = raw[needed].dropna(subset=["date", "product_id", "quantity"])
+        else:
+            raise ValueError("No sales data exists anywhere yet - cannot train the base model.")
 
     trained = train_demand_model(sales_df)
 

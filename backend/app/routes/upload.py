@@ -116,12 +116,12 @@ def import_upload(company_id: int, upload_id: int, db: Session=Depends(get_db), 
     upload.imported_at = datetime.utcnow()
     db.commit()
     logger.info('Imported dataset upload_id=%s company=%s type=%s imported=%s skipped=%s updated=%s', upload_id, company_id, upload.dataset_type, imported, skipped, updated)
-    if upload.dataset_type == 'sales' and imported > 0:
+    if upload.dataset_type in ('sales', 'unified') and imported > 0:
         try:
             ensure_company_has_a_model(db, company_id)
         except Exception:
             logger.exception('Post-import demand model training failed for company_id=%s', company_id)
-    if upload.dataset_type == 'shipments' and imported > 0:
+    if upload.dataset_type in ('shipments', 'unified') and imported > 0:
         try:
             ensure_company_has_shipment_models(db, company_id)
         except Exception:

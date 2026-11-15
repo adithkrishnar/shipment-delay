@@ -67,9 +67,15 @@ async def retrain_company_model(company_id: int, db: Session=Depends(get_db), re
         await redis.enqueue_job('train_shipment_for_company', shipment_job.id, company_id)
     except Exception as exc:
         logger.warning("Redis worker queue unreachable (%s). Executing model training synchronously as fallback...", exc)
-        from app.services.model_training_service import train_company_demand_model, train_company_shipment_models
+        from app.services.model_training_service import train_company_demand_model, train_company_shipment_models, ensure_company_has_a_model
         try:
             entry_d, reason_d = train_company_demand_model(db, company_id)
+            if not entry_d:
+                try:
+                    entry_d = ensure_company_has_a_model(db, company_id)
+                    reason_d = f"Baseline demand model active ({reason_d})"
+                except Exception as e_base:
+                    logger.warning("Could not train base demand model fallback: %s", e_base)
             demand_job.status = JobStatus.COMPLETED.value
             demand_job.result = json.dumps({"reason": reason_d, "version": entry_d.version if entry_d else None})
         except Exception as e_d:

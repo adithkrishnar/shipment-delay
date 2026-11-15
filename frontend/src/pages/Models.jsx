@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { getModels, retrainModel } from '../services/api';
 import Loader from '../components/Loader';
-import { Brain, Sparkles, CheckCircle2, TrendingUp, RefreshCw, BarChart2, ShieldCheck, AlertCircle } from 'lucide-react';
+import { Brain, Sparkles, CheckCircle2, TrendingUp, RefreshCw, BarChart2, ShieldCheck, AlertCircle, ArrowRight, UploadCloud } from 'lucide-react';
 
 export default function Models({ company }) {
   const [data, setData] = useState(null);
@@ -32,8 +33,10 @@ export default function Models({ company }) {
     setRetrainSuccess(null);
     try {
       const res = await retrainModel(company.id);
-      setRetrainSuccess('Demand forecasting retrain job initiated successfully.');
-      setTimeout(fetchModels, 2500);
+      setRetrainSuccess('Demand forecasting retrain job initiated and calibrated successfully.');
+      setTimeout(fetchModels, 1200);
+      setTimeout(fetchModels, 2800);
+      setTimeout(fetchModels, 4500);
     } catch (e) {
       setError(e.response?.data?.detail || e.message);
     } finally {
@@ -321,16 +324,23 @@ export default function Models({ company }) {
         </div>
       ) : (
         <div style={{ background: 'var(--bg-surface-1)', border: '1px solid var(--border-default)', borderRadius: 'var(--r-lg)', padding: '64px 24px', textAlign: 'center' }}>
-          <AlertCircle size={36} color="var(--status-watch)" style={{ margin: '0 auto 16px' }} />
+          <AlertCircle size={36} color="var(--accent-secondary)" style={{ margin: '0 auto 16px' }} />
           <h3 style={{ fontSize: '18px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '8px' }}>
             No Demand Forecasting Model Registered
           </h3>
-          <p style={{ color: 'var(--text-secondary)', maxWidth: '480px', margin: '0 auto 20px', fontSize: '13px' }}>
-            Upload company sales records to build an enterprise-grade forecasting model tailored to your demand patterns.
+          <p style={{ color: 'var(--text-secondary)', maxWidth: '520px', margin: '0 auto 24px', fontSize: '13px', lineHeight: 1.5 }}>
+            Enterprise forecasting requires historical sales orders. You can train the baseline model right now using pre-loaded parameters, or upload your full sales history via Data &amp; Imports.
           </p>
-          <button className="btn-primary" onClick={handleRetrain} disabled={retraining}>
-            {retraining ? 'Initializing...' : 'Train Initial Demand Model'}
-          </button>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', flexWrap: 'wrap' }}>
+            <button className="btn-primary" onClick={handleRetrain} disabled={retraining} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px' }}>
+              <RefreshCw size={14} className={retraining ? 'animate-spin' : ''} />
+              {retraining ? 'Calibrating Model...' : 'Train Initial Demand Model'}
+            </button>
+            <Link to="/data" className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', textDecoration: 'none' }}>
+              <UploadCloud size={14} />
+              Upload Sales in Data &amp; Imports
+            </Link>
+          </div>
         </div>
       )}
     </div>

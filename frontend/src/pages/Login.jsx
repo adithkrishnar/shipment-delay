@@ -28,57 +28,84 @@ export default function Login() {
   };
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-base)' }}>
-      {/* LEFT: Branding */}
+    <div style={{ display: 'flex', minHeight: '100vh', background: '#070708', position: 'relative' }}>
+      {/* LEFT: Cinematic Precision Brand Panel */}
       <div style={{ 
-        flex: 1, 
+        flex: 1.1, 
         display: 'flex', 
         flexDirection: 'column', 
-        justifyContent: 'center', 
-        padding: '0 10%', 
-        background: 'var(--bg-surface-2)', 
-        borderRight: '1px solid var(--border-subtle)' 
+        justifyContent: 'space-between', 
+        padding: '64px 8%', 
+        background: '#0D0E10', 
+        borderRight: '1px solid #1E2024',
+        position: 'relative',
+        overflow: 'hidden'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
-          <div className="brand-logo" style={{ width: 48, height: 48, borderRadius: 'var(--r-lg)', background: 'var(--accent-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <svg style={{ width: 24, height: 24, color: '#fff' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-            </svg>
+        {/* Subtle grid pattern background */}
+        <div style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(to right, rgba(255,255,255,0.015) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.015) 1px, transparent 1px)', backgroundSize: '40px 40px', pointerEvents: 'none' }} />
+
+        <div style={{ position: 'relative', zIndex: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+            <div style={{ width: 32, height: 32, borderRadius: 6, background: '#5E6BFF', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 16px rgba(94, 107, 255, 0.45)' }}>
+              <svg width="16" height="16" viewBox="0 0 14 14" fill="none">
+                <path d="M7 1L12 4v6l-5 3L2 10V4l5-3z" stroke="#FFFFFF" strokeWidth="1.5" strokeLinejoin="round" fill="none"/>
+              </svg>
+            </div>
+            <span style={{ fontFamily: 'Manrope', fontSize: '18px', fontWeight: 700, color: '#F0F1F2', letterSpacing: '0.05em' }}>SUPPLYIQ</span>
           </div>
-          <h1 style={{ fontSize: '32px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>SUPPLYIQ</h1>
+          <span style={{ fontSize: '11px', fontFamily: 'JetBrains Mono', color: '#50D8E9', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+            SYSTEM.CORRIDOR // v2.4_PROD
+          </span>
         </div>
-        <h2 style={{ fontSize: '24px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '16px' }}>
-          AI-powered supply chain intelligence
-        </h2>
-        <p style={{ fontSize: '16px', color: 'var(--text-secondary)', lineHeight: 1.6, maxWidth: '400px' }}>
-          Predict delays, understand inventory risk, and make faster operational decisions.
-        </p>
+
+        <div style={{ position: 'relative', zIndex: 10, maxWidth: '480px', margin: '48px 0' }}>
+          <h1 style={{ fontFamily: 'Manrope', fontSize: '38px', fontWeight: 600, color: '#F0F1F2', lineHeight: 1.15, letterSpacing: '-0.04em', marginBottom: '16px' }}>
+            The command dashboard for high-velocity supply networks.
+          </h1>
+          <p style={{ fontSize: '14px', color: '#9A9DA3', lineHeight: 1.6, marginBottom: '24px' }}>
+            Predict transit disruptions, quantify inventory consequence, and simulate contingency replenishment in real-time.
+          </p>
+
+          {/* Telemetry pill */}
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', padding: '6px 12px', background: '#141518', border: '1px solid #232426', borderRadius: 4 }}>
+            <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#38E5A3', boxShadow: '0 0 8px #38E5A3' }} />
+            <span style={{ fontSize: '11px', fontFamily: 'JetBrains Mono', color: '#9A9DA3' }}>TELEMETRY SYNCHRONIZED • LATENCY 1.2ms</span>
+          </div>
+        </div>
+
+        <div style={{ position: 'relative', zIndex: 10, display: 'flex', gap: '24px', fontSize: '12px', color: '#63666E' }}>
+          <span>© 2026 SupplyIQ Platform</span>
+          <span>•</span>
+          <span>Enterprise Decision Support</span>
+          <span>•</span>
+          <span>Multi-Tenant Architecture</span>
+        </div>
       </div>
 
-      {/* RIGHT: Login Card */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '0 24px' }}>
-        <div style={{ width: '100%', maxWidth: '380px', background: 'var(--bg-surface-1)', padding: '40px', borderRadius: 'var(--r-xl)', border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-md)' }}>
-          <div style={{ marginBottom: '32px', textAlign: 'center' }}>
-            <h2 style={{ fontSize: '20px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '8px' }}>Welcome back</h2>
-            <p style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>Log in to access your intelligence dashboard</p>
+      {/* RIGHT: Login Form */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '32px 24px', background: '#070708' }}>
+        <div style={{ width: '100%', maxWidth: '400px', background: '#101112', padding: '36px', borderRadius: '8px', border: '1px solid #232426', boxShadow: '0 8px 32px rgba(0,0,0,0.6)' }}>
+          <div style={{ marginBottom: '28px' }}>
+            <h2 style={{ fontFamily: 'Manrope', fontSize: '20px', fontWeight: 600, color: '#F0F1F2', marginBottom: '6px', letterSpacing: '-0.03em' }}>Log in to Workspace</h2>
+            <p style={{ fontSize: '13px', color: '#9A9DA3' }}>Access telemetry, delay simulator, and action center</p>
           </div>
 
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
             <div>
-              <label htmlFor="login-email" style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '8px' }}>Email</label>
+              <label htmlFor="login-email" style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: '#9A9DA3', marginBottom: '6px' }}>Email address</label>
               <input
                 id="login-email"
                 type="email"
-                placeholder="you@company.com"
+                placeholder="operator@company.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                style={{ width: '100%', padding: '10px 12px', background: 'var(--bg-base)', border: '1px solid var(--border-default)', borderRadius: 'var(--r-md)', color: 'var(--text-primary)', fontSize: '14px' }}
+                style={{ width: '100%', padding: '9px 12px', background: '#0A0A0B', border: '1px solid #1E2024', borderRadius: '4px', color: '#F0F1F2', fontSize: '13px' }}
               />
             </div>
 
             <div>
-              <label htmlFor="login-password" style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '8px' }}>Password</label>
+              <label htmlFor="login-password" style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: '#9A9DA3', marginBottom: '6px' }}>Password</label>
               <input
                 id="login-password"
                 type="password"
@@ -86,12 +113,12 @@ export default function Login() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                style={{ width: '100%', padding: '10px 12px', background: 'var(--bg-base)', border: '1px solid var(--border-default)', borderRadius: 'var(--r-md)', color: 'var(--text-primary)', fontSize: '14px' }}
+                style={{ width: '100%', padding: '9px 12px', background: '#0A0A0B', border: '1px solid #1E2024', borderRadius: '4px', color: '#F0F1F2', fontSize: '13px' }}
               />
             </div>
 
             {error && (
-              <div style={{ padding: '12px', background: 'var(--status-critical-bg)', color: 'var(--status-critical)', border: '1px solid var(--status-critical-border)', borderRadius: 'var(--r-md)', fontSize: '13px' }}>
+              <div style={{ padding: '10px 12px', background: 'rgba(255,90,107,0.08)', color: '#FF5A6B', border: '1px solid rgba(255,90,107,0.2)', borderRadius: '4px', fontSize: '12.5px' }}>
                 {error}
               </div>
             )}
@@ -100,55 +127,55 @@ export default function Login() {
               type="submit"
               disabled={loading}
               className="btn-primary"
-              style={{ width: '100%', padding: '12px', fontSize: '14px', marginTop: '8px' }}
+              style={{ width: '100%', padding: '10px', fontSize: '13px', marginTop: '6px' }}
             >
-              {loading ? 'Logging in...' : 'Sign in'}
+              {loading ? 'Authenticating...' : 'Sign in to Console'}
             </button>
           </form>
 
           {/* Quick Demo Role Switcher Pills */}
-          <div style={{ marginTop: '20px', padding: '12px', background: 'var(--bg-surface-2)', borderRadius: 'var(--r-md)', border: '1px solid var(--border-subtle)' }}>
-            <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-tertiary)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+          <div style={{ marginTop: '24px', padding: '14px', background: '#0C0D0E', borderRadius: '6px', border: '1px solid #1B1C1E' }}>
+            <div style={{ fontSize: '10.5px', fontFamily: 'Manrope', fontWeight: 600, color: '#63666E', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
               One-Click Role Demonstration
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <button
                 type="button"
-                onClick={() => { setEmail('admin@vanguard-aero.com'); setPassword('vanguard123'); }}
-                style={{ padding: '8px 10px', fontSize: '12px', textAlign: 'left', background: 'var(--bg-base)', border: '1px solid var(--border-subtle)', borderRadius: '6px', color: 'var(--text-primary)', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                onClick={() => { setEmail('admin@dataco.com'); setPassword('admin123'); }}
+                style={{ padding: '8px 10px', fontSize: '12px', textAlign: 'left', background: '#121315', border: '1px solid #232426', borderRadius: '4px', color: '#F0F1F2', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: 'border-color 0.15s ease' }}
               >
-                <span>🚀 <strong>Company: Vanguard Aero</strong></span>
-                <span style={{ color: 'var(--text-tertiary)', fontSize: '11px' }}>admin@vanguard-aero.com</span>
+                <span>🏢 <strong>DataCo Global</strong></span>
+                <span style={{ color: '#9A9DA3', fontSize: '11px', fontFamily: 'JetBrains Mono' }}>admin@dataco.com</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => { setEmail('admin@vanguard-aero.com'); setPassword('vanguard123'); }}
+                style={{ padding: '8px 10px', fontSize: '12px', textAlign: 'left', background: '#121315', border: '1px solid #232426', borderRadius: '4px', color: '#F0F1F2', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: 'border-color 0.15s ease' }}
+              >
+                <span>🚀 <strong>Vanguard Aero</strong></span>
+                <span style={{ color: '#9A9DA3', fontSize: '11px', fontFamily: 'JetBrains Mono' }}>admin@vanguard-aero.com</span>
               </button>
               <button
                 type="button"
                 onClick={() => { setEmail('ops@pacificintermodal.com'); setPassword('pacific123'); }}
-                style={{ padding: '8px 10px', fontSize: '12px', textAlign: 'left', background: 'var(--bg-base)', border: '1px solid var(--border-subtle)', borderRadius: '6px', color: 'var(--text-primary)', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                style={{ padding: '8px 10px', fontSize: '12px', textAlign: 'left', background: '#121315', border: '1px solid #232426', borderRadius: '4px', color: '#F0F1F2', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: 'border-color 0.15s ease' }}
               >
-                <span>🚢 <strong>Carrier: Pacific Intermodal</strong></span>
-                <span style={{ color: 'var(--text-tertiary)', fontSize: '11px' }}>ops@pacificintermodal.com</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => { setEmail('admin@dataco.com'); setPassword('admin123'); }}
-                style={{ padding: '8px 10px', fontSize: '12px', textAlign: 'left', background: 'var(--bg-base)', border: '1px solid var(--border-subtle)', borderRadius: '6px', color: 'var(--text-primary)', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-              >
-                <span>🏢 <strong>Company: DataCo Global</strong></span>
-                <span style={{ color: 'var(--text-tertiary)', fontSize: '11px' }}>admin@dataco.com</span>
+                <span>🚢 <strong>Pacific Intermodal</strong></span>
+                <span style={{ color: '#9A9DA3', fontSize: '11px', fontFamily: 'JetBrains Mono' }}>ops@pacificintermodal.com</span>
               </button>
               <button
                 type="button"
                 onClick={() => { setEmail('carrier@datacotransport.com'); setPassword('carrier123'); }}
-                style={{ padding: '8px 10px', fontSize: '12px', textAlign: 'left', background: 'var(--bg-base)', border: '1px solid var(--border-subtle)', borderRadius: '6px', color: 'var(--text-primary)', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                style={{ padding: '8px 10px', fontSize: '12px', textAlign: 'left', background: '#121315', border: '1px solid #232426', borderRadius: '4px', color: '#F0F1F2', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: 'border-color 0.15s ease' }}
               >
-                <span>🚚 <strong>Transporter: DataCo Linehaul</strong></span>
-                <span style={{ color: 'var(--text-tertiary)', fontSize: '11px' }}>carrier@datacotransport.com</span>
+                <span>🚚 <strong>DataCo Linehaul</strong></span>
+                <span style={{ color: '#9A9DA3', fontSize: '11px', fontFamily: 'JetBrains Mono' }}>carrier@datacotransport.com</span>
               </button>
             </div>
           </div>
 
-          <div style={{ marginTop: '20px', textAlign: 'center', fontSize: '13px', color: 'var(--text-secondary)' }}>
-            Don't have an account? <Link to="/register" style={{ color: 'var(--accent-primary)', fontWeight: 500 }}>Register</Link>
+          <div style={{ marginTop: '20px', textAlign: 'center', fontSize: '12px', color: '#9A9DA3' }}>
+            New organization? <Link to="/register" style={{ color: '#5E6BFF', fontWeight: 500 }}>Create an account</Link>
           </div>
         </div>
       </div>

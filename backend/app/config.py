@@ -98,12 +98,12 @@ class Settings(BaseSettings):
     NEWS_API_KEY: str | None = None
 
     # Data sufficiency threshold for company-specific model training
-    MIN_RECORDS_FOR_COMPANY_MODEL: int = 3000
-    MIN_HISTORY_DAYS_FOR_COMPANY_MODEL: int = 180
+    MIN_RECORDS_FOR_COMPANY_MODEL: int = 50
+    MIN_HISTORY_DAYS_FOR_COMPANY_MODEL: int = 14
     # Shipment volumes are naturally much smaller than daily sales volumes,
     # so shipment-based models (delay classifier, delay duration) use their
     # own, lower record threshold. History-days threshold is shared.
-    MIN_SHIPMENT_RECORDS_FOR_COMPANY_MODEL: int = 300
+    MIN_SHIPMENT_RECORDS_FOR_COMPANY_MODEL: int = 20
 
     # Upload limits
     MAX_UPLOAD_SIZE_MB: int = 25

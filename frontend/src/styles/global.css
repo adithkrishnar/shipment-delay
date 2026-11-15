@@ -1,9 +1,9 @@
 /* ============================================================
    SupplyIQ Design System — global.css
-   Modern Enterprise Supply Chain Control Tower
+   Cinematic Precision & Deep Space Aesthetic (Romer Design System)
    ============================================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 /* Map Dark Tiles Theme */
 .dark-map-tiles {
@@ -11,54 +11,65 @@
 }
 
 :root {
-  --bg-base:        #0B0F14;
-  --bg-surface-1:   #151C24;
-  --bg-surface-2:   #19222D;
-  --bg-surface-3:   #111720;
-  --bg-elevated:    #19222D;
+  /* Cinematic Precision Palette */
+  --bg-base:        #070708;
+  --bg-surface-1:   #101112;
+  --bg-surface-2:   #151617;
+  --bg-surface-3:   #191A1C;
+  --bg-elevated:    #1C1D1F;
 
-  --border-subtle:  #26313D;
-  --border-default: #26313D;
-  --border-strong:  #26313D;
+  --border-subtle:  #1B1C1E;
+  --border-default: #232426;
+  --border-strong:  #2E3033;
+  --border-highlight: rgba(255, 255, 255, 0.08);
 
-  --text-primary:   #F3F6FA;
-  --text-secondary: #A8B3C2;
-  --text-tertiary:  #6F7C8C;
-  --text-muted:     #6F7C8C;
+  --text-primary:   #F0F1F2;
+  --text-secondary: #9A9DA3;
+  --text-tertiary:  #63666E;
+  --text-muted:     #63666E;
 
-  --accent-primary:   #4F8CFF;
-  --accent-primary-dim: rgba(79, 140, 255, 0.15);
-  --accent-primary-hover: #3A6ACC;
+  /* Accent: Cobalt Electric Precision */
+  --accent-primary:       #5E6BFF;
+  --accent-primary-dim:   rgba(94, 107, 255, 0.12);
+  --accent-primary-hover: #4B57E6;
 
-  --status-healthy:       #2DD4A7;
-  --status-healthy-bg:    rgba(45, 212, 167, 0.1);
-  --status-healthy-border:rgba(45, 212, 167, 0.2);
+  /* Secondary: Cyan Flux */
+  --accent-cyan:          #50D8E9;
+  --accent-cyan-dim:      rgba(80, 216, 233, 0.12);
 
-  --status-watch:         #F5B942;
-  --status-watch-bg:      rgba(245, 185, 66, 0.1);
-  --status-watch-border:  rgba(245, 185, 66, 0.2);
+  /* Status Accents (Restrained, Precise) */
+  --status-healthy:       #38E5A3;
+  --status-healthy-bg:    rgba(56, 229, 163, 0.08);
+  --status-healthy-border:rgba(56, 229, 163, 0.2);
 
-  --status-risk:          #F5B942;
-  --status-risk-bg:       rgba(245, 185, 66, 0.1);
-  --status-risk-border:   rgba(245, 185, 66, 0.2);
+  --status-watch:         #FFB689;
+  --status-watch-bg:      rgba(255, 182, 137, 0.08);
+  --status-watch-border:  rgba(255, 182, 137, 0.2);
 
-  --status-critical:      #FF4D5F;
-  --status-critical-bg:   rgba(255, 77, 95, 0.1);
-  --status-critical-border:rgba(255, 77, 95, 0.2);
+  --status-risk:          #FFB689;
+  --status-risk-bg:       rgba(255, 182, 137, 0.08);
+  --status-risk-border:   rgba(255, 182, 137, 0.2);
 
-  --status-info:          #4F8CFF;
-  --status-info-bg:       rgba(79, 140, 255, 0.1);
-  --status-info-border:   rgba(79, 140, 255, 0.2);
+  --status-critical:      #FF5A6B;
+  --status-critical-bg:   rgba(255, 90, 107, 0.08);
+  --status-critical-border:rgba(255, 90, 107, 0.2);
 
-  --font-sans: 'Inter', ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-mono: 'SF Mono', 'Fira Code', 'JetBrains Mono', monospace;
+  --status-info:          #5E6BFF;
+  --status-info-bg:       rgba(94, 107, 255, 0.08);
+  --status-info-border:   rgba(94, 107, 255, 0.2);
+
+  /* Typography */
+  --font-sans: 'Inter', ui-sans-serif, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-heading: 'Manrope', 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', monospace;
 
   --sp-1: 4px;   --sp-2: 8px;   --sp-3: 12px;  --sp-4: 16px;
   --sp-5: 20px;  --sp-6: 24px;  --sp-7: 28px;  --sp-8: 32px;
   --sp-10: 40px; --sp-12: 48px;
 
-  --r-sm:  4px;
-  --r-md:  6px;
+  /* Romer Precision Radii: 4px / 8px */
+  --r-sm:  2px;
+  --r-md:  4px;
   --r-lg:  8px;
   --r-xl:  10px;
   --r-2xl: 12px;
@@ -68,11 +79,12 @@
   --topbar-h: 56px;
 
   --shadow-sm: none;
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.4);
+  --inner-glow: inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
 
-  --t-fast: 150ms;
-  --t-base: 250ms;
-  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --t-fast: 120ms;
+  --t-base: 200ms;
+  --ease-in-out: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* ─── Reset & Base ───────────────────────────────────────────── */
@@ -179,8 +191,8 @@ input:focus, select:focus, textarea:focus {
 .sidebar {
   width: var(--sidebar-w);
   min-height: 100vh;
-  background: #0F141B;
-  border-right: 1px solid var(--border-subtle);
+  background: #080809;
+  border-right: 1px solid var(--border-default);
   display: flex;
   flex-direction: column;
   position: fixed;
@@ -188,7 +200,7 @@ input:focus, select:focus, textarea:focus {
   top: 0;
   bottom: 0;
   z-index: 50;
-  box-shadow: var(--shadow-sm);
+  box-shadow: none;
 }
 
 .sidebar-brand {
@@ -198,6 +210,7 @@ input:focus, select:focus, textarea:focus {
   gap: 12px;
   border-bottom: 1px solid var(--border-subtle);
   min-height: var(--topbar-h);
+  background: #070708;
 }
 
 .brand-logo {
@@ -208,19 +221,21 @@ input:focus, select:focus, textarea:focus {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
+  color: #F0F1F2;
+  box-shadow: 0 0 12px rgba(94, 107, 255, 0.4);
 }
 
 .brand-name {
-  font-size: 15px;
+  font-family: var(--font-heading);
+  font-size: 14px;
   font-weight: 700;
   color: var(--text-primary);
-  letter-spacing: -0.01em;
+  letter-spacing: 0.04em;
 }
 
 .sidebar-nav {
   flex: 1;
-  padding: 16px 12px;
+  padding: 16px 10px;
   overflow-y: auto;
 }
 
@@ -229,10 +244,11 @@ input:focus, select:focus, textarea:focus {
 }
 
 .nav-section-label {
+  font-family: var(--font-heading);
   font-size: 10px;
   font-weight: 600;
-  letter-spacing: 0.05em;
-  color: var(--text-tertiary);
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
   text-transform: uppercase;
   padding: 0 12px 8px;
 }
@@ -240,31 +256,35 @@ input:focus, select:focus, textarea:focus {
 .nav-link {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 8px 12px;
+  gap: 10px;
+  padding: 7px 12px;
   border-radius: var(--r-md);
   color: var(--text-secondary);
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 500;
   transition: all var(--t-fast) var(--ease-in-out);
   margin-bottom: 2px;
+  border: 1px solid transparent;
 }
 
 .nav-link:hover {
-  background: var(--bg-surface-2);
+  background: #101112;
   color: var(--text-primary);
+  border-color: var(--border-subtle);
 }
 
 .nav-link.active {
-  background: var(--accent-primary-dim);
-  color: var(--accent-primary);
-  font-weight: 600;
+  background: #141518;
+  color: #FFFFFF;
+  border-color: rgba(94, 107, 255, 0.35);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .nav-icon {
-  width: 18px;
-  height: 18px;
-  color: var(--text-tertiary);
+  width: 16px;
+  height: 16px;
+  color: var(--text-muted);
+  transition: color var(--t-fast);
 }
 
 .nav-link:hover .nav-icon {
@@ -278,14 +298,15 @@ input:focus, select:focus, textarea:focus {
 .sidebar-footer {
   padding: 16px;
   border-top: 1px solid var(--border-subtle);
-  background: var(--bg-surface-2);
+  background: var(--bg-surface-1);
 }
 
 /* ─── Topbar ─────────────────────────────────────────────────── */
 .topbar {
   height: var(--topbar-h);
-  background: #111720;
-  border-bottom: 1px solid var(--border-subtle);
+  background: rgba(7, 7, 8, 0.85);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border-default);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -354,38 +375,52 @@ input:focus, select:focus, textarea:focus {
   margin-bottom: 32px;
 }
 
-.page-title {
-  font-size: 24px;
+.page-title, h1 {
+  font-family: var(--font-heading);
+  font-size: 26px;
   font-weight: 600;
   color: var(--text-primary);
-  letter-spacing: -0.02em;
+  letter-spacing: -0.04em;
   margin-bottom: 8px;
 }
 
 .page-subtitle {
-  font-size: 14px;
+  font-size: 13px;
   color: var(--text-secondary);
+  letter-spacing: -0.01em;
+}
+
+h2, h3, h4 {
+  font-family: var(--font-heading);
+  letter-spacing: -0.03em;
 }
 
 h2.section-title {
-  font-size: 14px;
+  font-family: var(--font-heading);
+  font-size: 13px;
   font-weight: 600;
   color: var(--text-primary);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
   margin: 32px 0 16px;
   padding-bottom: 8px;
   border-bottom: 1px solid var(--border-subtle);
 }
 
-/* ─── Panels / Cards (Use Sparingly) ─────────────────────────── */
+/* ─── Panels / Cards (Cinematic Precision) ───────────────────── */
 .panel {
   background: var(--bg-surface-1);
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--border-default);
   border-radius: var(--r-lg);
   padding: 24px;
   margin-bottom: 24px;
   box-shadow: var(--shadow-sm);
+  position: relative;
+  transition: border-color var(--t-fast);
+}
+
+.panel:hover {
+  border-color: var(--border-strong);
 }
 
 .panel-bare {
@@ -401,13 +436,15 @@ h2.section-title {
   justify-content: center;
   gap: 8px;
   background: var(--accent-primary);
-  color: #ffffff;
+  color: #F0F1F2;
+  font-family: var(--font-sans);
   font-size: 13px;
   font-weight: 500;
   padding: 8px 16px;
   border-radius: var(--r-md);
   border: 1px solid transparent;
   cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.15);
   transition: all var(--t-fast);
 }
 
@@ -420,8 +457,9 @@ h2.section-title {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  background: var(--bg-surface-1);
-  color: var(--text-secondary);
+  background: var(--bg-surface-2);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
   font-size: 13px;
   font-weight: 500;
   padding: 8px 16px;
@@ -432,18 +470,17 @@ h2.section-title {
 }
 
 .btn-secondary:hover {
-  background: var(--bg-surface-2);
-  color: var(--text-primary);
+  background: var(--bg-surface-3);
   border-color: var(--border-strong);
 }
 
-/* ─── Tables (Professional, Clean) ───────────────────────────── */
+/* ─── Tables (Cinematic Precision, Dense Data Rows) ──────────── */
 .table-wrap {
   overflow-x: auto;
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--border-default);
   border-radius: var(--r-lg);
   background: var(--bg-surface-1);
-  box-shadow: var(--shadow-sm);
+  box-shadow: none;
 }
 
 table {
@@ -453,21 +490,23 @@ table {
 }
 
 th {
-  font-size: 11px;
+  font-family: var(--font-heading);
+  font-size: 10.5px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-secondary);
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--border-subtle);
-  background: var(--bg-surface-2);
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border-default);
+  background: #0D0E10;
 }
 
 td {
-  padding: 12px 16px;
+  padding: 11px 16px;
   font-size: 13px;
   color: var(--text-primary);
   border-bottom: 1px solid var(--border-subtle);
+  font-variant-numeric: tabular-nums;
 }
 
 tbody tr:last-child td {
@@ -479,7 +518,7 @@ tbody tr {
 }
 
 tbody tr:hover {
-  background: var(--bg-surface-2);
+  background: #141517;
 }
 
 /* ─── Status Badges ──────────────────────────────────────────── */
@@ -762,30 +801,96 @@ tbody tr:hover {
 }
 
 .kpi-card {
-  padding: 16px;
+  padding: 18px 20px;
   background: var(--bg-surface-1);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--r-md);
+  border: 1px solid var(--border-default);
+  border-radius: var(--r-lg);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
+  transition: border-color var(--t-fast);
+}
+
+.kpi-card:hover {
+  border-color: var(--border-strong);
 }
 
 .kpi-label {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--text-secondary);
+  font-family: var(--font-heading);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-tertiary);
 }
 
 .kpi-value {
+  font-family: var(--font-sans);
   font-size: 24px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text-primary);
+  letter-spacing: -0.02em;
 }
 
 .kpi-sub {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-tertiary);
+  font-family: var(--font-mono);
+}
+
+.metric {
+  background: var(--bg-surface-1);
+  border: 1px solid var(--border-default);
+  border-radius: var(--r-lg);
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  transition: border-color var(--t-fast);
+}
+
+.metric:hover {
+  border-color: var(--border-strong);
+}
+
+.metric span {
+  font-family: var(--font-heading);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-tertiary);
+}
+
+.metric strong {
+  font-family: var(--font-sans);
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+}
+
+.metric small {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+}
+
+.metric.critical {
+  border-color: var(--status-critical-border);
+  background: var(--status-critical-bg);
+}
+
+.metric.healthy {
+  border-color: var(--status-healthy-border);
+  background: var(--status-healthy-bg);
+}
+
+.metric.watch, .metric.warning {
+  border-color: var(--status-watch-border);
+  background: var(--status-watch-bg);
 }
 
 /* ─── Chart Overrides ────────────────────────────────────────── */
@@ -873,18 +978,24 @@ tbody tr:hover {
 
 .sim-kpi-card {
   background: var(--bg-surface-1);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--r-md);
-  padding: 16px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--r-lg);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  padding: 18px 20px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
   transition: all 0.2s ease;
+}
+
+.sim-kpi-card:hover {
+  border-color: var(--border-strong);
 }
 
 .sim-kpi-card.critical {
   border-color: var(--status-critical-border);
   background: var(--status-critical-bg);
+  box-shadow: 0 0 16px rgba(255, 90, 107, 0.08);
 }
 
 .sim-kpi-card.healthy {

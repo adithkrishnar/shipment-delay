@@ -1,11 +1,12 @@
 import React, { useEffect, useState, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { getForecast as getDemandForecast } from '../services/api';
 import Loader from '../components/Loader';
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip,
   CartesianGrid, AreaChart, Area, BarChart, Bar
 } from 'recharts';
-import { TrendingUp, Calendar, Brain, Filter, AlertCircle, Sparkles, Layers } from 'lucide-react';
+import { TrendingUp, Calendar, Brain, Filter, AlertCircle, Sparkles, Layers, UploadCloud } from 'lucide-react';
 
 export default function Demand({ company }) {
   const [data, setData] = useState(null);
@@ -170,13 +171,23 @@ export default function Demand({ company }) {
 
       {is400 || (!loading && (!data || !data.products?.length)) ? (
         <div style={{ background: 'var(--bg-surface-1)', border: '1px solid var(--border-default)', borderRadius: 'var(--r-lg)', padding: '64px 24px', textAlign: 'center' }}>
-          <AlertCircle size={36} color="var(--status-watch)" style={{ margin: '0 auto 12px' }} />
+          <AlertCircle size={36} color="var(--accent-secondary)" style={{ margin: '0 auto 12px' }} />
           <h3 style={{ fontSize: '18px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '8px' }}>
             Insufficient Demand History to Generate Forecast
           </h3>
-          <p style={{ color: 'var(--text-secondary)', maxWidth: '480px', margin: '0 auto 20px', fontSize: '13px' }}>
-            Demand forecasting models require a minimum of 20 historical sales records per SKU to compute seasonality and forward trend. Upload sales history in Data & Imports to activate forward projections.
+          <p style={{ color: 'var(--text-secondary)', maxWidth: '520px', margin: '0 auto 24px', fontSize: '13px', lineHeight: 1.5 }}>
+            Demand forecasting models require historical sales records per SKU to compute seasonality and forward trend. Ingest your sales history in Data &amp; Imports or calibrate the baseline model.
           </p>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', flexWrap: 'wrap' }}>
+            <Link to="/data" className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', textDecoration: 'none' }}>
+              <UploadCloud size={14} />
+              Upload Sales / Master Dataset
+            </Link>
+            <Link to="/models" className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', textDecoration: 'none' }}>
+              <Brain size={14} />
+              Calibrate in Models &amp; Quality
+            </Link>
+          </div>
         </div>
       ) : (
         <>
