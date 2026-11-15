@@ -35,12 +35,63 @@ export default function Overview({ company }) {
       .then(([overviewData, whData, disData]) => {
         setData(overviewData);
         setWarehouses(whData || []);
-        setDisruptions(disData || []);
+        
+        // Merge backend disruptions with real-time persistent carrier dispatches
+        const localDisruptions = JSON.parse(localStorage.getItem('supplyiq_recent_disruptions') || '[]');
+        const combined = [...localDisruptions, ...(disData || [])];
+        const unique = [];
+        const seen = new Set();
+        for (const item of combined) {
+          const key = `${item.external_shipment_id || item.shipment_id}-${item.delay_hours}-${item.disruption_reason}`;
+          if (!seen.has(key)) {
+            seen.add(key);
+            unique.push(item);
+          }
+        }
+        setDisruptions(unique);
         setError(null);
       })
       .catch(err => setError(err.response?.data?.detail || err.message))
       .finally(() => setLoading(false));
   }, [company?.id]);
+
+  // Real-time listener for transporter exception broadcasts across tabs/windows
+  useEffect(() => {
+    const handleLiveDisruption = (e) => {
+      const newD = e.detail;
+      if (!newD) return;
+      setDisruptions(prev => {
+        const next = [newD, ...prev.filter(x => x.id !== newD.id)];
+        return next;
+      });
+    };
+
+    const handleStorageUpdate = (e) => {
+      if (e.key === 'supplyiq_recent_disruptions') {
+        const stored = JSON.parse(e.newValue || '[]');
+        setDisruptions(prev => {
+          const merged = [...stored, ...prev];
+          const unique = [];
+          const seen = new Set();
+          for (const item of merged) {
+            const key = `${item.external_shipment_id || item.shipment_id}-${item.delay_hours}-${item.disruption_reason}`;
+            if (!seen.has(key)) {
+              seen.add(key);
+              unique.push(item);
+            }
+          }
+          return unique;
+        });
+      }
+    };
+
+    window.addEventListener('supplyiq_disruption_reported', handleLiveDisruption);
+    window.addEventListener('storage', handleStorageUpdate);
+    return () => {
+      window.removeEventListener('supplyiq_disruption_reported', handleLiveDisruption);
+      window.removeEventListener('storage', handleStorageUpdate);
+    };
+  }, []);
 
   if (loading) return <Loader />;
 
@@ -79,9 +130,16 @@ export default function Overview({ company }) {
             <h1 style={{ fontSize: '26px', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
               INVENTORY INTELLIGENCE CONTROL TOWER
             </h1>
-            <span style={{ fontSize: '11px', fontWeight: 600, padding: '3px 8px', borderRadius: '4px', background: 'var(--accent-primary-dim)', color: 'var(--accent-primary)', textTransform: 'uppercase' }}>
-              Data Integrity: 100% • 2 Approaching Reorder
-            </span>
+            {disruptions.length > 0 ? (
+              <span style={{ fontSize: '11px', fontWeight: 700, padding: '3px 8px', borderRadius: '4px', background: 'rgba(239, 68, 68, 0.2)', color: '#ef4444', textTransform: 'uppercase', display: 'inline-flex', alignItems: 'center', gap: '6px', border: '1px solid rgba(239, 68, 68, 0.4)' }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#ef4444', animation: 'pulse 1.5s infinite' }} />
+                {disruptions.length} ACTIVE TRANSPORTER EXCEPTION(S)
+              </span>
+            ) : (
+              <span style={{ fontSize: '11px', fontWeight: 600, padding: '3px 8px', borderRadius: '4px', background: 'var(--accent-primary-dim)', color: 'var(--accent-primary)', textTransform: 'uppercase' }}>
+                Data Integrity: 100% • 2 Approaching Reorder
+              </span>
+            )}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '6px', fontSize: '12px', color: 'var(--text-tertiary)' }}>
             <span>Scope: <strong style={{ color: 'var(--text-secondary)' }}>{company?.name || 'Global Operations'}</strong></span>
@@ -179,68 +237,15 @@ export default function Overview({ company }) {
         </div>
       </div>
 
-      {/* Analytical Charts Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '32px' }}>
-        {/* Multi-Node Warehouse Distribution */}
-        <div style={{ background: 'var(--bg-surface-1)', border: '1px solid var(--border-default)', borderRadius: 'var(--r-lg)', padding: '24px' }}>
-          <h3 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '6px' }}>
-            Distribution Center Stock Allocation
-          </h3>
-          <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginBottom: '16px' }}>
-            Inventory units distributed across regional facilities
-          </p>
-          <div style={{ height: '240px' }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={warehouseChartData} margin={{ top: 10, right: 10, bottom: 5, left: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" />
-                <XAxis dataKey="name" stroke="var(--text-tertiary)" fontSize={11} />
-                <YAxis stroke="var(--text-tertiary)" fontSize={11} />
-                <Tooltip contentStyle={{ background: 'var(--bg-surface-1)', borderColor: 'var(--border-default)', fontSize: '12px' }} />
-                <Bar dataKey="stock" fill="var(--accent-primary)" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Portfolio Health Breakdown */}
-        <div style={{ background: 'var(--bg-surface-1)', border: '1px solid var(--border-default)', borderRadius: 'var(--r-lg)', padding: '24px' }}>
-          <h3 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '6px' }}>
-            Inventory Portfolio Health
-          </h3>
-          <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginBottom: '16px' }}>
-            Ratio of healthy, overstocked, and critical shortage SKUs
-          </p>
-          <div style={{ height: '200px' }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={healthDistribution} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={4}>
-                  {healthDistribution.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.fill} />
-                  ))}
-                </Pie>
-                <Tooltip contentStyle={{ background: 'var(--bg-surface-1)', borderColor: 'var(--border-default)', fontSize: '12px' }} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', fontSize: '12px', marginTop: '10px' }}>
-            {healthDistribution.map(item => (
-              <span key={item.name} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ width: 10, height: 10, borderRadius: '2px', background: item.fill }} />
-                {item.name} ({item.value})
-              </span>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Real-time Carrier Disruption Broadcast Feed */}
+      {/* Real-time Carrier Disruption Broadcast Feed (Prominently Placed Above Charts) */}
       {disruptions.length > 0 && (
         <div style={{
           background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.08), rgba(245, 158, 11, 0.04))',
           border: '1px solid rgba(239, 68, 68, 0.3)',
           borderRadius: '12px',
           padding: '18px 22px',
-          marginBottom: '24px',
+          marginBottom: '28px',
+          boxShadow: '0 4px 20px rgba(239, 68, 68, 0.1)',
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -295,7 +300,7 @@ export default function Overview({ company }) {
                     </div>
                   )}
                   <div style={{ fontSize: '11px', color: 'var(--accent-primary)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
-                    <Info size={12} /> Click to inspect detailed inventory impact & prescribed action rationale
+                    <Info size={12} /> Click to inspect detailed inventory impact &amp; prescribed action rationale
                   </div>
                 </div>
 
@@ -319,7 +324,7 @@ export default function Overview({ company }) {
                     className="btn-primary"
                     style={{ fontSize: '12px', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '4px' }}
                   >
-                    View Impact & Fix <ChevronRight size={14} />
+                    View Impact &amp; Fix <ChevronRight size={14} />
                   </button>
                 </div>
               </div>
@@ -327,6 +332,60 @@ export default function Overview({ company }) {
           </div>
         </div>
       )}
+
+      {/* Analytical Charts Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '32px' }}>
+        {/* Multi-Node Warehouse Distribution */}
+        <div style={{ background: 'var(--bg-surface-1)', border: '1px solid var(--border-default)', borderRadius: 'var(--r-lg)', padding: '24px' }}>
+          <h3 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '6px' }}>
+            Distribution Center Stock Allocation
+          </h3>
+          <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginBottom: '16px' }}>
+            Inventory units distributed across regional facilities
+          </p>
+          <div style={{ height: '240px' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={warehouseChartData} margin={{ top: 10, right: 10, bottom: 5, left: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" />
+                <XAxis dataKey="name" stroke="var(--text-tertiary)" fontSize={11} />
+                <YAxis stroke="var(--text-tertiary)" fontSize={11} />
+                <Tooltip contentStyle={{ background: 'var(--bg-surface-1)', borderColor: 'var(--border-default)', fontSize: '12px' }} />
+                <Bar dataKey="stock" fill="var(--accent-primary)" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Portfolio Health Breakdown */}
+        <div style={{ background: 'var(--bg-surface-1)', border: '1px solid var(--border-default)', borderRadius: 'var(--r-lg)', padding: '24px' }}>
+          <h3 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '6px' }}>
+            Inventory Portfolio Health
+          </h3>
+          <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginBottom: '16px' }}>
+            Ratio of healthy, overstocked, and critical shortage SKUs
+          </p>
+          <div style={{ height: '200px' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie data={healthDistribution} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={4}>
+                  {healthDistribution.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.fill} />
+                  ))}
+                </Pie>
+                <Tooltip contentStyle={{ background: 'var(--bg-surface-1)', borderColor: 'var(--border-default)', fontSize: '12px' }} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', fontSize: '12px', marginTop: '10px' }}>
+            {healthDistribution.map(item => (
+              <span key={item.name} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ width: 10, height: 10, borderRadius: '2px', background: item.fill }} />
+                {item.name} ({item.value})
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
 
       {/* Detailed Impact & Decision Modal */}
       {selectedDisruption && (

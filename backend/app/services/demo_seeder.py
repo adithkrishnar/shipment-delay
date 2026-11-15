@@ -222,25 +222,180 @@ def ensure_baseline_data_and_models(db: Session):
     from app.services.column_mapping import suggest_column_mapping
     from app.services.data_import import apply_mapping, import_dataset
 
-    for comp_name, dataset_fname in [
-        ("DataCo Global Supply Chain", "SupplyIQ_Master_Enterprise_Dataset.csv"),
-        ("Nexus Global Logistics", "Nexus_Global_Master_Enterprise_Dataset.csv"),
-    ]:
-        comp = db.query(Company).filter(Company.name == comp_name).first()
-        if comp:
-            sales_count = db.query(Sale).filter(Sale.company_id == comp.id).count()
-            if sales_count < 10:
-                logger.info("%s has %d sales records. Auto-seeding from %s...", comp_name, sales_count, dataset_fname)
-                p = BASE_DIR / "data" / dataset_fname
-                if not p.exists():
-                    p = BASE_DIR.parent / "data" / dataset_fname
-                if p.exists():
-                    try:
-                        df = pd.read_csv(p)
-                        mapping = suggest_column_mapping("unified", list(df.columns))
-                        mapped = apply_mapping(df, mapping)
-                        imp, skp, upd = import_dataset(db, comp.id, "unified", mapped)
-                        logger.info("Auto-seeded %s: imported=%d, updated=%d", comp_name, imp, upd)
-                    except Exception as e:
-                        logger.warning("Could not auto-seed %s: %s", comp_name, e)
+    # 4. Auto-seed intermodal multi-leg shipments for carrier portal & control tower
+    ensure_demo_shipments_and_legs(db)
+
+
+def ensure_demo_shipments_and_legs(db: Session):
+    """
+    Seeds realistic multimodal benchmark shipments (DC-PO-00801, DC-PO-00802, etc.)
+    and their legs into the database so that transporter disruption and delay reports
+    execute genuine database operations, run downstream ripple simulations, and alert the company.
+    """
+    from datetime import date, datetime, timedelta
+    from app.models import Company, Product, Shipment, TransporterOrganization
+    from app.models.shipment_leg import ShipmentLeg
+
+    dataco = db.query(Company).filter(Company.name == "DataCo Global Supply Chain").first()
+    if not dataco:
+        return
+
+    transporter = db.query(TransporterOrganization).filter(
+        TransporterOrganization.name == "DataCo Express Linehaul"
+    ).first()
+    trans_org_id = transporter.id if transporter else None
+
+    # Resolve product for shipment linkage (prefer SKU-1004 or first available product)
+    prod = (
+        db.query(Product).filter(Product.company_id == dataco.id, Product.sku == "SKU-1004").first()
+        or db.query(Product).filter(Product.company_id == dataco.id).first()
+    )
+    if not prod:
+        prod = Product(
+            company_id=dataco.id,
+            sku="SKU-1004",
+            name="Smart Fitness Tracker Pro",
+            unit_price=85.0,
+            holding_cost_rate=0.20,
+            sla_penalty=1500.0,
+        )
+        db.add(prod)
+        db.flush()
+
+    prod_id = prod.id
+
+    # 1. Shipment DC-PO-00801
+    s801 = db.query(Shipment).filter(
+        (Shipment.id == 801) | (Shipment.external_shipment_id == "DC-PO-00801")
+    ).first()
+    if not s801:
+        s801 = Shipment(
+            id=801,
+            company_id=dataco.id,
+            product_id=prod_id,
+            external_shipment_id="DC-PO-00801",
+            origin="Shenzhen Precision Factory, CN",
+            destination="DataCo USCA DC (Chicago, IL)",
+            carrier="DataCo Express Linehaul",
+            transport_mode="SEA",
+            transporter_org_id=trans_org_id,
+            assignment_status="IN_TRANSIT",
+            order_date=date(2026, 11, 1),
+            planned_delivery=date(2026, 11, 18),
+            current_eta=date(2026, 11, 20),
+            weight_kg=1250.0,
+            quantity=150.0,
+            distance_km=11400.0,
+        )
+        db.add(s801)
+        db.flush()
+
+        legs_801 = [
+            ShipmentLeg(
+                id=8011,
+                shipment_id=s801.id,
+                sequence=1,
+                mode="ROAD",
+                origin="Shenzhen Precision Factory",
+                destination="Yantian Ocean Terminal",
+                carrier_name="Shenzhen Drayage Express",
+                expected_duration_hrs=6.0,
+                delay_hours=0.0,
+                status="COMPLETED",
+                scheduled_departure=datetime(2026, 11, 1, 8, 0),
+                scheduled_arrival=datetime(2026, 11, 1, 14, 0),
+            ),
+            ShipmentLeg(
+                id=8012,
+                shipment_id=s801.id,
+                sequence=2,
+                mode="SEA",
+                origin="Yantian Ocean Terminal",
+                destination="Port of Long Beach (Pier T)",
+                carrier_name="Cosco Shipping Lines (Pacific Service)",
+                expected_duration_hrs=280.0,
+                delay_hours=20.0,
+                status="DISRUPTED",
+                scheduled_departure=datetime(2026, 11, 2, 18, 0),
+                scheduled_arrival=datetime(2026, 11, 14, 6, 0),
+                next_leg_cutoff=datetime(2026, 11, 14, 14, 0),
+                missed_connection_dwell_hrs=48.0,
+            ),
+            ShipmentLeg(
+                id=8013,
+                shipment_id=s801.id,
+                sequence=3,
+                mode="RAIL",
+                origin="Long Beach Intermodal Terminal",
+                destination="Chicago BNSF Logistics Park",
+                carrier_name="DataCo Express Linehaul",
+                expected_duration_hrs=64.0,
+                delay_hours=0.0,
+                status="AT_RISK",
+                scheduled_departure=datetime(2026, 11, 15, 2, 0),
+                scheduled_arrival=datetime(2026, 11, 17, 18, 0),
+                next_leg_cutoff=datetime(2026, 11, 14, 20, 0),
+            ),
+            ShipmentLeg(
+                id=8014,
+                shipment_id=s801.id,
+                sequence=4,
+                mode="ROAD",
+                origin="Chicago BNSF Logistics Park",
+                destination="DataCo USCA DC (Joliet, IL)",
+                carrier_name="DataCo Express Linehaul",
+                expected_duration_hrs=4.0,
+                delay_hours=0.0,
+                status="SCHEDULED",
+                scheduled_departure=datetime(2026, 11, 18, 6, 0),
+                scheduled_arrival=datetime(2026, 11, 18, 10, 0),
+            ),
+        ]
+        db.add_all(legs_801)
+
+    # 2. Shipment DC-PO-00802
+    s802 = db.query(Shipment).filter(
+        (Shipment.id == 802) | (Shipment.external_shipment_id == "DC-PO-00802")
+    ).first()
+    if not s802:
+        s802 = Shipment(
+            id=802,
+            company_id=dataco.id,
+            product_id=prod_id,
+            external_shipment_id="DC-PO-00802",
+            origin="Hamburg Industrial Park, DE",
+            destination="DataCo Europe DC (Frankfurt, DE)",
+            carrier="DataCo Express Linehaul",
+            transport_mode="ROAD",
+            transporter_org_id=trans_org_id,
+            assignment_status="IN_TRANSIT",
+            order_date=date(2026, 11, 5),
+            planned_delivery=date(2026, 11, 9),
+            current_eta=date(2026, 11, 10),
+            weight_kg=850.0,
+            quantity=80.0,
+            distance_km=495.0,
+        )
+        db.add(s802)
+        db.flush()
+
+        leg_802 = ShipmentLeg(
+            id=8021,
+            shipment_id=s802.id,
+            sequence=1,
+            mode="ROAD",
+            origin="Hamburg Logistics Hub",
+            destination="DataCo Europe DC (Frankfurt)",
+            carrier_name="DataCo Express Linehaul",
+            expected_duration_hrs=10.0,
+            delay_hours=4.0,
+            status="DELAYED",
+            scheduled_departure=datetime(2026, 11, 9, 6, 0),
+            scheduled_arrival=datetime(2026, 11, 9, 16, 0),
+        )
+        db.add(leg_802)
+
+    db.commit()
+    logger.info("Demo shipments & legs verification complete (DC-PO-00801, DC-PO-00802).")
+
 

@@ -625,7 +625,7 @@ export function ReportDelayModal({
             </button>
             <button
               type="submit"
-              disabled={isSubmitting || !preview.isValidFuture}
+              disabled={isSubmitting}
               style={{
                 padding: "8px 20px",
                 borderRadius: "6px",
@@ -634,7 +634,7 @@ export function ReportDelayModal({
                 backgroundColor: "#FF8C42",
                 color: "#0B0E14",
                 border: "none",
-                cursor: isSubmitting || !preview.isValidFuture ? "not-allowed" : "pointer",
+                cursor: isSubmitting ? "not-allowed" : "pointer",
                 display: "inline-flex",
                 alignItems: "center",
                 gap: "6px",

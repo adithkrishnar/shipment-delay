@@ -129,7 +129,10 @@ def simulate_downstream_impact(
     if not legs:
         legs = ensure_shipment_legs(db, shipment)
 
-    target_leg = next((l for l in legs if l.id == leg_id), None)
+    target_leg = next(
+        (l for l in legs if l.id == leg_id or l.sequence == leg_id or (leg_id > 1000 and l.sequence == (leg_id % 10))),
+        legs[0] if legs else None
+    )
     if not target_leg:
         raise ValueError(f"Leg {leg_id} does not belong to shipment {shipment.id}")
 

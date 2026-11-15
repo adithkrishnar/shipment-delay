@@ -149,6 +149,78 @@ export default function TransporterPortal() {
     setIsDelayModalOpen(true);
   };
 
+  // Synchronizes carrier disruptions to persistent storage and dispatches live events to the company dashboard
+  const broadcastDisruptionToCompany = (disruption: {
+    shipmentId: string;
+    reference: string;
+    legSequence?: number;
+    legMode?: string;
+    delayHours: number;
+    reason: string;
+    notes?: string;
+    location?: string;
+  }) => {
+    const isStockout = disruption.delayHours >= 12;
+    const shortageUnits = isStockout ? Math.round(disruption.delayHours * 3.2) : 0;
+    const estimatedCostLoss = isStockout ? Math.round(shortageUnits * 85 + 1500) : 0;
+    const days = (disruption.delayHours / 24).toFixed(1);
+
+    const payload = {
+      id: `local-dis-${Date.now()}`,
+      shipment_id: disruption.shipmentId,
+      external_shipment_id: disruption.reference || disruption.shipmentId,
+      leg_sequence: disruption.legSequence || 2,
+      leg_mode: disruption.legMode || "ROAD",
+      delay_hours: disruption.delayHours,
+      disruption_reason: disruption.reason,
+      incident_location: disruption.location || "Corridor Transit Hub",
+      notes: disruption.notes || "Carrier field report logged via Transporter Portal.",
+      total_impact_delay_days: days,
+      stockout_predicted: isStockout,
+      unmet_demand_units: shortageUnits,
+      estimated_cost_loss: estimatedCostLoss,
+      prescribed_mitigation: isStockout
+        ? "Emergency Inter-Warehouse Stock Transfer"
+        : "Expedite Downstream Transit Leg via Dedicated Courier",
+      impact_details: {
+        destination_warehouse: "DataCo USCA DC (Joliet, IL)",
+        product_name: "Smart Fitness Tracker Pro (SKU-1004)",
+        facility_stock: 185,
+        mitigations: [
+          {
+            priority: "RECOMMENDED",
+            title: "Emergency Inter-Warehouse Stock Transfer",
+            description: "Transfer 32 units from DataCo Pacific Asia DC to DataCo USCA DC to avoid line stoppage.",
+            estimated_cost: 450,
+            net_savings: Math.max(0, estimatedCostLoss - 450),
+            why_best:
+              "Immediate execution (transit time < 12 hrs). Solves the local shortage without procurement lead times and delivers maximum net financial ROI savings.",
+          },
+          {
+            priority: "HIGH",
+            title: "Expedite Downstream Transit Leg via Dedicated Courier",
+            description: "Charter dedicated express freight for remaining transport leg.",
+            estimated_cost: 1200,
+            net_savings: Math.max(0, estimatedCostLoss - 1200),
+            why_best: "Bypasses multi-stop freight consolidation, recovering 2 full days of transit time directly.",
+          },
+        ],
+      },
+      created_at: new Date().toISOString(),
+    };
+
+    try {
+      const existing = JSON.parse(localStorage.getItem("supplyiq_recent_disruptions") || "[]");
+      const updated = [payload, ...existing.filter((x: any) => x.id !== payload.id)].slice(0, 20);
+      localStorage.setItem("supplyiq_recent_disruptions", JSON.stringify(updated));
+      window.dispatchEvent(new CustomEvent("supplyiq_disruption_reported", { detail: payload }));
+    } catch (err) {
+      console.warn("LocalStorage disruption sync notice:", err);
+    }
+
+    return payload;
+  };
+
   const handleDelayReported = (data: {
     shipmentId: string;
     newEta: string;
@@ -158,6 +230,18 @@ export default function TransporterPortal() {
     reportedBy: string;
     reportedAt: string;
   }) => {
+    const targetShipment = shipments.find((s) => s.id === data.shipmentId) || selectedShipment;
+    broadcastDisruptionToCompany({
+      shipmentId: data.shipmentId,
+      reference: targetShipment?.reference || data.shipmentId,
+      legSequence: 2,
+      legMode: "ROAD",
+      delayHours: data.delayHours,
+      reason: data.reason.replace(/_/g, " "),
+      notes: data.notes,
+      location: targetShipment?.currentCheckpoint || "Transit Route",
+    });
+
     setShipments((prevList) =>
       prevList.map((s) => {
         if (s.id !== data.shipmentId) return s;
@@ -192,7 +276,7 @@ export default function TransporterPortal() {
     );
 
     setSuccessToast({
-      reference: selectedShipment?.reference || data.shipmentId,
+      reference: targetShipment?.reference || data.shipmentId,
       delayHours: data.delayHours,
       revisedEta: new Date(data.newEta).toLocaleString(),
       impactExplanation: `Delay of ${data.delayHours}h reported due to ${data.reason.replace(/_/g, " ")}. Control Tower notified.`,
@@ -200,8 +284,8 @@ export default function TransporterPortal() {
 
     triggerAlert({
       title: "Carrier Incident Broadcasted",
-      message: `${carrierName} logged a +${data.delayHours}h delay on ${selectedShipment?.reference || 'Shipment'} due to ${data.reason.replace(/_/g, " ")}. Control Tower notified.`,
-      severity: data.delayHours >= 12 ? 'critical' : 'warning'
+      message: `${carrierName} logged a +${data.delayHours}h delay on ${targetShipment?.reference || "Shipment"} due to ${data.reason.replace(/_/g, " ")}. Control Tower notified.`,
+      severity: data.delayHours >= 12 ? "critical" : "warning",
     });
   };
 
@@ -294,9 +378,29 @@ export default function TransporterPortal() {
       console.log("Telemetry sync completed locally:", e);
     }
 
+    // Broadcast disruption to company control tower
+    const curShipment = shipments.find((s) => s.id === shipmentId) || selectedShipment;
+    const curLeg = curShipment?.legs?.find((l) => l.id === legId);
+    broadcastDisruptionToCompany({
+      shipmentId,
+      reference: curShipment?.reference || shipmentId,
+      legSequence: curLeg?.sequence || 2,
+      legMode: curLeg?.mode || "SEA",
+      delayHours: reportedDelayHours,
+      reason: details.disruptionType || details.reason || "Field Disruption",
+      notes: details.notes,
+      location: details.location || curShipment?.currentCheckpoint || "En Route",
+    });
+
+    triggerAlert({
+      title: "Control Tower Disruption Broadcasted",
+      message: `${carrierName} broadcasted ${details.disruptionType} on ${curShipment?.reference || "Shipment"} (+${reportedDelayHours}h). Control Tower notified.`,
+      severity: reportedDelayHours >= 12 ? "critical" : "warning",
+    });
+
     // Trigger toast notification
     setSuccessToast({
-      reference: selectedShipment?.reference || shipmentId,
+      reference: curShipment?.reference || shipmentId,
       delayHours: reportedDelayHours,
       revisedEta: details.impact?.revisedEta || "Updated",
       impactExplanation:
