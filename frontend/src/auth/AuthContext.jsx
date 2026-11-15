@@ -36,7 +36,13 @@ export const AuthProvider = ({ children }) => {
       return { success: true, user: userData };
     } catch (error) {
       let errorMsg = "Login failed";
-      if (error.response?.data?.detail) {
+      if (!error.response) {
+        errorMsg = "Unable to reach server. Please check network connection or API URL.";
+      } else if (error.response.status === 401) {
+        errorMsg = "Incorrect email or password.";
+      } else if (error.response.status === 403) {
+        errorMsg = "Access forbidden. CORS or authorization check failed.";
+      } else if (error.response.data?.detail) {
         if (Array.isArray(error.response.data.detail)) {
           errorMsg = error.response.data.detail.map(d => d.msg).join(', ');
         } else {

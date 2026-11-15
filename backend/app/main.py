@@ -4,7 +4,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.database import init_db
+from app.database import init_db, SessionLocal
+from app.services.demo_seeder import ensure_demo_accounts_seeded
 from app.routes import companies, demand, demo, health, models, shipments, upload, intelligence, simulator, recommendations, dashboard, live, auth, inventory, transporter, network_map
 from app.utils.logging_config import configure_logging, get_logger
 
@@ -17,6 +18,24 @@ async def lifespan(app: FastAPI):
     logger.info("Starting %s (env=%s)", settings.APP_NAME, settings.ENV)
     init_db()
     logger.info("Database ready at %s", settings.DATABASE_URL)
+    
+    # Idempotently ensure the 4 core demo companies and user accounts exist
+    try:
+        db = SessionLocal()
+        seed_result = ensure_demo_accounts_seeded(db)
+        if seed_result.get("status") == "error":
+            logger.error("Startup seeder encountered an error: %s", seed_result.get("message"))
+            if settings.ENV in ("production", "prod"):
+                # In production, do not silently swallow broken database connections or schema faults
+                raise RuntimeError(f"FATAL: Production database seeder failed: {seed_result.get('message')}")
+        else:
+            logger.info("Demo accounts startup verification: %s", seed_result)
+        db.close()
+    except Exception as exc:
+        logger.error("Could not seed demo accounts during startup: %s", exc)
+        if settings.ENV in ("production", "prod"):
+            raise
+
     yield
 
 
@@ -34,6 +53,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.FRONTEND_ORIGINS,
+    allow_origin_regex=settings.FRONTEND_ORIGIN_REGEX,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
