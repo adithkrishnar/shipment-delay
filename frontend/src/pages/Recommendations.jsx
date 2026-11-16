@@ -178,10 +178,16 @@ export default function Recommendations({ company }) {
     window.addEventListener('supplyiq_action_approved', handleApproved);
     window.addEventListener('storage', handleDisruption);
 
+    // Auto-poll cloud backend disruptions every 3.5s for cross-laptop multi-device synchronization
+    const timer = setInterval(() => {
+      fetchRecs();
+    }, 3500);
+
     return () => {
       window.removeEventListener('supplyiq_disruption_reported', handleDisruption);
       window.removeEventListener('supplyiq_action_approved', handleApproved);
       window.removeEventListener('storage', handleDisruption);
+      clearInterval(timer);
     };
   }, [company?.id]);
 

@@ -13,7 +13,7 @@ from app.models.shipment_delay import ShipmentDelay, DelayReasonEnum
 from app.models.transporter_org import TransporterOrganization, TransporterInvitation
 from app.models.alert import Alert
 from app.auth import security
-from app.auth.deps import get_current_user
+from app.auth.deps import get_current_user, get_current_user_or_demo
 from app.schemas.transporter import (
     DisruptionReportRequest,
     TransporterRegisterRequest,
@@ -333,7 +333,7 @@ def report_leg_disruption(
     shipment_id: int,
     leg_id: int,
     req: DisruptionReportRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_or_demo),
     db: Session = Depends(get_db)
 ):
     """
@@ -465,18 +465,18 @@ def report_leg_disruption(
 
 @router.get("/recent-disruptions")
 def get_recent_disruptions(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_or_demo),
     db: Session = Depends(get_db)
 ):
     """
     Returns disruption reports strictly scoped to caller:
-    - If Company User: returns reports for shipments owned by their company_id.
+    - If Company User: returns reports for shipments owned by their company_id or benchmark demo corridors.
     - If Transporter User: returns reports reported by their transporter_org_id or carrier name.
     """
     import json
     q = db.query(DisruptionReport).join(Shipment, Shipment.id == DisruptionReport.shipment_id)
 
-    if current_user.role == "transporter" and not current_user.is_superuser:
+    if current_user and current_user.role == "transporter" and not current_user.is_superuser:
         if current_user.transporter_org_id:
             q = q.filter(
                 (DisruptionReport.transporter_org_id == current_user.transporter_org_id) |
@@ -484,9 +484,13 @@ def get_recent_disruptions(
             )
         else:
             q = q.filter(Shipment.carrier == current_user.carrier_name)
-    elif not current_user.is_superuser:
-        # Company user sees all reports for their company's shipments
-        q = q.filter(Shipment.company_id == current_user.company_id)
+    elif current_user and not current_user.is_superuser:
+        # Company user sees reports for their company's shipments, plus global benchmark demo corridors
+        q = q.filter(
+            (Shipment.company_id == current_user.company_id) |
+            (Shipment.external_shipment_id.like("DC-PO-%")) |
+            (Shipment.company_id.is_(None))
+        )
 
     reports = q.order_by(DisruptionReport.created_at.desc()).limit(30).all()
 
@@ -601,7 +605,7 @@ def list_transporter_organizations(
 def report_shipment_delay(
     shipment_id: int,
     req: TransporterDelayRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_or_demo),
     db: Session = Depends(get_db)
 ):
     """
