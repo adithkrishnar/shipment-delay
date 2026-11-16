@@ -180,7 +180,7 @@ export default function TransporterPortal() {
       unmet_demand_units: shortageUnits,
       estimated_cost_loss: estimatedCostLoss,
       prescribed_mitigation: isStockout
-        ? "Emergency Inter-Warehouse Stock Transfer"
+        ? "Emergency Stock Transfer"
         : "Expedite Downstream Transit Leg via Dedicated Courier",
       impact_details: {
         destination_warehouse: "DataCo USCA DC (Joliet, IL)",
@@ -189,12 +189,12 @@ export default function TransporterPortal() {
         mitigations: [
           {
             priority: "RECOMMENDED",
-            title: "Emergency Inter-Warehouse Stock Transfer",
-            description: "Transfer 32 units from DataCo Pacific Asia DC to DataCo USCA DC to avoid line stoppage.",
+            title: "Emergency Stock Transfer",
+            description: "Transfer 32 units from DataCo Pacific Asia DC to DataCo USCA DC to avoid running out of stock.",
             estimated_cost: 450,
             net_savings: Math.max(0, estimatedCostLoss - 450),
             why_best:
-              "Immediate execution (transit time < 12 hrs). Solves the local shortage without procurement lead times and delivers maximum net financial ROI savings.",
+              "Fast delivery (under 12 hours) from a nearby warehouse. Stops the stockout right away without waiting weeks for new supplier orders, saving $" + Math.max(0, estimatedCostLoss - 450).toLocaleString() + ".",
           },
           {
             priority: "HIGH",

@@ -32,35 +32,62 @@ def generate_recommendations(db: Session, company_id: int) -> List[Dict[str, Any
         .all()
     )
     for d in disruptions:
-        loss = d.estimated_cost_loss or 4750.0
-        shortage = d.unmet_demand_units or 32.0
+        is_critical = (d.unmet_demand_units and d.unmet_demand_units > 0) or (d.delay_hours and d.delay_hours >= 12.0)
+        shortage = d.unmet_demand_units if (d.unmet_demand_units and d.unmet_demand_units > 0) else (round(d.delay_hours * 3.2, 1) if is_critical else 0.0)
+        loss = d.estimated_cost_loss if (d.estimated_cost_loss and d.estimated_cost_loss > 0) else (round(shortage * 85.0 + 1500.0, 2) if is_critical else 0.0)
         shipment_ref = d.shipment.external_shipment_id if d.shipment else f"#{d.shipment_id}"
-        recs.append({
-            "sku": "SKU-1004",
-            "product_name": "Smart Fitness Tracker Pro",
-            "target_id": f"DISRUPTION-{d.id}",
-            "priority": "CRITICAL",
-            "action": d.prescribed_mitigation or "Authorize Emergency Inter-Warehouse Stock Transfer",
-            "action_type": "DISRUPTION_MITIGATION",
-            "reason": (
-                f"Carrier field exception reported on {shipment_ref} (+{d.delay_hours}h {d.disruption_reason}). "
-                f"Simulated stockout exposure: {shortage:.0f} units at risk, commercial penalty exposure: ${loss:,.2f}."
-            ),
-            "financial_impact": f"${loss:,.2f}",
-            "estimated_cost": 450.0,
-            "net_savings": max(0.0, loss - 450.0),
-            "why_best": (
-                f"Immediate execution (transit time < 12 hrs). Solves local {shortage:.0f}-unit stockout window "
-                f"at destination DC without new procurement lead times, delivering a net ROI savings of ${max(0.0, loss - 450.0):,.2f}."
-            ),
-            "details": {
-                "source": "CARRIER_TELEMATICS_BROADCAST",
-                "shipment_reference": shipment_ref,
-                "delay_hours": d.delay_hours,
-                "disruption_reason": d.disruption_reason,
-                "reported_at": d.created_at.isoformat() if d.created_at else None,
-            }
-        })
+        delay_days = d.total_impact_delay_days or (f"{(d.delay_hours / 24.0):.1f}" if d.delay_hours else "1.0")
+
+        if is_critical:
+            recs.append({
+                "sku": "SKU-1004",
+                "product_name": "Smart Fitness Tracker Pro",
+                "target_id": f"DISRUPTION-{d.id}",
+                "priority": "CRITICAL",
+                "action": "Emergency Stock Transfer",
+                "action_type": "DISRUPTION_MITIGATION",
+                "reason": (
+                    f"Shipment {shipment_ref} is delayed by {delay_days} days due to {d.disruption_reason.lower().replace('_', ' ')}. "
+                    f"The destination warehouse will run out of stock by {shortage:.0f} units before delivery arrives, risking an estimated loss of ${loss:,.2f} in lost sales and delay penalties."
+                ),
+                "financial_impact": f"${loss:,.2f}",
+                "estimated_cost": 450.0,
+                "net_savings": max(0.0, loss - 450.0),
+                "expected_impact": f"Transfers 32 units from nearby DC in under 12 hours ($450 cost), immediately preventing a stockout and saving ${max(0.0, loss - 450.0):,.2f} in penalty costs.",
+                "why_best": (
+                    f"Fast delivery (under 12 hours) from a nearby warehouse. "
+                    f"Stops the stockout right away without waiting weeks for new supplier orders, saving ${max(0.0, loss - 450.0):,.2f}."
+                ),
+                "details": {
+                    "source": "CARRIER_TELEMATICS_BROADCAST",
+                    "shipment_reference": shipment_ref,
+                    "delay_hours": d.delay_hours,
+                    "disruption_reason": d.disruption_reason,
+                    "reported_at": d.created_at.isoformat() if d.created_at else None,
+                }
+            })
+        else:
+            recs.append({
+                "sku": "SKU-1004",
+                "product_name": "Smart Fitness Tracker Pro",
+                "target_id": f"DISRUPTION-{d.id}",
+                "priority": "LOW",
+                "action": "Monitor Shipment",
+                "action_type": "DISRUPTION_MITIGATION",
+                "reason": f"Shipment {shipment_ref} is delayed by {delay_days} days due to {d.disruption_reason.lower().replace('_', ' ')}. Warehouse buffer stock is sufficient to absorb this delay.",
+                "financial_impact": "$0.00",
+                "estimated_cost": 0.0,
+                "net_savings": 0.0,
+                "expected_impact": "Normal operations maintained using existing safety buffer.",
+                "why_best": "Current safety buffer protects against stockout. No emergency order needed.",
+                "details": {
+                    "source": "CARRIER_TELEMATICS_BROADCAST",
+                    "shipment_reference": shipment_ref,
+                    "delay_hours": d.delay_hours,
+                    "disruption_reason": d.disruption_reason,
+                    "reported_at": d.created_at.isoformat() if d.created_at else None,
+                }
+            })
 
     # 1. Replenishment Recommendations sourced directly from compute_replenishment_plan
     replen_plan = compute_replenishment_plan(db, company_id)
@@ -76,25 +103,25 @@ def generate_recommendations(db: Session, company_id: int) -> List[Dict[str, Any
         approaching_threshold = round(r["reorder_point"] + (r["daily_demand"] * 2.0), 1)
 
         if urgency == "CRITICAL":
-            action = "Expedite Emergency Replenishment"
+            action = "Critical Low Stock: Expedite Order"
             action_type = "EXPEDITE_REPLENISHMENT"
             priority = "CRITICAL"
-            reason = f"Critical shortage: on-hand stock ({r['on_hand']:.1f} units) covers less than 3 days of demand ({r['daily_demand']:.1f} u/d)."
+            reason = f"Critical low stock: warehouse has less than 3 days of inventory remaining ({r['on_hand']:.0f} units vs {r['daily_demand']:.1f} u/d sales). Place order immediately."
         elif urgency == "HIGH":
-            action = "Place Urgent Purchase Order (Safety Stock Breached)"
+            action = "Safety Stock Low: Order Now"
             action_type = "PLACE_PURCHASE_ORDER"
             priority = "HIGH"
-            reason = f"Safety buffer breached: on-hand stock ({r['on_hand']:.1f} units) is below safety stock ({r['safety_stock']:.1f} units)."
+            reason = f"Safety buffer breached: warehouse stock ({r['on_hand']:.0f} units) has dropped below safety stock ({r['safety_stock']:.0f} units). Place an order to restore buffer."
         elif is_breach:
-            action = "Initiate Purchase Order (ROP Breached)"
+            action = "Low Stock: Reorder Now"
             action_type = "REORDER_POINT_BREACH"
             priority = "MEDIUM"
-            reason = f"Reorder point breached: effective inventory ({effective_inv:.1f} units) fell below ROP ({r['reorder_point']:.1f} units)."
+            reason = f"Warehouse stock ({r['on_hand']:.0f} units) has dropped below the reorder point ({r['reorder_point']:.0f} units). Place a replenishment order now to prevent running out."
         else:
-            action = "Initiate Proactive Purchase Order (Approaching ROP)"
+            action = "Stock Running Low Soon"
             action_type = "PROACTIVE_REORDER"
             priority = "MEDIUM"
-            reason = f"Early warning: on-hand stock ({r['on_hand']:.1f} units) is within 2 days of demand from ROP ({r['reorder_point']:.1f} units, warning threshold {approaching_threshold:.1f} units)."
+            reason = f"Stock is within 2 days of reaching the reorder level ({r['on_hand']:.0f} units remaining). Reorder now to stay ahead of upcoming demand."
 
         cost_note = f"${order_cost:,.2f}" if r["has_explicit_cost"] else "Cost data unavailable"
         recs.append({
@@ -124,7 +151,7 @@ def generate_recommendations(db: Session, company_id: int) -> List[Dict[str, Any
                 "estimated_order_cost": order_cost if r["has_explicit_cost"] else None,
                 "supplier_name": r.get("supplier_name", "Primary Supplier"),
             },
-            "expected_impact": f"Restores inventory to 30-day target policy with {cost_note} estimated procurement capital, protecting 95% service level.",
+            "expected_impact": f"Brings warehouse stock back up to a healthy 30-day supply ({cost_note} order value) so customer orders are fulfilled on time.",
             "status": "PENDING_REVIEW",
         })
 
