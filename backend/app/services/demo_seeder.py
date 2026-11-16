@@ -81,6 +81,73 @@ DEMO_ACCOUNTS: List[Dict[str, Any]] = [
         "carrier_code": "PAC-INTERMODAL",
         "carrier_name": "Pacific Intermodal Freightways",
     },
+    # ── Live Demonstration Benchmark Scenario: Bengaluru -> Chennai Corridor ──
+    {
+        "company_name": "Bengaluru Manufacturing Ltd",
+        "industry": "High-Tech Electronics & IoT Hardware",
+        "user_email": "sender@companyA.com",
+        "password": "sender123",
+        "role": "company",
+        "is_superuser": False,
+        "org_name": None,
+        "carrier_code": None,
+        "carrier_name": None,
+    },
+    {
+        "company_name": "Bengaluru Manufacturing Ltd",
+        "industry": "High-Tech Electronics & IoT Hardware",
+        "user_email": "sender@companya.com",
+        "password": "sender123",
+        "role": "company",
+        "is_superuser": False,
+        "org_name": None,
+        "carrier_code": None,
+        "carrier_name": None,
+    },
+    {
+        "company_name": "Karnataka-Tamil Nadu Express Logistics",
+        "industry": "Interstate Express Logistics & Fleet Operations",
+        "user_email": "transporter@companyB.com",
+        "password": "transporter123",
+        "role": "transporter",
+        "is_superuser": False,
+        "org_name": "Karnataka-Tamil Nadu Express Logistics",
+        "carrier_code": "KTN-EXPRESS",
+        "carrier_name": "Karnataka-Tamil Nadu Express Logistics",
+    },
+    {
+        "company_name": "Karnataka-Tamil Nadu Express Logistics",
+        "industry": "Interstate Express Logistics & Fleet Operations",
+        "user_email": "transporter@companyb.com",
+        "password": "transporter123",
+        "role": "transporter",
+        "is_superuser": False,
+        "org_name": "Karnataka-Tamil Nadu Express Logistics",
+        "carrier_code": "KTN-EXPRESS",
+        "carrier_name": "Karnataka-Tamil Nadu Express Logistics",
+    },
+    {
+        "company_name": "Chennai Central Distribution",
+        "industry": "Distribution & Omnichannel Retail Logistics",
+        "user_email": "receiver@companyC.com",
+        "password": "receiver123",
+        "role": "company",
+        "is_superuser": False,
+        "org_name": None,
+        "carrier_code": None,
+        "carrier_name": None,
+    },
+    {
+        "company_name": "Chennai Central Distribution",
+        "industry": "Distribution & Omnichannel Retail Logistics",
+        "user_email": "receiver@companyc.com",
+        "password": "receiver123",
+        "role": "company",
+        "is_superuser": False,
+        "org_name": None,
+        "carrier_code": None,
+        "carrier_name": None,
+    },
 ]
 
 
@@ -394,7 +461,187 @@ def ensure_demo_shipments_and_legs(db: Session):
         )
         db.add(leg_802)
 
+    # 3. Bengaluru -> Chennai Live Demo Benchmark Corridor (Company A -> Company B -> Company C)
+    ensure_bengaluru_chennai_corridor(db)
+
     db.commit()
-    logger.info("Demo shipments & legs verification complete (DC-PO-00801, DC-PO-00802).")
+    logger.info("Demo shipments & legs verification complete (DC-PO-00801, DC-PO-00802, SH-BLR-2026-0001).")
+
+
+def ensure_bengaluru_chennai_corridor(db: Session):
+    """
+    Seeds the authoritative live demonstration scenario:
+    - Manufacturer (Company A): Bengaluru Manufacturing Ltd
+    - Transporter (Company B): Karnataka-Tamil Nadu Express Logistics
+    - Receiver (Company C): Chennai Central Distribution
+    Includes active shipment SH-BLR-2026-0001 with 3 sequenced legs,
+    baseline inventory (85 units) at Chennai Central DC, and 30-day sales demand history.
+    """
+    from datetime import date, datetime, timedelta
+    from app.models import Company, Product, Warehouse, InventoryRecord, Sale, Shipment, TransporterOrganization
+    from app.models.shipment_leg import ShipmentLeg
+
+    comp_a = db.query(Company).filter(Company.name == "Bengaluru Manufacturing Ltd").first()
+    comp_c = db.query(Company).filter(Company.name == "Chennai Central Distribution").first()
+    carrier_b = db.query(TransporterOrganization).filter(TransporterOrganization.name == "Karnataka-Tamil Nadu Express Logistics").first()
+
+    if not comp_a or not comp_c or not carrier_b:
+        return
+
+    # Warehouses
+    wh_blr = db.query(Warehouse).filter(Warehouse.company_id == comp_a.id, Warehouse.name == "Bengaluru Electronic City Plant").first()
+    if not wh_blr:
+        wh_blr = Warehouse(company_id=comp_a.id, name="Bengaluru Electronic City Plant", region="Karnataka / South")
+        db.add(wh_blr)
+        db.flush()
+
+    wh_chn = db.query(Warehouse).filter(Warehouse.company_id == comp_c.id, Warehouse.name == "Chennai Central DC").first()
+    if not wh_chn:
+        wh_chn = Warehouse(company_id=comp_c.id, name="Chennai Central DC", region="Tamil Nadu / South")
+        db.add(wh_chn)
+        db.flush()
+
+    # Products
+    prod_a = db.query(Product).filter(Product.company_id == comp_a.id, Product.external_product_id == "SKU-BLR-101").first()
+    if not prod_a:
+        prod_a = Product(
+            company_id=comp_a.id,
+            external_product_id="SKU-BLR-101",
+            name="Industrial IoT Telematics Controller",
+            unit_price=4500.0,
+            unit_cost=2200.0
+        )
+        db.add(prod_a)
+        db.flush()
+
+    prod_c = db.query(Product).filter(Product.company_id == comp_c.id, Product.external_product_id == "SKU-BLR-101").first()
+    if not prod_c:
+        prod_c = Product(
+            company_id=comp_c.id,
+            external_product_id="SKU-BLR-101",
+            name="Industrial IoT Telematics Controller",
+            unit_price=5400.0,
+            unit_cost=4500.0
+        )
+        db.add(prod_c)
+        db.flush()
+
+    # Baseline Inventory Record at Chennai Central DC (85 on-hand units)
+    today = date.today()
+    inv_c = db.query(InventoryRecord).filter(
+        InventoryRecord.company_id == comp_c.id,
+        InventoryRecord.warehouse_id == wh_chn.id,
+        InventoryRecord.product_id == prod_c.id
+    ).first()
+    if not inv_c:
+        inv_c = InventoryRecord(
+            company_id=comp_c.id,
+            warehouse_id=wh_chn.id,
+            product_id=prod_c.id,
+            date=today,
+            inventory_level=85.0
+        )
+        db.add(inv_c)
+        db.flush()
+
+    # 30-Day Sales Demand Baseline for Company C (average 12 units/day)
+    has_sales = db.query(Sale).filter(Sale.company_id == comp_c.id, Sale.product_id == prod_c.id).first()
+    if not has_sales:
+        sales_records = []
+        for days_ago in range(30, 0, -1):
+            sale_date = today - timedelta(days=days_ago)
+            # deterministic realistic daily pattern: ~12-16 units
+            daily_units = 12.0 + (days_ago % 5)
+            sales_records.append(Sale(
+                company_id=comp_c.id,
+                product_id=prod_c.id,
+                date=sale_date,
+                quantity=daily_units,
+                price=5400.0,
+                region="South",
+                promotion=0
+            ))
+        db.add_all(sales_records)
+        db.flush()
+
+    # Pre-Seeded Shipment: SH-BLR-2026-0001
+    s_blr = db.query(Shipment).filter(Shipment.external_shipment_id == "SH-BLR-2026-0001").first()
+    if not s_blr:
+        s_blr = Shipment(
+            id=901,
+            company_id=comp_a.id,
+            receiver_company_id=comp_c.id,
+            destination_warehouse_id=wh_chn.id,
+            product_id=prod_a.id,
+            external_shipment_id="SH-BLR-2026-0001",
+            origin="Bengaluru Electronic City Plant, Karnataka",
+            destination="Chennai Central DC, Tamil Nadu",
+            carrier="Karnataka-Tamil Nadu Express Logistics",
+            transport_mode="ROAD",
+            transporter_org_id=carrier_b.id,
+            assignment_status="IN_TRANSIT",
+            order_date=today - timedelta(days=2),
+            planned_delivery=today + timedelta(days=1),
+            current_eta=today + timedelta(days=1),
+            distance_km=360.0,
+            weight_kg=450.0,
+            quantity=100.0
+        )
+        db.add(s_blr)
+        db.flush()
+
+        # Sequenced transportation legs
+        dep_dt = datetime.combine(today - timedelta(days=1), datetime.min.time()) + timedelta(hours=6)
+        legs_blr = [
+            ShipmentLeg(
+                id=9011,
+                shipment_id=s_blr.id,
+                sequence=1,
+                mode="ROAD",
+                origin="Bengaluru Electronic City Plant",
+                destination="Hosur Intermodal Hub",
+                carrier_name="Karnataka-Tamil Nadu Express Logistics",
+                distance_km=45.0,
+                expected_duration_hrs=2.0,
+                delay_hours=0.0,
+                status="COMPLETED",
+                scheduled_departure=dep_dt,
+                scheduled_arrival=dep_dt + timedelta(hours=2),
+                next_leg_cutoff=dep_dt + timedelta(hours=3),
+            ),
+            ShipmentLeg(
+                id=9012,
+                shipment_id=s_blr.id,
+                sequence=2,
+                mode="ROAD",
+                origin="Hosur Intermodal Hub",
+                destination="Sriperumbudur Logistics Park",
+                carrier_name="Karnataka-Tamil Nadu Express Logistics",
+                distance_km=280.0,
+                expected_duration_hrs=6.0,
+                delay_hours=0.0,
+                status="IN_TRANSIT",
+                scheduled_departure=dep_dt + timedelta(hours=3),
+                scheduled_arrival=dep_dt + timedelta(hours=9),
+                next_leg_cutoff=dep_dt + timedelta(hours=11),
+                missed_connection_dwell_hrs=0.0,
+            ),
+            ShipmentLeg(
+                id=9013,
+                shipment_id=s_blr.id,
+                sequence=3,
+                mode="ROAD",
+                origin="Sriperumbudur Logistics Park",
+                destination="Chennai Central DC",
+                carrier_name="Karnataka-Tamil Nadu Express Logistics",
+                distance_km=35.0,
+                expected_duration_hrs=1.5,
+                delay_hours=0.0,
+                status="SCHEDULED",
+                scheduled_departure=dep_dt + timedelta(hours=11),
+                scheduled_arrival=dep_dt + timedelta(hours=12, minutes=30),
+            )
+        ]
+        db.add_all(legs_blr)
 
 

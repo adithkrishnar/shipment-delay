@@ -115,6 +115,12 @@ export const updateAssignmentAction = (shipmentId, payload) =>
 export const reportShipmentDelay = (shipmentId, payload) =>
   api.post(`/transporter/shipments/${shipmentId}/delay`, payload).then(r => r.data);
 
+export const completeShipmentLeg = (shipmentId, legId, payload = {}) =>
+  api.post(`/shipments/${shipmentId}/legs/${legId}/complete`, payload).then(r => r.data);
+
+export const confirmDelivery = (shipmentId, payload = {}) =>
+  api.post(`/shipments/${shipmentId}/confirm-delivery`, payload).then(r => r.data);
+
 
 
 

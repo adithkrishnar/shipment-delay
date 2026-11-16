@@ -26,7 +26,7 @@ def generate_recommendations(db: Session, company_id: int) -> List[Dict[str, Any
     disruptions = (
         db.query(DisruptionReport)
         .join(Shipment, Shipment.id == DisruptionReport.shipment_id)
-        .filter(Shipment.company_id == company_id)
+        .filter((Shipment.company_id == company_id) | (Shipment.receiver_company_id == company_id))
         .order_by(DisruptionReport.created_at.desc())
         .limit(5)
         .all()
@@ -38,25 +38,27 @@ def generate_recommendations(db: Session, company_id: int) -> List[Dict[str, Any
         shipment_ref = d.shipment.external_shipment_id if d.shipment else f"#{d.shipment_id}"
         delay_days = d.total_impact_delay_days or (f"{(d.delay_hours / 24.0):.1f}" if d.delay_hours else "1.0")
 
+        sku_val = d.shipment.product.external_product_id if (d.shipment and d.shipment.product) else "SKU-BLR-101"
+        prod_val = d.shipment.product.name if (d.shipment and d.shipment.product) else "Industrial IoT Telematics Controller"
+
         if is_critical:
             recs.append({
-                "sku": "SKU-1004",
-                "product_name": "Smart Fitness Tracker Pro",
+                "sku": sku_val,
+                "product_name": prod_val,
                 "target_id": f"DISRUPTION-{d.id}",
                 "priority": "CRITICAL",
                 "action": "Emergency Stock Transfer",
                 "action_type": "DISRUPTION_MITIGATION",
                 "reason": (
                     f"Shipment {shipment_ref} is delayed by {delay_days} days due to {d.disruption_reason.lower().replace('_', ' ')}. "
-                    f"The destination warehouse will run out of stock by {shortage:.0f} units before delivery arrives, risking an estimated loss of ${loss:,.2f} in lost sales and delay penalties."
+                    f"Destination warehouse faces an estimated stockout shortage of {shortage:.0f} units, exposing ${loss:,.2f} in revenue loss and contract SLA penalties."
                 ),
                 "financial_impact": f"${loss:,.2f}",
                 "estimated_cost": 450.0,
                 "net_savings": max(0.0, loss - 450.0),
-                "expected_impact": f"Transfers 32 units from nearby DC in under 12 hours ($450 cost), immediately preventing a stockout and saving ${max(0.0, loss - 450.0):,.2f} in penalty costs.",
+                "expected_impact": f"Transfers {shortage:.0f} units from neighboring regional hub in under 12 hours ($450 cost), preventing stockout and securing ${max(0.0, loss - 450.0):,.2f} net ROI savings.",
                 "why_best": (
-                    f"Fast delivery (under 12 hours) from a nearby warehouse. "
-                    f"Stops the stockout right away without waiting weeks for new supplier orders, saving ${max(0.0, loss - 450.0):,.2f}."
+                    f"Immediate inter-hub execution (under 12 hours) completely neutralizes the stockout risk without waiting weeks for new supplier manufacturing, delivering a net ROI saving of ${max(0.0, loss - 450.0):,.2f}."
                 ),
                 "details": {
                     "source": "CARRIER_TELEMATICS_BROADCAST",
@@ -68,8 +70,8 @@ def generate_recommendations(db: Session, company_id: int) -> List[Dict[str, Any
             })
         else:
             recs.append({
-                "sku": "SKU-1004",
-                "product_name": "Smart Fitness Tracker Pro",
+                "sku": sku_val,
+                "product_name": prod_val,
                 "target_id": f"DISRUPTION-{d.id}",
                 "priority": "LOW",
                 "action": "Monitor Shipment",

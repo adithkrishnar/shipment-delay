@@ -30,5 +30,20 @@ def init_db():
     """Create all tables. Safe to call repeatedly (no-op if tables exist)."""
     # Import models so they register on Base.metadata before create_all runs.
     from app import models  # noqa: F401
+    from sqlalchemy import inspect, text
 
     Base.metadata.create_all(bind=engine)
+
+    # Automatic schema evolution for new columns
+    try:
+        insp = inspect(engine)
+        if "shipments" in insp.get_table_names():
+            cols = [c["name"] for c in insp.get_columns("shipments")]
+            with engine.begin() as conn:
+                if "receiver_company_id" not in cols:
+                    conn.execute(text("ALTER TABLE shipments ADD COLUMN receiver_company_id INTEGER"))
+                if "destination_warehouse_id" not in cols:
+                    conn.execute(text("ALTER TABLE shipments ADD COLUMN destination_warehouse_id INTEGER"))
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("Schema column check notice: %s", e)

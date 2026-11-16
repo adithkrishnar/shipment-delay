@@ -106,6 +106,11 @@ class ShipmentRiskOut(BaseModel):
     destination: str | None
     carrier: str | None
     transport_mode: str | None
+    receiver_company_id: int | None = None
+    receiver_company_name: str | None = None
+    sender_company_name: str | None = None
+    assignment_status: str | None = "IN_TRANSIT"
+    current_eta: str | None = None
     order_date: str | None
     planned_delivery: str
     actual_delivery: str | None

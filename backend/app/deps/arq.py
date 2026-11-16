@@ -1,5 +1,9 @@
-from arq import create_pool
-from arq.connections import RedisSettings
+try:
+    from arq import create_pool
+    from arq.connections import RedisSettings
+except ImportError:
+    create_pool = None
+    RedisSettings = None
 
 from app.config import settings
 from app.utils.logging_config import get_logger

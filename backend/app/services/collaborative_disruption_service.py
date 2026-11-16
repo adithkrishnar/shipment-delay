@@ -165,23 +165,44 @@ def simulate_downstream_impact(
 
     # 4. Run Inventory Intelligence Simulation
     # Check if this shipment targets a specific destination warehouse
-    from app.models import Warehouse, InventoryRecord
-    dest_wh = db.query(Warehouse).filter(Warehouse.company_id == shipment.company_id, Warehouse.name == shipment.destination).first() if shipment.destination else None
+    from app.models import Warehouse, InventoryRecord, Alert
+
+    target_company_id = shipment.receiver_company_id or shipment.company_id
+    dest_wh = None
+    if shipment.destination_warehouse_id:
+        dest_wh = db.query(Warehouse).filter(Warehouse.id == shipment.destination_warehouse_id).first()
+    if not dest_wh and shipment.destination:
+        dest_wh = db.query(Warehouse).filter(
+            Warehouse.company_id == target_company_id,
+            Warehouse.name.ilike(f"%{shipment.destination}%")
+        ).first()
+    if not dest_wh:
+        dest_wh = db.query(Warehouse).filter(Warehouse.company_id == target_company_id).first()
+
+    # Product resolution in target company (handles cross-company SKU mappings)
+    source_prod = db.query(Product).filter(Product.id == shipment.product_id).first()
+    target_prod = None
+    if source_prod:
+        target_prod = db.query(Product).filter(
+            Product.company_id == target_company_id,
+            Product.external_product_id == source_prod.external_product_id
+        ).first()
+    target_product_id = target_prod.id if target_prod else shipment.product_id
     
     # Check if inventory and sales data exist for this product/company
     has_inventory_data = bool(db.query(InventoryRecord).filter(
-        InventoryRecord.company_id == shipment.company_id,
-        InventoryRecord.product_id == shipment.product_id
+        InventoryRecord.company_id == target_company_id,
+        InventoryRecord.product_id == target_product_id
     ).first())
     has_sales_data = bool(db.query(Sale).filter(
-        Sale.company_id == shipment.company_id,
-        Sale.product_id == shipment.product_id
+        Sale.company_id == target_company_id,
+        Sale.product_id == target_product_id
     ).first())
 
     inventory_assessment_available = has_inventory_data and has_sales_data
 
     if inventory_assessment_available:
-        inv_analysis = analyze_product(db, shipment.company_id, shipment.product_id, delay_days=total_delay_days)
+        inv_analysis = analyze_product(db, target_company_id, target_product_id, delay_days=total_delay_days)
     else:
         inv_analysis = {
             "inventory_level": None,
@@ -191,15 +212,15 @@ def simulate_downstream_impact(
             "expected_shortage": None
         }
 
-    product = db.query(Product).filter(Product.id == shipment.product_id).first()
+    product = target_prod or source_prod
     unit_price = float(product.unit_price if (product and product.unit_price) else 85.0)
 
     # Check warehouse-level stock if destination warehouse is known
     wh_stock = None
     if dest_wh and inventory_assessment_available:
         wh_rec = db.query(InventoryRecord).filter(
-            InventoryRecord.company_id == shipment.company_id,
-            InventoryRecord.product_id == shipment.product_id,
+            InventoryRecord.company_id == target_company_id,
+            InventoryRecord.product_id == target_product_id,
             InventoryRecord.warehouse_id == dest_wh.id
         ).order_by(InventoryRecord.date.desc()).first()
         if wh_rec:
@@ -207,16 +228,20 @@ def simulate_downstream_impact(
 
     if inventory_assessment_available:
         daily_rate = float(inv_analysis.get("daily_demand") or 10.0)
-        daily_facility_demand = round(daily_rate / 5.0, 2) if dest_wh else daily_rate
+        daily_facility_demand = round(daily_rate / 2.0, 2) if dest_wh else daily_rate
 
         if wh_stock is not None:
-            local_lead = float(inv_analysis.get("effective_lead_time_days") or 14.0)
+            local_lead = float(inv_analysis.get("effective_lead_time_days") or 7.0)
             facility_needed = daily_facility_demand * local_lead
             expected_shortage_units = round(max(0.0, facility_needed - wh_stock), 1)
-            stockout_predicted = 1 if (wh_stock < facility_needed or wh_stock <= 25.0) else 0
+            stockout_predicted = 1 if (wh_stock < facility_needed or wh_stock <= 30.0 or total_delay_days >= 1.0) else 0
         else:
             expected_shortage_units = float(inv_analysis.get("expected_shortage") or 0.0)
             stockout_predicted = 1 if inv_analysis.get("stockout_risk") in ["HIGH", "CRITICAL"] or expected_shortage_units > 0 else 0
+
+        # If a stockout is predicted due to transit delay, ensure shortage is accurately estimated
+        if stockout_predicted and expected_shortage_units <= 0:
+            expected_shortage_units = round(daily_facility_demand * total_delay_days, 1)
 
         revenue_loss = expected_shortage_units * unit_price
         sla_penalty = 1500.0 if expected_shortage_units > 0 else 0.0
@@ -310,6 +335,27 @@ def simulate_downstream_impact(
         impact_details_json=json.dumps(details_payload)
     )
     db.add(report)
+
+    # Broadcast Alerts to both Consignor (Company A) and Consignee (Company C)
+    alert_severity = "critical" if (stockout_predicted or total_delay_days >= 1.0) else "warning"
+    shortage_str = f" Predicted stockout shortage: {expected_shortage_units:.0f} units (Risk: ${total_cost_loss:,.2f})." if stockout_predicted else ""
+    alert_text = (
+        f"Transit Disruption Alert: Shipment {shipment.external_shipment_id} reported +{reported_delay_hrs:.0f}h delay "
+        f"on Leg #{target_leg.sequence} due to {reason}.{shortage_str} Recommended Action: {report.prescribed_mitigation}."
+    )
+    for cid in {shipment.company_id, shipment.receiver_company_id, target_company_id}:
+        if cid:
+            db.add(Alert(
+                company_id=cid,
+                alert_type="delay",
+                severity=alert_severity,
+                entity_type="shipment",
+                entity_id=shipment.id,
+                message=alert_text,
+                is_resolved=0,
+                created_at=datetime.utcnow()
+            ))
+
     db.commit()
     db.refresh(report)
 

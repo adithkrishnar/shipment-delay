@@ -1,12 +1,10 @@
 from typing import Optional
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from jose import jwt, JWTError
 from sqlalchemy.orm import Session
-
 from app.database import get_db
 from app.models.user import User
-from app.auth.security import SECRET_KEY, ALGORITHM
+from app.auth.security import SECRET_KEY, ALGORITHM, jwt, JWTError
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login", auto_error=False)

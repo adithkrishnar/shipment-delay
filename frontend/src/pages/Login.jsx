@@ -136,41 +136,49 @@ export default function Login() {
 
           {/* Quick Demo Role Switcher Pills */}
           <div style={{ marginTop: '24px', padding: '14px', background: '#0C0D0E', borderRadius: '6px', border: '1px solid #1B1C1E' }}>
-            <div style={{ fontSize: '10.5px', fontFamily: 'Manrope', fontWeight: 600, color: '#63666E', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-              One-Click Role Demonstration
+            <div style={{ fontSize: '10.5px', fontFamily: 'Manrope', fontWeight: 600, color: '#38E5A3', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span>Live Demonstration Accounts (3 Laptops)</span>
+              <span style={{ fontSize: '9px', background: 'rgba(56, 229, 163, 0.2)', padding: '2px 6px', borderRadius: 3 }}>Corridor Demo</span>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {/* Laptop 1: Manufacturer */}
+              <button
+                type="button"
+                onClick={() => { setEmail('sender@companyA.com'); setPassword('sender123'); }}
+                style={{ padding: '8px 10px', fontSize: '12px', textAlign: 'left', background: '#121315', border: '1px solid rgba(94, 107, 255, 0.4)', borderRadius: '4px', color: '#F0F1F2', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: 'border-color 0.15s ease' }}
+              >
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Building2 size={13} color="#5E6BFF" /> <strong>Company A (Manufacturer - BLR)</strong></span>
+                <span style={{ color: '#9A9DA3', fontSize: '11px', fontFamily: 'JetBrains Mono' }}>sender@companyA.com</span>
+              </button>
+
+              {/* Laptop 2: Transporter */}
+              <button
+                type="button"
+                onClick={() => { setEmail('transporter@companyB.com'); setPassword('transporter123'); }}
+                style={{ padding: '8px 10px', fontSize: '12px', textAlign: 'left', background: '#121315', border: '1px solid rgba(255, 159, 67, 0.4)', borderRadius: '4px', color: '#F0F1F2', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: 'border-color 0.15s ease' }}
+              >
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Truck size={13} color="#FF9F43" /> <strong>Company B (Transporter Fleet)</strong></span>
+                <span style={{ color: '#9A9DA3', fontSize: '11px', fontFamily: 'JetBrains Mono' }}>transporter@companyB.com</span>
+              </button>
+
+              {/* Laptop 3: Receiver DC */}
+              <button
+                type="button"
+                onClick={() => { setEmail('receiver@companyC.com'); setPassword('receiver123'); }}
+                style={{ padding: '8px 10px', fontSize: '12px', textAlign: 'left', background: '#121315', border: '1px solid rgba(56, 229, 163, 0.4)', borderRadius: '4px', color: '#F0F1F2', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: 'border-color 0.15s ease' }}
+              >
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Building2 size={13} color="#38E5A3" /> <strong>Company C (Receiver DC - Chennai)</strong></span>
+                <span style={{ color: '#9A9DA3', fontSize: '11px', fontFamily: 'JetBrains Mono' }}>receiver@companyC.com</span>
+              </button>
+
+              {/* DataCo Global Superuser */}
               <button
                 type="button"
                 onClick={() => { setEmail('admin@dataco.com'); setPassword('admin123'); }}
-                style={{ padding: '8px 10px', fontSize: '12px', textAlign: 'left', background: '#121315', border: '1px solid #232426', borderRadius: '4px', color: '#F0F1F2', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: 'border-color 0.15s ease' }}
+                style={{ padding: '7px 10px', fontSize: '11px', textAlign: 'left', background: '#0E0F10', border: '1px solid #1E2024', borderRadius: '4px', color: '#9A9DA3', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}
               >
-                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Building2 size={13} color="#5E6BFF" /> <strong>DataCo Global</strong></span>
-                <span style={{ color: '#9A9DA3', fontSize: '11px', fontFamily: 'JetBrains Mono' }}>admin@dataco.com</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => { setEmail('admin@nexus-global.com'); setPassword('nexus123'); }}
-                style={{ padding: '8px 10px', fontSize: '12px', textAlign: 'left', background: '#121315', border: '1px solid rgba(80, 216, 233, 0.4)', borderRadius: '4px', color: '#F0F1F2', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: 'border-color 0.15s ease' }}
-              >
-                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Building2 size={13} color="#50D8E9" /> <strong>Nexus Global (New)</strong></span>
-                <span style={{ color: '#9A9DA3', fontSize: '11px', fontFamily: 'JetBrains Mono' }}>admin@nexus-global.com</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => { setEmail('fleet@nexus-logistics.com'); setPassword('nexus123'); }}
-                style={{ padding: '8px 10px', fontSize: '12px', textAlign: 'left', background: '#121315', border: '1px solid rgba(80, 216, 233, 0.4)', borderRadius: '4px', color: '#F0F1F2', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: 'border-color 0.15s ease' }}
-              >
-                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Truck size={13} color="#50D8E9" /> <strong>Nexus Fleetways</strong></span>
-                <span style={{ color: '#9A9DA3', fontSize: '11px', fontFamily: 'JetBrains Mono' }}>fleet@nexus-logistics.com</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => { setEmail('carrier@datacotransport.com'); setPassword('carrier123'); }}
-                style={{ padding: '8px 10px', fontSize: '12px', textAlign: 'left', background: '#121315', border: '1px solid #232426', borderRadius: '4px', color: '#F0F1F2', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: 'border-color 0.15s ease' }}
-              >
-                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Truck size={13} color="#FF9F43" /> <strong>DataCo Linehaul</strong></span>
-                <span style={{ color: '#9A9DA3', fontSize: '11px', fontFamily: 'JetBrains Mono' }}>carrier@datacotransport.com</span>
+                <span>Enterprise Superuser (DataCo Admin)</span>
+                <span style={{ fontFamily: 'JetBrains Mono' }}>admin@dataco.com</span>
               </button>
             </div>
           </div>

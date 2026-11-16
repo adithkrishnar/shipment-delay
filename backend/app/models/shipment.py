@@ -11,7 +11,9 @@ class Shipment(Base):
     )
 
     id = Column(Integer, primary_key=True, index=True)
-    company_id = Column(Integer, ForeignKey("companies.id"), nullable=False, index=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=False, index=True)  # Sender / Consignor
+    receiver_company_id = Column(Integer, ForeignKey("companies.id", ondelete="SET NULL"), nullable=True, index=True)  # Receiver / Consignee
+    destination_warehouse_id = Column(Integer, ForeignKey("warehouses.id", ondelete="SET NULL"), nullable=True, index=True)
     product_id = Column(Integer, ForeignKey("products.id"), nullable=False, index=True)
     supplier_id = Column(Integer, ForeignKey("suppliers.id"), nullable=True, index=True)
 
@@ -32,7 +34,9 @@ class Shipment(Base):
     planned_delivery = Column(Date, nullable=False)
     actual_delivery = Column(Date, nullable=True)  # null = not yet delivered / in-flight
 
-    company = relationship("Company", back_populates="shipments")
+    company = relationship("Company", foreign_keys=[company_id], back_populates="shipments")
+    receiver_company = relationship("Company", foreign_keys=[receiver_company_id], overlaps="inbound_shipments")
+    destination_warehouse = relationship("Warehouse", foreign_keys=[destination_warehouse_id])
     product = relationship("Product", back_populates="shipments")
     supplier = relationship("Supplier", back_populates="shipments")
     transporter_org = relationship("TransporterOrganization", back_populates="shipments")

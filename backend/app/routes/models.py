@@ -3,7 +3,10 @@ from app.models.user import User
 import json
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from arq.connections import ArqRedis
+try:
+    from arq.connections import ArqRedis
+except ImportError:
+    ArqRedis = None
 from app.database import get_db
 from app.models import Company, ModelRegistryEntry
 from app.models.job import TrainingJob, JobType, JobStatus

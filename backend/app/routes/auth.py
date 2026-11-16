@@ -8,10 +8,10 @@ from app.models.user import User
 from app.models.company import Company
 from app.auth import security
 from app.auth.deps import get_current_user
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 
 class UserCreate(BaseModel):
-    email: EmailStr
+    email: str
     password: str
     company_name: str
 
