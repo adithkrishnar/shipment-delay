@@ -183,7 +183,8 @@ def run_e2e_lifecycle_test():
     print(f"  [✓] Mitigation Cost: ₹{top_rec['estimated_cost']}, Net ROI Savings: ₹{top_rec['net_savings']:,.2f}")
     print(f"  [✓] Decision Reasoning: {top_rec['why_best']}")
     assert top_rec["priority"] == "CRITICAL"
-    assert top_rec["net_savings"] > 0
+    assert top_rec["financial_impact"] == "₹171,600.00", f"Expected ₹171,600.00 financial impact, got {top_rec['financial_impact']}"
+    assert top_rec["net_savings"] == 171150.0, f"Expected 171150.0 net savings, got {top_rec['net_savings']}"
     assert "₹" in top_rec["financial_impact"], "Currency should be formatted in Indian Rupees (₹)"
 
     # 8. Phase 7: Authorized Manager Approves Mitigation Action

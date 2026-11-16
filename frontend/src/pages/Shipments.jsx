@@ -628,7 +628,7 @@ export default function Shipments({ company }) {
                                     </div>
                                     <p style={{ fontSize: '12px', margin: 0, opacity: 0.9 }}>
                                       {isDelayed 
-                                        ? 'Transfer 45 units from neighboring regional DC in under 12 hours ($450 cost) to prevent $5,325 in lost sales and contract SLA penalties.'
+                                        ? 'Transfer 32 units from neighboring regional DC in under 12 hours (₹450 cost) to prevent ₹1,71,600 in lost sales and contract SLA penalties (Net savings: ₹171,150.00).'
                                         : 'Transit schedule is operating within buffer tolerances. Safety buffer absorbs standard operational dwell.'
                                       }
                                     </p>
