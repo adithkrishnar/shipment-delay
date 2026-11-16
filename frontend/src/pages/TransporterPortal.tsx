@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { Shipment, ShipmentLeg } from "../types/transporter";
 import { MOCK_SHIPMENTS, MOCK_CARRIER_NAME } from "../mock/transporterData";
 import { PortalHeader } from "../components/transporter/PortalHeader";

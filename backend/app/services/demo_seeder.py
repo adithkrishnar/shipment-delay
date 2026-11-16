@@ -247,17 +247,16 @@ def ensure_demo_shipments_and_legs(db: Session):
 
     # Resolve product for shipment linkage (prefer SKU-1004 or first available product)
     prod = (
-        db.query(Product).filter(Product.company_id == dataco.id, Product.sku == "SKU-1004").first()
+        db.query(Product).filter(Product.company_id == dataco.id, Product.external_product_id == "SKU-1004").first()
         or db.query(Product).filter(Product.company_id == dataco.id).first()
     )
     if not prod:
         prod = Product(
             company_id=dataco.id,
-            sku="SKU-1004",
+            external_product_id="SKU-1004",
             name="Smart Fitness Tracker Pro",
             unit_price=85.0,
-            holding_cost_rate=0.20,
-            sla_penalty=1500.0,
+            unit_cost=45.0,
         )
         db.add(prod)
         db.flush()
