@@ -33,6 +33,52 @@ export default function TransporterPortal() {
   const [isDelayModalOpen, setIsDelayModalOpen] = useState<boolean>(false);
   const [delayTargetShipment, setDelayTargetShipment] = useState<Shipment | null>(null);
 
+  // Synchronized Control Tower Approved Actions
+  const [approvedActionIds, setApprovedActionIds] = useState<Set<string>>(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem("supplyiq_approved_actions") || "[]");
+      return new Set(stored);
+    } catch {
+      return new Set();
+    }
+  });
+
+  useEffect(() => {
+    const syncApproved = () => {
+      try {
+        const stored = JSON.parse(localStorage.getItem("supplyiq_approved_actions") || "[]");
+        setApprovedActionIds(new Set(stored));
+      } catch {
+        // ignore
+      }
+    };
+
+    const handleActionApproved = (e: any) => {
+      syncApproved();
+      const actionId = e.detail?.actionId || "Shipment Delay";
+      triggerAlert({
+        title: "Control Tower Action Approved",
+        message: `Control Tower approved mitigation action for ${actionId}! Downstream stockout risk is neutralized.`,
+        severity: "healthy",
+      });
+    };
+
+    window.addEventListener("supplyiq_action_approved", handleActionApproved);
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === "supplyiq_approved_actions") {
+        syncApproved();
+      }
+    };
+    window.addEventListener("storage", handleStorage);
+    const interval = setInterval(syncApproved, 2500);
+
+    return () => {
+      window.removeEventListener("supplyiq_action_approved", handleActionApproved);
+      window.removeEventListener("storage", handleStorage);
+      clearInterval(interval);
+    };
+  }, []);
+
   // Success toast state
   const [successToast, setSuccessToast] = useState<{
     reference: string;
@@ -518,19 +564,32 @@ export default function TransporterPortal() {
             onSelectShipment={(s) => setSelectedShipmentId(s.id)}
             onOpenReportModal={(s) => handleOpenReportModal(s)}
             onOpenDelayModal={(s) => handleOpenDelayModal(s)}
+            approvedActionIds={approvedActionIds}
           />
         </section>
 
         {/* Selected Shipment Detail & Route Propagation Timeline */}
-        {selectedShipment && (
-          <section id="shipment-detail-section" aria-label="Selected Shipment Details and Route Timeline">
-            <ShipmentDetailPanel
-              shipment={selectedShipment}
-              onOpenReportModal={(legId) => handleOpenReportModal(selectedShipment, legId)}
-              onOpenDelayModal={() => handleOpenDelayModal(selectedShipment)}
-            />
-          </section>
-        )}
+        {selectedShipment && (() => {
+          const isSelectedApproved = Boolean(
+            approvedActionIds.has(selectedShipment.reference) ||
+            approvedActionIds.has(selectedShipment.id) ||
+            approvedActionIds.has(`DISRUPTION-${selectedShipment.id}`) ||
+            (approvedActionIds.has("DC-PO-00809") && (selectedShipment.reference === "DC-PO-00809" || selectedShipment.id === "SH-DC-809")) ||
+            (approvedActionIds.has("DC-PO-00801") && (selectedShipment.reference === "DC-PO-00801" || selectedShipment.id === "SH-DC-801")) ||
+            (approvedActionIds.has("SKU-1004") && (selectedShipment.reference === "DC-PO-00809" || selectedShipment.reference === "DC-PO-00801"))
+          );
+
+          return (
+            <section id="shipment-detail-section" aria-label="Selected Shipment Details and Route Timeline">
+              <ShipmentDetailPanel
+                shipment={selectedShipment}
+                onOpenReportModal={(legId) => handleOpenReportModal(selectedShipment, legId)}
+                onOpenDelayModal={() => handleOpenDelayModal(selectedShipment)}
+                isApproved={isSelectedApproved}
+              />
+            </section>
+          );
+        })()}
       </div>
 
       {/* 6. Disruption Reporting Modal */}

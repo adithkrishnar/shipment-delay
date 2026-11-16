@@ -2,7 +2,7 @@ import React from "react";
 import { Shipment, TransportMode } from "../../types/transporter";
 import { StatusBadge, RiskBadge, TransportModeBadge, ServiceLevelBadge } from "./TransporterBadges";
 import { formatDateTime } from "../../utils/delayPropagation";
-import { ArrowRight, MapPin, AlertTriangle, Eye, Flame, ChevronRight, Clock } from "lucide-react";
+import { ArrowRight, MapPin, AlertTriangle, Eye, Flame, ChevronRight, Clock, CheckCircle2 } from "lucide-react";
 
 interface ShipmentTableProps {
   shipments: Shipment[];
@@ -10,6 +10,7 @@ interface ShipmentTableProps {
   onSelectShipment: (shipment: Shipment) => void;
   onOpenReportModal: (shipment: Shipment) => void;
   onOpenDelayModal: (shipment: Shipment) => void;
+  approvedActionIds?: Set<string>;
 }
 
 export function ShipmentTable({
@@ -18,6 +19,7 @@ export function ShipmentTable({
   onSelectShipment,
   onOpenReportModal,
   onOpenDelayModal,
+  approvedActionIds,
 }: ShipmentTableProps) {
   if (shipments.length === 0) {
     return (
@@ -89,8 +91,17 @@ export function ShipmentTable({
             const isSelected = s.id === selectedShipmentId;
             const activeLeg = s.legs.find((l) => l.status !== "on_schedule") || s.legs[0];
             const hasDelay = (activeLeg?.delayHours || 0) > 0;
-            const isCritical = s.status === "critical" || s.inventoryRisk === "critical";
-            const isAtRisk = s.status === "at_risk" || s.status === "disrupted" || s.inventoryRisk === "high";
+            const isApproved = Boolean(
+              approvedActionIds &&
+                (approvedActionIds.has(s.reference) ||
+                  approvedActionIds.has(s.id) ||
+                  approvedActionIds.has(`DISRUPTION-${s.id}`) ||
+                  (approvedActionIds.has("DC-PO-00809") && (s.reference === "DC-PO-00809" || s.id === "SH-DC-809")) ||
+                  (approvedActionIds.has("DC-PO-00801") && (s.reference === "DC-PO-00801" || s.id === "SH-DC-801")) ||
+                  (approvedActionIds.has("SKU-1004") && (s.reference === "DC-PO-00809" || s.reference === "DC-PO-00801")))
+            );
+            const isCritical = !isApproved && (s.status === "critical" || s.inventoryRisk === "critical");
+            const isAtRisk = !isApproved && (s.status === "at_risk" || s.status === "disrupted" || s.inventoryRisk === "high");
 
             return (
               <tr
@@ -100,6 +111,8 @@ export function ShipmentTable({
                   borderBottom: "1px solid var(--border-subtle, #26313D)",
                   background: isSelected
                     ? "rgba(79, 140, 255, 0.08)"
+                    : isApproved
+                    ? "rgba(45, 212, 167, 0.03)"
                     : isCritical
                     ? "rgba(255, 77, 95, 0.03)"
                     : "transparent",
@@ -111,7 +124,9 @@ export function ShipmentTable({
                 }}
                 onMouseLeave={(e) => {
                   if (!isSelected) {
-                    e.currentTarget.style.backgroundColor = isCritical
+                    e.currentTarget.style.backgroundColor = isApproved
+                      ? "rgba(45, 212, 167, 0.03)"
+                      : isCritical
                       ? "rgba(255, 77, 95, 0.03)"
                       : "transparent";
                   }
@@ -126,7 +141,9 @@ export function ShipmentTable({
                         height: "6px",
                         borderRadius: "50%",
                         background:
-                          s.status === "critical"
+                          isApproved
+                            ? "#2DD4A7"
+                            : s.status === "critical"
                             ? "#FF4D5F"
                             : s.status === "disrupted"
                             ? "#FF8C42"
@@ -167,8 +184,47 @@ export function ShipmentTable({
                 {/* 3. Status & Risk */}
                 <td style={{ padding: "12px 14px" }}>
                   <div style={{ display: "flex", flexDirection: "column", gap: "4px", alignItems: "flex-start" }}>
-                    <StatusBadge status={s.status} />
-                    <RiskBadge risk={s.inventoryRisk} />
+                    {isApproved ? (
+                      <>
+                        <span
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "4px",
+                            padding: "3px 7px",
+                            borderRadius: "4px",
+                            fontSize: "11px",
+                            fontWeight: 700,
+                            textTransform: "uppercase",
+                            background: "rgba(45, 212, 167, 0.15)",
+                            color: "#2DD4A7",
+                            border: "1px solid rgba(45, 212, 167, 0.4)",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          <CheckCircle2 size={11} /> Mitigated
+                        </span>
+                        <span
+                          style={{
+                            fontSize: "10px",
+                            fontWeight: 600,
+                            padding: "2px 6px",
+                            borderRadius: "3px",
+                            background: "rgba(45, 212, 167, 0.1)",
+                            color: "#2DD4A7",
+                            border: "1px solid rgba(45, 212, 167, 0.25)",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          Stock Resolved
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <StatusBadge status={s.status} />
+                        <RiskBadge risk={s.inventoryRisk} />
+                      </>
+                    )}
                   </div>
                 </td>
 

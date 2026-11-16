@@ -3,13 +3,14 @@ import { Shipment, ShipmentLeg } from "../../types/transporter";
 import { StatusBadge, RiskBadge, TransportModeBadge, ServiceLevelBadge } from "./TransporterBadges";
 import { RouteTimeline } from "./RouteTimeline";
 import { formatDateTime } from "../../utils/delayPropagation";
-import { AlertTriangle, Clock, MapPin, Building, ShieldCheck, ChevronRight, Bell, History } from "lucide-react";
+import { AlertTriangle, Clock, MapPin, Building, ShieldCheck, ChevronRight, Bell, History, CheckCircle2 } from "lucide-react";
 
 interface ShipmentDetailPanelProps {
   shipment: Shipment;
   onOpenReportModal: (legId?: string) => void;
   onOpenDelayModal?: () => void;
   onClose?: () => void;
+  isApproved?: boolean;
 }
 
 export function ShipmentDetailPanel({
@@ -17,6 +18,7 @@ export function ShipmentDetailPanel({
   onOpenReportModal,
   onOpenDelayModal,
   onClose,
+  isApproved,
 }: ShipmentDetailPanelProps) {
   const activeLeg = shipment.legs.find((l) => l.status !== "on_schedule") || shipment.legs[0];
   const hasExceptions = shipment.exceptions && shipment.exceptions.length > 0;
@@ -61,8 +63,51 @@ export function ShipmentDetailPanel({
           </h2>
 
           <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-            <StatusBadge status={shipment.status} />
-            <RiskBadge risk={shipment.inventoryRisk} />
+            {isApproved ? (
+              <>
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "5px",
+                    padding: "3px 8px",
+                    borderRadius: "4px",
+                    fontSize: "11px",
+                    fontWeight: 700,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.04em",
+                    background: "rgba(45, 212, 167, 0.16)",
+                    color: "#2DD4A7",
+                    border: "1px solid rgba(45, 212, 167, 0.4)",
+                  }}
+                >
+                  <CheckCircle2 size={12} /> Mitigated / Approved
+                </span>
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "5px",
+                    padding: "3px 8px",
+                    borderRadius: "4px",
+                    fontSize: "11px",
+                    fontWeight: 700,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.04em",
+                    background: "rgba(45, 212, 167, 0.12)",
+                    color: "#2DD4A7",
+                    border: "1px solid rgba(45, 212, 167, 0.3)",
+                  }}
+                >
+                  Stock Risk Resolved
+                </span>
+              </>
+            ) : (
+              <>
+                <StatusBadge status={shipment.status} />
+                <RiskBadge risk={shipment.inventoryRisk} />
+              </>
+            )}
             <ServiceLevelBadge level={shipment.serviceLevel} />
           </div>
         </div>
@@ -148,25 +193,18 @@ export function ShipmentDetailPanel({
           </div>
         </div>
 
-        <div style={{ background: "var(--bg-surface-2, #19222D)", padding: "12px 14px", borderRadius: "8px", border: "1px solid var(--border-subtle, #26313D)" }}>
+        <div style={{ background: "var(--bg-surface-2, #19222D)", padding: "12px 14px", borderRadius: "8px", border: isApproved ? "1px solid rgba(45, 212, 167, 0.4)" : "1px solid var(--border-subtle, #26313D)" }}>
           <span style={{ fontSize: "11px", color: "var(--text-tertiary, #6F7C8C)", display: "block" }}>DESTINATION FACILITY RISK</span>
           <strong
             style={{
               fontSize: "14px",
-              color:
-                shipment.inventoryRisk === "critical"
-                  ? "#FF4D5F"
-                  : shipment.inventoryRisk === "high"
-                  ? "#FF8C42"
-                  : shipment.inventoryRisk === "medium"
-                  ? "#F5B942"
-                  : "#2DD4A7",
+              color: isApproved ? "#2DD4A7" : shipment.inventoryRisk === "critical" ? "#FF4D5F" : shipment.inventoryRisk === "high" ? "#FF8C42" : "#2DD4A7",
             }}
           >
-            {shipment.inventoryRisk.toUpperCase()} STOCK RISK
+            {isApproved ? "STOCK RISK RESOLVED" : `${shipment.inventoryRisk.toUpperCase()} STOCK RISK`}
           </strong>
-          <div style={{ fontSize: "11px", color: "var(--text-secondary, #A8B3C2)", marginTop: "2px" }}>
-            Destination: {shipment.destinationFacility}
+          <div style={{ fontSize: "11px", color: isApproved ? "#2DD4A7" : "var(--text-secondary, #A8B3C2)", marginTop: "2px" }}>
+            {isApproved ? "Emergency stock transfer approved by Control Tower" : `Destination: ${shipment.destinationFacility}`}
           </div>
         </div>
 
@@ -181,32 +219,65 @@ export function ShipmentDetailPanel({
         </div>
       </div>
 
-      {/* Control Tower Alerts (if any) */}
-      {shipment.notifications && shipment.notifications.length > 0 && (
+      {/* Control Tower Directives (Pending vs Approved by Control Tower) */}
+      {isApproved ? (
         <div
           style={{
-            background: "rgba(79, 140, 255, 0.08)",
-            border: "1px solid rgba(79, 140, 255, 0.3)",
+            background: "linear-gradient(135deg, rgba(45, 212, 167, 0.12), rgba(79, 140, 255, 0.08))",
+            border: "1px solid rgba(45, 212, 167, 0.4)",
             borderRadius: "8px",
-            padding: "14px 18px",
+            padding: "16px 20px",
             marginBottom: "24px",
+            boxShadow: "0 4px 16px rgba(45, 212, 167, 0.08)",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
-            <Bell size={16} color="var(--accent-primary, #4F8CFF)" />
-            <strong style={{ fontSize: "13px", color: "var(--text-primary, #F3F6FA)", textTransform: "uppercase" }}>
-              Active Control Tower Directive
-            </strong>
-          </div>
-          {shipment.notifications.map((n) => (
-            <div key={n.id} style={{ fontSize: "13px", color: "var(--text-secondary, #A8B3C2)", lineHeight: 1.5 }}>
-              <p style={{ margin: "0 0 4px 0" }}>{n.message}</p>
-              <div style={{ fontSize: "12px", color: "var(--accent-primary, #4F8CFF)", fontWeight: 600 }}>
-                ↳ Control Tower Action: {n.prescribedAction}
-              </div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px", flexWrap: "wrap", gap: "8px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <CheckCircle2 size={18} color="#2DD4A7" />
+              <strong style={{ fontSize: "14px", color: "#2DD4A7", textTransform: "uppercase", letterSpacing: "0.03em" }}>
+                Control Tower Directive Authorized &amp; Dispatched
+              </strong>
             </div>
-          ))}
+            <span style={{ fontSize: "11px", fontWeight: 700, padding: "3px 8px", borderRadius: "4px", background: "rgba(45, 212, 167, 0.2)", color: "#2DD4A7" }}>
+              ACTION APPROVED
+            </span>
+          </div>
+          <div style={{ fontSize: "13px", color: "var(--text-primary, #F3F6FA)", lineHeight: 1.6 }}>
+            <p style={{ margin: "0 0 6px 0" }}>
+              The Company Control Tower has officially approved the <strong>Emergency Inter-Warehouse Stock Transfer (32 units)</strong> to bridge the delay gap at <strong>{shipment.destinationFacility}</strong>.
+            </p>
+            <div style={{ fontSize: "12px", color: "#2DD4A7", fontWeight: 600 }}>
+              ✓ Downstream inventory stockout risk is neutralized. Carrier transit schedule updated.
+            </div>
+          </div>
         </div>
+      ) : (
+        shipment.notifications && shipment.notifications.length > 0 && (
+          <div
+            style={{
+              background: "rgba(79, 140, 255, 0.08)",
+              border: "1px solid rgba(79, 140, 255, 0.3)",
+              borderRadius: "8px",
+              padding: "14px 18px",
+              marginBottom: "24px",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+              <Bell size={16} color="var(--accent-primary, #4F8CFF)" />
+              <strong style={{ fontSize: "13px", color: "var(--text-primary, #F3F6FA)", textTransform: "uppercase" }}>
+                Active Control Tower Directive
+              </strong>
+            </div>
+            {shipment.notifications.map((n) => (
+              <div key={n.id} style={{ fontSize: "13px", color: "var(--text-secondary, #A8B3C2)", lineHeight: 1.5 }}>
+                <p style={{ margin: "0 0 4px 0" }}>{n.message}</p>
+                <div style={{ fontSize: "12px", color: "var(--accent-primary, #4F8CFF)", fontWeight: 600 }}>
+                  ↳ Control Tower Action: {n.prescribedAction}
+                </div>
+              </div>
+            ))}
+          </div>
+        )
       )}
 
       {/* Multimodal Route Timeline */}
