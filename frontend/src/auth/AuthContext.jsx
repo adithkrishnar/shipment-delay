@@ -3,21 +3,33 @@ import { login as apiLogin, register as apiRegister, getMe } from '../services/a
 
 const AuthContext = createContext(null);
 
+const getStoredToken = () => {
+  try {
+    return sessionStorage.getItem('token') || localStorage.getItem('token') || null;
+  } catch (e) {
+    return null;
+  }
+};
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(localStorage.getItem('token') || null);
+  const [token, setToken] = useState(getStoredToken());
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const initAuth = async () => {
-      if (token) {
+      const activeToken = getStoredToken();
+      if (activeToken) {
         try {
           const userData = await getMe();
           setUser(userData);
         } catch (error) {
           console.error("Failed to restore session", error);
           setToken(null);
+          sessionStorage.removeItem('token');
+          sessionStorage.removeItem('user');
           localStorage.removeItem('token');
+          localStorage.removeItem('user');
         }
       }
       setLoading(false);
@@ -29,10 +41,13 @@ export const AuthProvider = ({ children }) => {
     try {
       const data = await apiLogin(email, password);
       setToken(data.access_token);
+      sessionStorage.setItem('token', data.access_token);
       localStorage.setItem('token', data.access_token);
       
       const userData = await getMe();
       setUser(userData);
+      sessionStorage.setItem('user', JSON.stringify(userData));
+      localStorage.setItem('user', JSON.stringify(userData));
       return { success: true, user: userData };
     } catch (error) {
       let errorMsg = "Login failed";
@@ -57,10 +72,13 @@ export const AuthProvider = ({ children }) => {
     try {
       const data = await apiRegister(email, password, companyName);
       setToken(data.access_token);
+      sessionStorage.setItem('token', data.access_token);
       localStorage.setItem('token', data.access_token);
       
       const userData = await getMe();
       setUser(userData);
+      sessionStorage.setItem('user', JSON.stringify(userData));
+      localStorage.setItem('user', JSON.stringify(userData));
       return { success: true, user: userData };
     } catch (error) {
       let errorMsg = "Registration failed";
@@ -78,7 +96,10 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     setToken(null);
     setUser(null);
+    sessionStorage.removeItem('token');
+    sessionStorage.removeItem('user');
     localStorage.removeItem('token');
+    localStorage.removeItem('user');
   };
 
   const value = {

@@ -147,7 +147,7 @@ function MainApp() {
         {showTopbar && (
           <Topbar
             company={company}
-            companies={user?.is_superuser ? companies : (company ? [company] : [])}
+            companies={[company]}
             onCompany={changeCompany}
           />
         )}

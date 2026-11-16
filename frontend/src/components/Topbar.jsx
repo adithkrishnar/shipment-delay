@@ -16,17 +16,28 @@ export default function Topbar({ company, companies, onCompany }) {
       </div>
 
       <div className="topbar-right">
-        {companies && companies.length > 1 && (
-          <select
-            className="company-select"
-            value={company?.id || ''}
-            onChange={e => onCompany(Number(e.target.value))}
-            aria-label="Select company"
+        {company && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 12px',
+              background: 'var(--bg-surface-2)',
+              border: '1px solid var(--border-default)',
+              borderRadius: 'var(--r-md)',
+              fontSize: '12px',
+              fontWeight: 600,
+              color: 'var(--text-primary)'
+            }}
           >
-            {companies.map(c => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
+            <span style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-tertiary)', letterSpacing: '0.05em' }}>
+              Tenant Scope:
+            </span>
+            <span style={{ color: 'var(--accent-primary)', fontWeight: 700 }}>
+              {company.name}
+            </span>
+          </div>
         )}
 
         {user && (

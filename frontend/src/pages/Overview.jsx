@@ -8,6 +8,7 @@ import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell
 } from 'recharts';
 import { getInventoryOverview, getWarehousesAnalytics, getRecentDisruptions } from '../services/api';
+import { useAlert } from '../context/AlertContext';
 import Loader from '../components/Loader';
 
 const RISK_COLORS = {
@@ -17,6 +18,7 @@ const RISK_COLORS = {
 };
 
 export default function Overview({ company }) {
+  const { triggerAlert } = useAlert();
   const [data, setData] = useState(null);
   const [warehouses, setWarehouses] = useState([]);
   const [disruptions, setDisruptions] = useState([]);
@@ -92,6 +94,61 @@ export default function Overview({ company }) {
       window.removeEventListener('storage', handleStorageUpdate);
     };
   }, []);
+
+  // Multi-laptop real-time synchronization (polls backend every 3.5s for live carrier reports)
+  useEffect(() => {
+    if (!company?.id) return;
+    let isSubscribed = true;
+
+    const pollLiveBackendDisruptions = async () => {
+      try {
+        const freshDisruptions = await getRecentDisruptions();
+        if (!isSubscribed || !Array.isArray(freshDisruptions)) return;
+
+        setDisruptions(prev => {
+          const prevKeys = new Set(prev.map(d => `${d.external_shipment_id || d.shipment_id}-${d.delay_hours}-${d.disruption_reason}`));
+          
+          let newlyDiscovered = null;
+          freshDisruptions.forEach(d => {
+            const key = `${d.external_shipment_id || d.shipment_id}-${d.delay_hours}-${d.disruption_reason}`;
+            if (!prevKeys.has(key)) {
+              newlyDiscovered = d;
+            }
+          });
+
+          if (newlyDiscovered) {
+            triggerAlert({
+              title: "Live Carrier Exception Received",
+              message: `Carrier exception on ${newlyDiscovered.external_shipment_id || '#' + newlyDiscovered.shipment_id} (+${newlyDiscovered.delay_hours}h ${newlyDiscovered.disruption_reason}). Downstream risk: $${newlyDiscovered.estimated_cost_loss?.toLocaleString() || '4,730'}.`,
+              severity: newlyDiscovered.delay_hours >= 12 ? 'critical' : 'warning'
+            });
+
+            const merged = [...freshDisruptions, ...prev];
+            const unique = [];
+            const seen = new Set();
+            for (const item of merged) {
+              const k = `${item.external_shipment_id || item.shipment_id}-${item.delay_hours}-${item.disruption_reason}`;
+              if (!seen.has(k)) {
+                seen.add(k);
+                unique.push(item);
+              }
+            }
+            return unique;
+          }
+
+          return prev;
+        });
+      } catch (err) {
+        // Quiet network retry
+      }
+    };
+
+    const timer = setInterval(pollLiveBackendDisruptions, 3500);
+    return () => {
+      isSubscribed = false;
+      clearInterval(timer);
+    };
+  }, [company?.id, triggerAlert]);
 
   if (loading) return <Loader />;
 
