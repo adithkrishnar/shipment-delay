@@ -591,18 +591,18 @@ export default function Shipments({ company }) {
                                       </div>
                                       <div className="flex-between">
                                         <span style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>Current On-Hand Buffer</span>
-                                        <strong>85 units (5.6 days coverage)</strong>
+                                        <strong>{isDelivered ? '185 units (Replenished +100 units)' : '85 units (Depleting @ 50 units/day)'}</strong>
                                       </div>
                                       <div className="flex-between">
                                         <span style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>Stockout Exposure Risk</span>
                                         <strong style={{ color: isDelayed ? 'var(--status-critical)' : 'var(--status-healthy)' }}>
-                                          {isDelayed ? 'CRITICAL (Shortage 45 units)' : 'HEALTHY (Stock Sufficient)'}
+                                          {isDelayed ? 'CRITICAL (Shortage 31.5 units)' : isDelivered ? 'RESOLVED (Stock Received)' : 'HEALTHY (Stock Sufficient)'}
                                         </strong>
                                       </div>
                                       <div className="flex-between">
                                         <span style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>Financial Risk Exposure</span>
                                         <strong style={{ color: isDelayed ? 'var(--status-critical)' : 'inherit' }}>
-                                          {isDelayed ? '$5,325.00 (Loss & SLA Penalty)' : '$0.00'}
+                                          {isDelayed ? '₹1,71,600.00 (Loss & SLA Penalty)' : '₹0.00'}
                                         </strong>
                                       </div>
                                     </div>

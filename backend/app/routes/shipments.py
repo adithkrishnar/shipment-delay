@@ -60,6 +60,10 @@ def list_shipment_risk(
     Returns both outgoing and inbound shipments for the given company,
     enriched with ML delay probability and live carrier assignment statuses.
     """
+    if not current_user.is_superuser:
+        if current_user.role == "company" and current_user.company_id != company_id:
+            raise HTTPException(status_code=403, detail="Forbidden: Not authorized to view another company's shipments.")
+
     company = db.query(Company).filter(Company.id == company_id).first()
     if not company:
         raise HTTPException(status_code=404, detail="Company not found.")
@@ -209,6 +213,10 @@ def get_shipment_risk(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user_or_demo)
 ):
+    if not current_user.is_superuser:
+        if current_user.role == "company" and current_user.company_id != company_id:
+            raise HTTPException(status_code=403, detail="Forbidden: Not authorized to view another company's shipments.")
+
     shipment = db.query(Shipment).filter(
         ((Shipment.company_id == company_id) | (Shipment.receiver_company_id == company_id)),
         Shipment.id == shipment_id
@@ -312,6 +320,13 @@ def create_shipment(
     Company Admin creates a new shipment, selects receiver & transporter,
     and provisions sequenced multi-modal transportation legs.
     """
+    if not current_user.is_superuser:
+        if current_user.role != "company" or current_user.company_id != company_id:
+            raise HTTPException(
+                status_code=403,
+                detail="Forbidden: Only authorized company managers can dispatch shipments for their enterprise."
+            )
+
     from app.models.transporter_org import TransporterOrganization
 
     # Validate product
@@ -363,11 +378,29 @@ def create_shipment(
     else:
         order_date = order_date_val or date.today()
 
-    # Generate authoritative human-readable reference: SH-BLR-2026-0001
+    # Generate authoritative human-readable reference: SH-BLR-2026-XXXX (collision-free)
     origin_text = payload.get("origin") or "Bengaluru Electronic City Plant"
-    count = db.query(Shipment).count()
     prefix = "BLR" if "bengaluru" in origin_text.lower() else "SHP"
-    external_ref = payload.get("external_shipment_id") or f"SH-{prefix}-2026-{count + 1:04d}"
+    external_ref = payload.get("external_shipment_id")
+
+    if not external_ref:
+        import re
+        existing_refs = db.query(Shipment.external_shipment_id).filter(
+            Shipment.external_shipment_id.like(f"SH-{prefix}-2026-%")
+        ).all()
+        max_seq = 0
+        for (ref,) in existing_refs:
+            m = re.search(r"(\d+)$", ref)
+            if m:
+                val = int(m.group(1))
+                if val > max_seq:
+                    max_seq = val
+        external_ref = f"SH-{prefix}-2026-{max_seq + 1:04d}"
+    else:
+        existing = db.query(Shipment).filter(Shipment.external_shipment_id == external_ref).first()
+        if existing:
+            import uuid
+            external_ref = f"{external_ref}-{uuid.uuid4().hex[:4].upper()}"
 
     shipment = Shipment(
         company_id=company_id,
@@ -462,10 +495,51 @@ def complete_shipment_leg(
     if not shipment:
         raise HTTPException(404, "Shipment not found")
 
+    if not current_user.is_superuser:
+        if current_user.role == "transporter":
+            is_assigned = (
+                not shipment.transporter_org_id or
+                (shipment.transporter_org_id == current_user.transporter_org_id) or
+                (shipment.carrier and current_user.carrier_name and shipment.carrier.strip().lower() in current_user.carrier_name.strip().lower()) or
+                (current_user.company_id == shipment.company_id)
+            )
+            if not is_assigned:
+                raise HTTPException(403, "Forbidden: Shipment is not assigned to your transporter fleet.")
+        elif current_user.role == "company":
+            if current_user.company_id != shipment.company_id:
+                raise HTTPException(403, "Forbidden: Only consignor dispatcher or assigned transporter can complete legs.")
+
+    if shipment.assignment_status in ("DELIVERED", "CANCELLED", "REVOKED"):
+        raise HTTPException(400, f"Cannot advance legs on a shipment with status '{shipment.assignment_status}'.")
+
     legs = db.query(ShipmentLeg).filter(ShipmentLeg.shipment_id == shipment.id).order_by(ShipmentLeg.sequence).all()
     target_leg = next((l for l in legs if l.id == leg_id or l.sequence == leg_id), None)
     if not target_leg:
         raise HTTPException(404, "Specified leg does not belong to this shipment")
+
+    # Idempotent check: if leg already completed, return immediately without re-triggering transitions
+    if target_leg.status == "COMPLETED":
+        next_leg = next((l for l in legs if l.sequence == target_leg.sequence + 1), None)
+        return {
+            "shipment_id": shipment.id,
+            "external_shipment_id": shipment.external_shipment_id,
+            "completed_leg": {
+                "id": target_leg.id,
+                "sequence": target_leg.sequence,
+                "origin": target_leg.origin,
+                "destination": target_leg.destination,
+                "status": target_leg.status
+            },
+            "next_leg": {
+                "id": next_leg.id,
+                "sequence": next_leg.sequence,
+                "origin": next_leg.origin,
+                "destination": next_leg.destination,
+                "status": next_leg.status
+            } if next_leg else None,
+            "assignment_status": shipment.assignment_status,
+            "message": f"Leg #{target_leg.sequence} was already marked COMPLETED previously."
+        }
 
     # Enforce sequential integrity: preceding legs must be COMPLETED
     for l in legs:
@@ -571,6 +645,14 @@ def confirm_shipment_delivery(
     if not shipment:
         raise HTTPException(404, "Shipment not found")
 
+    target_company_id = shipment.receiver_company_id or shipment.company_id
+    if not current_user.is_superuser:
+        if current_user.role != "company" or current_user.company_id != target_company_id:
+            raise HTTPException(
+                status_code=403,
+                detail="Forbidden: Only the receiving destination company can confirm physical cargo delivery and replenish warehouse stock."
+            )
+
     if shipment.assignment_status == "DELIVERED":
         return {
             "shipment_id": shipment.id,
@@ -579,7 +661,6 @@ def confirm_shipment_delivery(
             "message": "Shipment delivery was already confirmed previously."
         }
 
-    target_company_id = shipment.receiver_company_id or shipment.company_id
     now_dt = datetime.utcnow()
     today_date = now_dt.date()
 

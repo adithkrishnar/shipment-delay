@@ -20,6 +20,11 @@ from app.services.replenishment_service import (
 def generate_recommendations(db: Session, company_id: int) -> List[Dict[str, Any]]:
     recs: List[Dict[str, Any]] = []
 
+    # Resolve company currency preference
+    from app.models.company import Company
+    comp = db.query(Company).filter(Company.id == company_id).first()
+    curr_sym = "₹" if (comp and comp.default_currency == "INR") else "$"
+
     # 0. Active Carrier Transit Disruption Recovery Recommendations
     from app.models.shipment import Shipment
     from app.models.shipment_leg import DisruptionReport
@@ -42,6 +47,8 @@ def generate_recommendations(db: Session, company_id: int) -> List[Dict[str, Any
         prod_val = d.shipment.product.name if (d.shipment and d.shipment.product) else "Industrial IoT Telematics Controller"
 
         if is_critical:
+            net_savings_val = max(0.0, loss - 450.0)
+            roi_val = round((net_savings_val / 450.0) * 100) if 450.0 > 0 else 0
             recs.append({
                 "sku": sku_val,
                 "product_name": prod_val,
@@ -51,14 +58,14 @@ def generate_recommendations(db: Session, company_id: int) -> List[Dict[str, Any
                 "action_type": "DISRUPTION_MITIGATION",
                 "reason": (
                     f"Shipment {shipment_ref} is delayed by {delay_days} days due to {d.disruption_reason.lower().replace('_', ' ')}. "
-                    f"Destination warehouse faces an estimated stockout shortage of {shortage:.0f} units, exposing ${loss:,.2f} in revenue loss and contract SLA penalties."
+                    f"Destination warehouse faces an estimated stockout shortage of {shortage:.0f} units, exposing {curr_sym}{loss:,.2f} in revenue loss and contract SLA penalties."
                 ),
-                "financial_impact": f"${loss:,.2f}",
+                "financial_impact": f"{curr_sym}{loss:,.2f}",
                 "estimated_cost": 450.0,
-                "net_savings": max(0.0, loss - 450.0),
-                "expected_impact": f"Transfers {shortage:.0f} units from neighboring regional hub in under 12 hours ($450 cost), preventing stockout and securing ${max(0.0, loss - 450.0):,.2f} net ROI savings.",
+                "net_savings": net_savings_val,
+                "expected_impact": f"Transfers {shortage:.0f} units from neighboring regional hub in under 12 hours ({curr_sym}450 cost), preventing stockout and securing {curr_sym}{net_savings_val:,.2f} net ROI savings.",
                 "why_best": (
-                    f"Immediate inter-hub execution (under 12 hours) completely neutralizes the stockout risk without waiting weeks for new supplier manufacturing, delivering a net ROI saving of ${max(0.0, loss - 450.0):,.2f}."
+                    f"Immediate inter-hub execution (under 12 hours) completely neutralizes the stockout risk without waiting weeks for new supplier manufacturing, delivering a net ROI saving of {curr_sym}{net_savings_val:,.2f} ({roi_val:,}% ROI)."
                 ),
                 "details": {
                     "source": "CARRIER_TELEMATICS_BROADCAST",
@@ -77,7 +84,7 @@ def generate_recommendations(db: Session, company_id: int) -> List[Dict[str, Any
                 "action": "Monitor Shipment",
                 "action_type": "DISRUPTION_MITIGATION",
                 "reason": f"Shipment {shipment_ref} is delayed by {delay_days} days due to {d.disruption_reason.lower().replace('_', ' ')}. Warehouse buffer stock is sufficient to absorb this delay.",
-                "financial_impact": "$0.00",
+                "financial_impact": f"{curr_sym}0.00",
                 "estimated_cost": 0.0,
                 "net_savings": 0.0,
                 "expected_impact": "Normal operations maintained using existing safety buffer.",

@@ -98,3 +98,14 @@ def seed_mine_data(db: Session = Depends(get_db), current_user: User = Depends(g
         errors.append({"model": "shipment", "error": str(exc)})
         
     return {"status": "ok", "company": result, "trained_models": trained, "training_errors": errors}
+
+
+@router.post("/reset-benchmark-corridor")
+def reset_benchmark_corridor_endpoint(db: Session = Depends(get_db)):
+    """
+    Authoritative reset for live evaluators:
+    Resets the Bengaluru -> Chennai benchmark corridor (SH-BLR-2026-0001)
+    and destination warehouse inventory (85.0 units) to a fresh initial state.
+    """
+    from app.services.demo_seeder import reset_benchmark_corridor
+    return reset_benchmark_corridor(db)

@@ -621,7 +621,7 @@ def list_transporter_organizations(
 
 @router.post("/shipments/{shipment_id}/delay", response_model=TransporterDelayResponse, status_code=status.HTTP_201_CREATED)
 def report_shipment_delay(
-    shipment_id: int,
+    shipment_id: str,
     req: TransporterDelayRequest,
     current_user: User = Depends(get_current_user_or_demo),
     db: Session = Depends(get_db)
@@ -643,31 +643,40 @@ def report_shipment_delay(
             detail="Forbidden: Only authenticated transporters or company dispatchers may report shipment delays."
         )
 
-    # 2. Shipment retrieval & existence (supports numeric ID or code)
-    shipment = db.query(Shipment).filter(
-        (Shipment.id == shipment_id) |
-        (Shipment.external_shipment_id == f"DC-PO-00{shipment_id}") |
-        (Shipment.external_shipment_id == f"DC-PO-0{shipment_id}") |
-        (Shipment.external_shipment_id == str(shipment_id)) |
-        (Shipment.external_shipment_id == "SH-BLR-2026-0001") |
-        (Shipment.external_shipment_id.ilike(f"%{shipment_id}%"))
-    ).first()
+    # 2. Shipment retrieval & existence (supports numeric ID or human-readable reference)
+    shipment = None
+    if str(shipment_id).isdigit():
+        shipment = db.query(Shipment).filter(Shipment.id == int(shipment_id)).first()
+    if not shipment:
+        shipment = db.query(Shipment).filter(Shipment.external_shipment_id == str(shipment_id)).first()
+    if not shipment and str(shipment_id).isdigit():
+        shipment = db.query(Shipment).filter(
+            (Shipment.external_shipment_id == f"DC-PO-00{shipment_id}") |
+            (Shipment.external_shipment_id == f"DC-PO-0{shipment_id}")
+        ).first()
     if not shipment:
         raise HTTPException(status_code=404, detail="Shipment not found")
 
     # 3. Carrier Isolation & Authorization
-    if not current_user.is_superuser and current_user.role == "transporter":
-        is_assigned = (
-            not shipment.transporter_org_id or
-            (shipment.transporter_org_id == current_user.transporter_org_id) or
-            (shipment.carrier and current_user.carrier_name and shipment.carrier.strip().lower() in current_user.carrier_name.strip().lower()) or
-            (current_user.company_id == shipment.company_id)
-        )
-        if not is_assigned:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Forbidden: This shipment is not assigned to your transporter organization."
+    if not current_user.is_superuser:
+        if current_user.role == "transporter":
+            is_assigned = (
+                not shipment.transporter_org_id or
+                (shipment.transporter_org_id == current_user.transporter_org_id) or
+                (shipment.carrier and current_user.carrier_name and shipment.carrier.strip().lower() in current_user.carrier_name.strip().lower()) or
+                (current_user.company_id == shipment.company_id)
             )
+            if not is_assigned:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Forbidden: This shipment is not assigned to your transporter organization."
+                )
+        elif current_user.role == "company":
+            if current_user.company_id != shipment.company_id and current_user.company_id != shipment.receiver_company_id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Forbidden: You do not have permission to report delays on another company's shipment."
+                )
 
     # 4. Status eligibility check
     curr_status = (shipment.assignment_status or "").upper()

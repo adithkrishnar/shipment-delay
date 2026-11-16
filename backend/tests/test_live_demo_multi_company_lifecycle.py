@@ -25,8 +25,9 @@ from app.models import (
 )
 from app.models.shipment_leg import ShipmentLeg, DisruptionReport
 from app.models.action_approval import ActionApproval
-from app.services.demo_seeder import ensure_demo_accounts_seeded
+from app.services.demo_seeder import ensure_demo_accounts_seeded, reset_benchmark_corridor
 from app.auth.deps import get_current_user
+from fastapi import HTTPException
 from app.routes.auth import login_access_token
 from app.routes.shipments import (
     create_shipment, 
@@ -58,7 +59,9 @@ def run_e2e_lifecycle_test():
     init_db()
     db: Session = SessionLocal()
     seed_res = ensure_demo_accounts_seeded(db)
+    reset_res = reset_benchmark_corridor(db)
     print(f"[INIT] Master database & demo entities seeded: {seed_res['status']}")
+    print(f"[INIT] Benchmark corridor reset: {reset_res['shipment_id']} (Baseline On-Hand: {reset_res['initial_inventory']} units)")
 
     # 2. Phase 1: Authentication & Role Verification for 3 Companies
     print("\n[PHASE 1] Authenticating 3 Independent Enterprise Roles...")
@@ -177,10 +180,11 @@ def run_e2e_lifecycle_test():
     top_rec = disruption_recs[0]
     print(f"  [✓] Prescriptive Mitigation: {top_rec['action']} (Priority: {top_rec['priority']})")
     print(f"  [✓] Quantified Stockout Penalty: {top_rec['financial_impact']}")
-    print(f"  [✓] Mitigation Cost: ${top_rec['estimated_cost']}, Net ROI Savings: ${top_rec['net_savings']}")
+    print(f"  [✓] Mitigation Cost: ₹{top_rec['estimated_cost']}, Net ROI Savings: ₹{top_rec['net_savings']:,.2f}")
     print(f"  [✓] Decision Reasoning: {top_rec['why_best']}")
     assert top_rec["priority"] == "CRITICAL"
     assert top_rec["net_savings"] > 0
+    assert "₹" in top_rec["financial_impact"], "Currency should be formatted in Indian Rupees (₹)"
 
     # 8. Phase 7: Authorized Manager Approves Mitigation Action
     print("\n[PHASE 7] Company C Manager Approves Action in Control Tower...")
@@ -233,6 +237,7 @@ def run_e2e_lifecycle_test():
         InventoryRecord.warehouse_id == wh_c.id
     ).order_by(InventoryRecord.date.desc()).first()
     stock_before = inv_before.inventory_level if inv_before else 0.0
+    assert stock_before == 85.0, f"Expected deterministic initial inventory 85.0 units, got {stock_before}"
 
     deliv_res = confirm_shipment_delivery(
         shipment_id=s_blr.id,
@@ -241,10 +246,26 @@ def run_e2e_lifecycle_test():
         current_user=user_c
     )
     print(f"  [✓] Delivery Status: {deliv_res['status']} at {deliv_res['warehouse_name']}")
-    print(f"  [✓] Received: +{deliv_res['received_quantity']} units")
+    print(f"  [✓] Accepted Stock: +{deliv_res['received_quantity']} units")
     print(f"  [✓] Updated On-Hand Inventory: {deliv_res['new_inventory_level']} units (was {stock_before} units)")
     assert deliv_res["status"] == "DELIVERED"
-    assert deliv_res["new_inventory_level"] >= stock_before + 100.0
+    assert deliv_res["new_inventory_level"] == 185.0, f"Expected exactly 185.0 units (85 + 100), got {deliv_res['new_inventory_level']}"
+
+    # Verify Idempotency: Duplicate delivery call must NOT double-increment inventory
+    print("  [✓] Verifying Delivery Idempotency...")
+    dup_res = confirm_shipment_delivery(
+        shipment_id=s_blr.id,
+        payload={"received_quantity": 100.0},
+        db=db,
+        current_user=user_c
+    )
+    assert dup_res["status"] == "DELIVERED"
+    inv_after = db.query(InventoryRecord).filter(
+        InventoryRecord.company_id == comp_c.id,
+        InventoryRecord.warehouse_id == wh_c.id
+    ).order_by(InventoryRecord.date.desc()).first()
+    assert inv_after.inventory_level == 185.0, "Duplicate delivery call incorrectly added double inventory!"
+    print("  [✓] Delivery Idempotency Verified: Inventory level remains 185.0 units.")
 
     # 12. Phase 11: Verify Cross-Company Visibility Across Both Tenant Dashboards
     print("\n[PHASE 11] Verifying Real-Time Cross-Company Visibility...")
@@ -262,9 +283,63 @@ def run_e2e_lifecycle_test():
     assert s_in_receiver.assignment_status == "DELIVERED"
     print(f"  [✓] Receiver Control Tower (Company C): {s_in_receiver.external_shipment_id} → {s_in_receiver.assignment_status}")
 
+    # 13. Phase 12: Negative Security & RBAC Isolation Verification
+    print("\n[PHASE 12] Testing Strict RBAC, Tenant Isolation & Negative Permissions...")
+
+    # 13a. Carrier attempts to create a shipment directly -> 403 Forbidden
+    try:
+        create_shipment(company_id=comp_a.id, payload=dispatch_payload, db=db, current_user=user_b)
+        assert False, "Security violation: Carrier should NOT be permitted to create shipments!"
+    except HTTPException as e:
+        assert e.status_code == 403
+        print(f"  [✓] RBAC Rejection: Carrier cannot create shipments ({e.detail})")
+
+    # 13b. Carrier attempts to confirm delivery & replenish warehouse -> 403 Forbidden
+    try:
+        confirm_shipment_delivery(shipment_id=s_blr.id, payload={"received_quantity": 100.0}, db=db, current_user=user_b)
+        assert False, "Security violation: Carrier should NOT be permitted to confirm delivery on receiver warehouse!"
+    except HTTPException as e:
+        assert e.status_code == 403
+        print(f"  [✓] RBAC Rejection: Carrier cannot confirm final delivery on receiver DC ({e.detail})")
+
+    # 13c. Cross-Tenant Isolation: Company A user attempts to list Company C's private shipments -> 403 Forbidden
+    try:
+        list_shipment_risk(company_id=comp_c.id, db=db, current_user=user_a)
+        assert False, "Tenant isolation violation: Company A should NOT access Company C's shipment endpoint!"
+    except HTTPException as e:
+        assert e.status_code == 403
+        print(f"  [✓] Tenant Isolation Enforced: Cross-company access rejected ({e.detail})")
+
+    # 13d. Sequential Integrity: Attempt to complete Leg 3 on a new shipment when Leg 1 is incomplete -> 400 Bad Request
+    new_legs = db.query(ShipmentLeg).filter(ShipmentLeg.shipment_id == new_id).order_by(ShipmentLeg.sequence).all()
+    if len(new_legs) >= 3:
+        try:
+            complete_shipment_leg(shipment_id=new_id, leg_id=new_legs[2].id, db=db, current_user=user_b)
+            assert False, "Sequential violation: Out-of-order leg completion should be rejected!"
+        except HTTPException as e:
+            assert e.status_code == 400
+            print(f"  [✓] Sequential Integrity Enforced: Leg 3 blocked until preceding legs complete ({e.detail})")
+
+    # 13e. Cannot advance legs on an already DELIVERED shipment -> 400 Bad Request
+    try:
+        complete_shipment_leg(shipment_id=s_blr.id, leg_id=legs[1].id, db=db, current_user=user_b)
+        assert False, "Should not be able to advance legs on a DELIVERED shipment!"
+    except HTTPException as e:
+        assert e.status_code == 400
+        print(f"  [✓] Delivered Shipment Guard: {e.detail}")
+
+    # 13f. Leg Completion Idempotency on in-progress shipment:
+    # First complete Leg 1 on the newly dispatched shipment
+    adv_new_1 = complete_shipment_leg(shipment_id=new_id, leg_id=new_legs[0].id, db=db, current_user=user_b)
+    assert adv_new_1["completed_leg"]["status"] == "COMPLETED"
+    # Call complete Leg 1 again -> must return cleanly with idempotent notice
+    adv_new_dup = complete_shipment_leg(shipment_id=new_id, leg_id=new_legs[0].id, db=db, current_user=user_b)
+    assert "already marked COMPLETED" in adv_new_dup["message"]
+    print(f"  [✓] Leg Completion Idempotency Enforced: {adv_new_dup['message']}")
+
     db.close()
     print("\n" + "=" * 75)
-    print("  ALL 11 END-TO-END VERIFICATION PHASES PASSED WITH 100% SUCCESS!")
+    print("  ALL 12 END-TO-END VERIFICATION PHASES PASSED WITH 100% SUCCESS!")
     print("=" * 75)
 
 

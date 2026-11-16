@@ -256,6 +256,8 @@ def simulate_downstream_impact(
         total_cost_loss = 0.0
 
     # 5. Formulate Prescriptive AI Mitigations
+    target_comp = db.query(Company).filter(Company.id == target_company_id).first()
+    curr_sym = "₹" if (target_comp and target_comp.default_currency == "INR") else ("₹" if (shipment.company and shipment.company.default_currency == "INR") else "$")
     mitigations = []
     if not inventory_assessment_available:
         mitigations.append({
@@ -268,14 +270,16 @@ def simulate_downstream_impact(
             "why_best": "SUPPLYIQ preserves data integrity by withholding stockout predictions until verified warehouse stock records are provided."
         })
     elif stockout_predicted:
+        net_ben = round(max(0.0, total_cost_loss - 450.0), 2)
+        roi_p = round((net_ben / 450.0) * 100) if 450.0 > 0 else 0
         mitigations.append({
             "option_id": "INTER_HUB_TRANSFER",
             "title": "Emergency Inter-Warehouse Stock Transfer",
             "description": f"Transfer {min(int(expected_shortage_units) + 10, int(wh_stock if wh_stock else 100))} units from neighboring regional DC with surplus stock.",
             "estimated_cost": 450.0,
-            "net_savings": round(max(0.0, total_cost_loss - 450.0), 2),
+            "net_savings": net_ben,
             "priority": "RECOMMENDED",
-            "why_best": f"Immediate execution (transit time < 12 hrs). Solves the {expected_shortage_units:.0f}-unit shortage at destination DC without buying new stock, delivering a net ROI saving of ${max(0.0, total_cost_loss - 450.0):,.2f}."
+            "why_best": f"Immediate execution (transit time < 12 hrs). Solves the {expected_shortage_units:.0f}-unit shortage at destination DC without buying new stock, delivering a net ROI saving of {curr_sym}{net_ben:,.2f} ({roi_p:,}% ROI)."
         })
         mitigations.append({
             "option_id": "EXPEDITE_FINAL_LEG",

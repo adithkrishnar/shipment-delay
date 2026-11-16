@@ -11,7 +11,7 @@ import { DisruptionForm } from "../components/transporter/DisruptionForm";
 import { ReportDelayModal } from "../components/transporter/ReportDelayModal";
 import { CheckCircle2, AlertOctagon, X, Clock } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
-import { reportLegDisruption, reportShipmentDelay } from "../services/api";
+import { reportLegDisruption, reportShipmentDelay, getAssignedShipments } from "../services/api";
 import { useAlert } from "../context/AlertContext";
 
 export default function TransporterPortal() {
@@ -78,6 +78,69 @@ export default function TransporterPortal() {
       clearInterval(interval);
     };
   }, []);
+
+  // Live polling of assigned shipments from backend
+  useEffect(() => {
+    let active = true;
+    const fetchLive = async () => {
+      try {
+        const live = await getAssignedShipments();
+        if (live && live.length > 0 && active) {
+          const adapted: Shipment[] = live.map((s: any) => {
+            const hasDelayedLeg = s.legs?.some((l: any) => (l.delay_hours || 0) > 0);
+            const isPending = s.assignment_status === "PENDING";
+            const isDelivered = s.assignment_status === "DELIVERED";
+            return {
+              id: String(s.id),
+              reference: s.external_shipment_id || `SH-${s.id}`,
+              origin: s.origin,
+              destination: s.destination,
+              destinationFacility: s.destination || "Destination Facility",
+              carrierId: "CARRIER-B",
+              carrierName: s.carrier || carrierName,
+              customer: s.company_name,
+              serviceLevel: "express" as const,
+              transportModes: [s.transport_mode?.toLowerCase() || "road"],
+              plannedDelivery: s.planned_delivery,
+              currentEta: s.current_eta || s.planned_delivery,
+              status: isPending ? ("at_risk" as const) :
+                      (hasDelayedLeg || s.assignment_status === "DELAYED") ? ("delayed" as const) :
+                      isDelivered ? ("on_schedule" as const) : ("on_schedule" as const),
+              inventoryRisk: (hasDelayedLeg || s.assignment_status === "DELAYED") ? ("critical" as const) : ("low" as const),
+              requiresCarrierAction: isPending || hasDelayedLeg,
+              legs: (s.legs || []).map((l: any) => ({
+                id: String(l.id),
+                sequence: l.sequence,
+                mode: (l.mode?.toLowerCase() || "road") as any,
+                carrierId: "CARRIER-B",
+                carrierName: l.carrier_name || carrierName,
+                origin: l.origin,
+                destination: l.destination,
+                plannedDeparture: s.order_date || s.planned_delivery,
+                plannedArrival: s.planned_delivery,
+                status: l.status === "COMPLETED" ? ("on_schedule" as const) :
+                        l.status === "IN_TRANSIT" ? ("on_schedule" as const) :
+                        l.status === "DELAYED" ? ("delayed" as const) : ("monitoring" as const),
+                delayHours: l.delay_hours || 0,
+                isCarrierAssigned: true
+              })),
+              exceptions: [],
+              notifications: []
+            };
+          });
+          setShipments(adapted);
+        }
+      } catch (e) {
+        // Fallback to baseline shipments if unauthenticated or offline
+      }
+    };
+    fetchLive();
+    const liveInterval = setInterval(fetchLive, 3500);
+    return () => {
+      active = false;
+      clearInterval(liveInterval);
+    };
+  }, [user]);
 
   // Success toast state
   const [successToast, setSuccessToast] = useState<{
@@ -288,11 +351,11 @@ export default function TransporterPortal() {
       location: targetShipment?.currentCheckpoint || "Transit Route",
     });
 
-    // Real cloud synchronization to PostgreSQL on Render for cross-laptop multi-device alerts
+    // Real cloud synchronization for cross-laptop multi-device alerts
     (async () => {
       try {
-        const numericId = parseInt(data.shipmentId.replace(/\D/g, ""), 10) || 801;
-        await reportShipmentDelay(numericId, {
+        const shipmentRef = targetShipment?.reference || data.shipmentId;
+        await reportShipmentDelay(shipmentRef, {
           delay_hours: data.delayHours,
           reason: data.reason.replace(/_/g, " "),
           notes: data.notes || "Field delay reported via Transporter Portal.",

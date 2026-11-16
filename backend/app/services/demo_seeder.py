@@ -89,6 +89,7 @@ DEMO_ACCOUNTS: List[Dict[str, Any]] = [
         "password": "sender123",
         "role": "company",
         "is_superuser": False,
+        "default_currency": "INR",
         "org_name": None,
         "carrier_code": None,
         "carrier_name": None,
@@ -100,6 +101,7 @@ DEMO_ACCOUNTS: List[Dict[str, Any]] = [
         "password": "sender123",
         "role": "company",
         "is_superuser": False,
+        "default_currency": "INR",
         "org_name": None,
         "carrier_code": None,
         "carrier_name": None,
@@ -111,6 +113,7 @@ DEMO_ACCOUNTS: List[Dict[str, Any]] = [
         "password": "transporter123",
         "role": "transporter",
         "is_superuser": False,
+        "default_currency": "INR",
         "org_name": "Karnataka-Tamil Nadu Express Logistics",
         "carrier_code": "KTN-EXPRESS",
         "carrier_name": "Karnataka-Tamil Nadu Express Logistics",
@@ -122,6 +125,7 @@ DEMO_ACCOUNTS: List[Dict[str, Any]] = [
         "password": "transporter123",
         "role": "transporter",
         "is_superuser": False,
+        "default_currency": "INR",
         "org_name": "Karnataka-Tamil Nadu Express Logistics",
         "carrier_code": "KTN-EXPRESS",
         "carrier_name": "Karnataka-Tamil Nadu Express Logistics",
@@ -133,6 +137,7 @@ DEMO_ACCOUNTS: List[Dict[str, Any]] = [
         "password": "receiver123",
         "role": "company",
         "is_superuser": False,
+        "default_currency": "INR",
         "org_name": None,
         "carrier_code": None,
         "carrier_name": None,
@@ -144,6 +149,7 @@ DEMO_ACCOUNTS: List[Dict[str, Any]] = [
         "password": "receiver123",
         "role": "company",
         "is_superuser": False,
+        "default_currency": "INR",
         "org_name": None,
         "carrier_code": None,
         "carrier_name": None,
@@ -153,7 +159,7 @@ DEMO_ACCOUNTS: List[Dict[str, Any]] = [
 
 def ensure_demo_accounts_seeded(db: Session) -> Dict[str, Any]:
     """
-    Idempotently verifies and seeds the 4 critical demo companies, transporter orgs,
+    Idempotently verifies and seeds the demo companies, transporter orgs,
     and user credentials into the active database.
     Does not delete existing data or reset passwords if already valid.
     """
@@ -169,10 +175,14 @@ def ensure_demo_accounts_seeded(db: Session) -> Dict[str, Any]:
                     name=entry["company_name"],
                     industry=entry["industry"],
                     is_demo=1,
-                    default_currency="USD",
+                    default_currency=entry.get("default_currency", "USD"),
                     notes="Official demo tenant configured for SupplyIQ intelligence workflows.",
                 )
                 db.add(company)
+                db.flush()
+            else:
+                if "default_currency" in entry and company.default_currency != entry["default_currency"]:
+                    company.default_currency = entry["default_currency"]
                 db.flush()
 
             # 2. Transporter Organization (if transporter role)
@@ -544,14 +554,14 @@ def ensure_bengaluru_chennai_corridor(db: Session):
         db.add(inv_c)
         db.flush()
 
-    # 30-Day Sales Demand Baseline for Company C (average 12 units/day)
+    # 30-Day Sales Demand Baseline for Company C (expected daily demand: 50 units/day)
     has_sales = db.query(Sale).filter(Sale.company_id == comp_c.id, Sale.product_id == prod_c.id).first()
     if not has_sales:
         sales_records = []
         for days_ago in range(30, 0, -1):
             sale_date = today - timedelta(days=days_ago)
-            # deterministic realistic daily pattern: ~12-16 units
-            daily_units = 12.0 + (days_ago % 5)
+            # deterministic daily demand averaging exactly 50.0 units/day (48, 49, 50, 51, 52)
+            daily_units = 48.0 + (days_ago % 5)
             sales_records.append(Sale(
                 company_id=comp_c.id,
                 product_id=prod_c.id,
@@ -563,6 +573,12 @@ def ensure_bengaluru_chennai_corridor(db: Session):
             ))
         db.add_all(sales_records)
         db.flush()
+    else:
+        # Update existing sales to match 50.0 units/day requirement
+        sales_records = db.query(Sale).filter(Sale.company_id == comp_c.id, Sale.product_id == prod_c.id).all()
+        for idx, s in enumerate(sales_records):
+            s.quantity = 48.0 + (idx % 5)
+            s.price = 5400.0
 
     # Pre-Seeded Shipment: SH-BLR-2026-0001
     s_blr = db.query(Shipment).filter(Shipment.external_shipment_id == "SH-BLR-2026-0001").first()
@@ -643,5 +659,97 @@ def ensure_bengaluru_chennai_corridor(db: Session):
             )
         ]
         db.add_all(legs_blr)
+
+
+def reset_benchmark_corridor(db: Session) -> Dict[str, Any]:
+    """
+    Authoritative reset for live evaluators:
+    - SH-BLR-2026-0001 -> IN_TRANSIT, planned_delivery = tomorrow, current_eta = tomorrow, actual_delivery = None.
+    - Leg 1 -> COMPLETED (0 delay).
+    - Leg 2 -> IN_TRANSIT (0 delay).
+    - Leg 3 -> SCHEDULED (0 delay).
+    - Chennai Central DC stock -> exactly 85.0 units.
+    - Clears DisruptionReport, ShipmentDelay, active Alerts, and ActionApprovals for SH-BLR-2026-0001.
+    Does NOT delete real company accounts or unrelated shipments.
+    """
+    from datetime import date, datetime, timedelta
+    from app.models import (
+        Company, Product, Warehouse, InventoryRecord, 
+        Sale, Shipment, Alert
+    )
+    from app.models.shipment_leg import ShipmentLeg, DisruptionReport
+    from app.models.shipment_delay import ShipmentDelay
+    from app.models.action_approval import ActionApproval
+
+    # Ensure corridor is initialized
+    ensure_bengaluru_chennai_corridor(db)
+
+    comp_c = db.query(Company).filter(Company.name == "Chennai Central Distribution").first()
+    wh_chn = db.query(Warehouse).filter(Warehouse.company_id == comp_c.id, Warehouse.name == "Chennai Central DC").first() if comp_c else None
+    prod_c = db.query(Product).filter(Product.company_id == comp_c.id, Product.external_product_id == "SKU-BLR-101").first() if comp_c else None
+
+    # 1. Reset Inventory at Chennai Central DC to exactly 85.0 units
+    if comp_c and wh_chn and prod_c:
+        inv = db.query(InventoryRecord).filter(
+            InventoryRecord.company_id == comp_c.id,
+            InventoryRecord.warehouse_id == wh_chn.id,
+            InventoryRecord.product_id == prod_c.id
+        ).first()
+        if inv:
+            inv.inventory_level = 85.0
+            inv.date = date.today()
+        else:
+            inv = InventoryRecord(
+                company_id=comp_c.id,
+                warehouse_id=wh_chn.id,
+                product_id=prod_c.id,
+                date=date.today(),
+                inventory_level=85.0
+            )
+            db.add(inv)
+
+        # Ensure sales demand averages 50 units/day
+        sales = db.query(Sale).filter(Sale.company_id == comp_c.id, Sale.product_id == prod_c.id).all()
+        for idx, s in enumerate(sales):
+            s.quantity = 48.0 + (idx % 5)
+            s.price = 5400.0
+
+    # 2. Reset Benchmark Shipment SH-BLR-2026-0001
+    s_blr = db.query(Shipment).filter(Shipment.external_shipment_id == "SH-BLR-2026-0001").first()
+    if s_blr:
+        today = date.today()
+        s_blr.assignment_status = "IN_TRANSIT"
+        s_blr.planned_delivery = today + timedelta(days=1)
+        s_blr.current_eta = today + timedelta(days=1)
+        s_blr.actual_delivery = None
+        s_blr.quantity = 100.0
+
+        legs = db.query(ShipmentLeg).filter(ShipmentLeg.shipment_id == s_blr.id).order_by(ShipmentLeg.sequence).all()
+        if len(legs) >= 3:
+            legs[0].status = "COMPLETED"
+            legs[0].delay_hours = 0.0
+            legs[1].status = "IN_TRANSIT"
+            legs[1].delay_hours = 0.0
+            legs[1].missed_connection_dwell_hrs = 0.0
+            legs[2].status = "SCHEDULED"
+            legs[2].delay_hours = 0.0
+
+        # Clean prior disruption reports and shipment delays for this shipment
+        db.query(DisruptionReport).filter(DisruptionReport.shipment_id == s_blr.id).delete()
+        db.query(ShipmentDelay).filter(ShipmentDelay.shipment_id == s_blr.id).delete()
+        db.query(Alert).filter(Alert.entity_id == s_blr.id).delete()
+        db.query(ActionApproval).filter(ActionApproval.action_id.like("%DISRUPTION%")).delete()
+
+    db.commit()
+    return {
+        "status": "success",
+        "corridor": "Bengaluru Electronic City -> Chennai Central DC",
+        "shipment_id": "SH-BLR-2026-0001",
+        "initial_inventory": 85.0,
+        "shipment_quantity": 100.0,
+        "daily_demand": 50.0,
+        "currency": "INR (₹)",
+        "message": "Benchmark corridor safely reset to fresh initial state for live evaluation."
+    }
 
 
