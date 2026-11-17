@@ -87,7 +87,9 @@ def simulate(db: Session, company_id: int, product_id: int, demand_multiplier: f
     std = base["demand_std"]
     safety = max(0, 1.65 * std * math.sqrt(lead))
     horizon = daily * lead
-    stockout = 1 / (1 + math.exp((inventory + incoming - horizon - safety) / max(1, daily*2)))
+    raw_exp = (inventory + incoming - horizon - safety) / max(1, daily*2)
+    clamped_exp = max(-50.0, min(50.0, float(raw_exp)))
+    stockout = 1 / (1 + math.exp(clamped_exp))
     reorder = max(0, daily*30 + safety - inventory - incoming + reorder_delta)
     overstock = float(np.clip(max(0, inventory / max(1, daily*45)-1) * .75, 0, 1))
     return {"product_id": product_id, "baseline": base, "scenario": {"inventory_level":round(inventory,2),"daily_demand":round(daily,2),"incoming_quantity":round(incoming,2),"effective_lead_time_days":round(lead,2),"stockout_probability":round(float(stockout),4),"stockout_risk": _tier(float(stockout)),"overstock_probability":round(overstock,4),"overstock_risk":_tier(overstock),"recommended_order_quantity":int(math.ceil(reorder))}, "delta": {"stockout_probability_change":round(float(stockout-base["stockout_probability"]),4),"recommended_order_change":int(math.ceil(reorder)-base["recommended_order_quantity"])}}

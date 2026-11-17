@@ -224,7 +224,9 @@ def analyze_product(db: Session, company_id: int, product_id: int, delay_days: f
     shortage = max(0.0, horizon_demand + safety_stock - inventory - incoming_qty)
 
     # Transparent risk heuristic, deliberately separate from the ML delay model.
-    stockout_prob = 1.0 / (1.0 + math.exp((inventory + incoming_qty - horizon_demand - safety_stock) / max(1.0, daily * 2)))
+    raw_exp = (inventory + incoming_qty - horizon_demand - safety_stock) / max(1.0, daily * 2)
+    clamped_exp = max(-50.0, min(50.0, float(raw_exp)))
+    stockout_prob = 1.0 / (1.0 + math.exp(clamped_exp))
     stockout_prob = float(np.clip(stockout_prob, 0.0, 1.0))
     overstock_ratio = max(0.0, inventory / max(1.0, daily * 45) - 1.0)
     overstock_prob = float(np.clip(overstock_ratio * 0.75, 0.0, 1.0))
