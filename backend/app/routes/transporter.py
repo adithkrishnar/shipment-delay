@@ -503,9 +503,11 @@ def get_recent_disruptions(
         else:
             q = q.filter(Shipment.carrier == current_user.carrier_name)
     elif current_user and not current_user.is_superuser:
-        # Company user sees reports for their company's shipments, plus global benchmark demo corridors
+        # Company user sees reports for their company's shipments (as sender or receiver), plus benchmark demo corridors
         q = q.filter(
             (Shipment.company_id == current_user.company_id) |
+            (Shipment.receiver_company_id == current_user.company_id) |
+            (Shipment.external_shipment_id.like("SH-BLR-%")) |
             (Shipment.external_shipment_id.like("DC-PO-%")) |
             (Shipment.company_id.is_(None))
         )
