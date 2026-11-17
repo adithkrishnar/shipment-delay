@@ -34,41 +34,76 @@ def analyze_multi_leg_shipment(db: Session, company_id: int, shipment_id: int, s
     
     base_start = datetime.combine(shipment.order_date, datetime.min.time()) if shipment.order_date else datetime.now()
     
+    from app.models.shipment_leg import ShipmentLeg
+    from app.services.collaborative_disruption_service import ensure_shipment_legs
+
+    real_legs = db.query(ShipmentLeg).filter(ShipmentLeg.shipment_id == shipment.id).order_by(ShipmentLeg.sequence).all()
+    if not real_legs:
+        real_legs = ensure_shipment_legs(db, shipment)
+
     legs = []
     waiting_periods = []
-    
-    if scenario == 1:
-        # LOW RISK: Warehouse -> Airport -> Dest Airport -> Dest Warehouse
+
+    if real_legs:
+        for i, l in enumerate(real_legs):
+            # Scale simulated scenario delays if user clicks scenario 2 or 3
+            simulated_leg_delay = float(l.delay_hours or 0.0)
+            if scenario == 2 and l.sequence == 2 and simulated_leg_delay == 0.0:
+                simulated_leg_delay = 4.0
+            elif scenario == 3 and l.sequence == 2 and simulated_leg_delay == 0.0:
+                simulated_leg_delay = 16.0
+
+            legs.append({
+                "leg_id": l.id,
+                "sequence": l.sequence,
+                "mode": l.mode or shipment.transport_mode or "ROAD",
+                "origin": l.origin,
+                "destination": l.destination,
+                "distance": float(l.distance_km or 100.0),
+                "expected_duration": float(l.expected_duration_hrs or 2.0),
+                "actual_or_predicted_duration": float((l.expected_duration_hrs or 2.0) + simulated_leg_delay),
+                "transport_delay": simulated_leg_delay
+            })
+            if i < len(real_legs) - 1:
+                wait_dur = float(l.missed_connection_dwell_hrs or 0.0)
+                if scenario == 3 and l.sequence == 2 and wait_dur == 0.0:
+                    wait_dur = 12.0
+                elif scenario == 2 and l.sequence == 2 and wait_dur == 0.0:
+                    wait_dur = 2.0
+                waiting_periods.append({
+                    "between_leg": f"{l.sequence}-{real_legs[i+1].sequence}",
+                    "waiting_duration": wait_dur
+                })
+    elif scenario == 1:
+        # Fallback template if no database legs exist
         legs = [
-            {"leg_id": 1, "sequence": 1, "mode": "ROAD", "origin": shipment.origin or "Supplier Warehouse", "destination": "Origin Airport", "distance": 50.0, "expected_duration": 2.0, "actual_or_predicted_duration": 2.0, "transport_delay": 0.0},
-            {"leg_id": 2, "sequence": 2, "mode": "AIR", "origin": "Origin Airport", "destination": "Dest Airport", "distance": 1500.0, "expected_duration": 4.0, "actual_or_predicted_duration": 4.0, "transport_delay": 0.0},
-            {"leg_id": 3, "sequence": 3, "mode": "ROAD", "origin": "Dest Airport", "destination": shipment.destination or "Company Warehouse", "distance": 30.0, "expected_duration": 1.5, "actual_or_predicted_duration": 1.5, "transport_delay": 0.0}
+            {"leg_id": 1, "sequence": 1, "mode": "ROAD", "origin": shipment.origin or "Origin Facility", "destination": "Regional Consolidation Hub", "distance": 50.0, "expected_duration": 2.0, "actual_or_predicted_duration": 2.0, "transport_delay": 0.0},
+            {"leg_id": 2, "sequence": 2, "mode": "ROAD", "origin": "Regional Consolidation Hub", "destination": "Destination Intermediate Depot", "distance": 280.0, "expected_duration": 6.0, "actual_or_predicted_duration": 6.0, "transport_delay": 0.0},
+            {"leg_id": 3, "sequence": 3, "mode": "ROAD", "origin": "Destination Intermediate Depot", "destination": shipment.destination or "Destination DC", "distance": 35.0, "expected_duration": 1.5, "actual_or_predicted_duration": 1.5, "transport_delay": 0.0}
         ]
         waiting_periods = [
-            {"between_leg": "1-2", "waiting_duration": 2.0}, # 2 hours
-            {"between_leg": "2-3", "waiting_duration": 1.0}  # 1 hour
+            {"between_leg": "1-2", "waiting_duration": 1.0},
+            {"between_leg": "2-3", "waiting_duration": 1.0}
         ]
     elif scenario == 2:
-        # MODERATE RISK: Road delay + some waiting
         legs = [
-            {"leg_id": 1, "sequence": 1, "mode": "ROAD", "origin": shipment.origin, "destination": "Port", "distance": 200.0, "expected_duration": 6.0, "actual_or_predicted_duration": 12.0, "transport_delay": 6.0},
-            {"leg_id": 2, "sequence": 2, "mode": "SEA", "origin": "Port", "destination": "Dest Port", "distance": 3000.0, "expected_duration": 120.0, "actual_or_predicted_duration": 120.0, "transport_delay": 0.0},
-            {"leg_id": 3, "sequence": 3, "mode": "ROAD", "origin": "Dest Port", "destination": shipment.destination, "distance": 100.0, "expected_duration": 4.0, "actual_or_predicted_duration": 4.0, "transport_delay": 0.0}
+            {"leg_id": 1, "sequence": 1, "mode": "ROAD", "origin": shipment.origin, "destination": "Regional Consolidation Hub", "distance": 50.0, "expected_duration": 2.0, "actual_or_predicted_duration": 2.0, "transport_delay": 0.0},
+            {"leg_id": 2, "sequence": 2, "mode": "ROAD", "origin": "Regional Consolidation Hub", "destination": "Destination Intermediate Depot", "distance": 280.0, "expected_duration": 6.0, "actual_or_predicted_duration": 10.0, "transport_delay": 4.0},
+            {"leg_id": 3, "sequence": 3, "mode": "ROAD", "origin": "Destination Intermediate Depot", "destination": shipment.destination, "distance": 35.0, "expected_duration": 1.5, "actual_or_predicted_duration": 1.5, "transport_delay": 0.0}
         ]
         waiting_periods = [
-            {"between_leg": "1-2", "waiting_duration": 48.0}, # 2 days waiting for ship
-            {"between_leg": "2-3", "waiting_duration": 12.0}
+            {"between_leg": "1-2", "waiting_duration": 2.0},
+            {"between_leg": "2-3", "waiting_duration": 2.0}
         ]
     else:
-        # CRITICAL RISK: Significant delays
         legs = [
-            {"leg_id": 1, "sequence": 1, "mode": "ROAD", "origin": shipment.origin, "destination": "Rail Yard", "distance": 100.0, "expected_duration": 3.0, "actual_or_predicted_duration": 3.0, "transport_delay": 0.0},
-            {"leg_id": 2, "sequence": 2, "mode": "RAIL", "origin": "Rail Yard", "destination": "Dest Rail Yard", "distance": 1000.0, "expected_duration": 48.0, "actual_or_predicted_duration": 96.0, "transport_delay": 48.0},
-            {"leg_id": 3, "sequence": 3, "mode": "ROAD", "origin": "Dest Rail Yard", "destination": shipment.destination, "distance": 50.0, "expected_duration": 2.0, "actual_or_predicted_duration": 10.0, "transport_delay": 8.0}
+            {"leg_id": 1, "sequence": 1, "mode": "ROAD", "origin": shipment.origin, "destination": "Regional Consolidation Hub", "distance": 50.0, "expected_duration": 2.0, "actual_or_predicted_duration": 2.0, "transport_delay": 0.0},
+            {"leg_id": 2, "sequence": 2, "mode": "ROAD", "origin": "Regional Consolidation Hub", "destination": "Destination Intermediate Depot", "distance": 280.0, "expected_duration": 6.0, "actual_or_predicted_duration": 22.0, "transport_delay": 16.0},
+            {"leg_id": 3, "sequence": 3, "mode": "ROAD", "origin": "Destination Intermediate Depot", "destination": shipment.destination, "distance": 35.0, "expected_duration": 1.5, "actual_or_predicted_duration": 1.5, "transport_delay": 0.0}
         ]
         waiting_periods = [
-            {"between_leg": "1-2", "waiting_duration": 72.0}, # 3 days waiting
-            {"between_leg": "2-3", "waiting_duration": 48.0}  # 2 days waiting
+            {"between_leg": "1-2", "waiting_duration": 2.0},
+            {"between_leg": "2-3", "waiting_duration": 12.0}
         ]
         
     total_transport_delay_hrs = sum(l["transport_delay"] for l in legs)
