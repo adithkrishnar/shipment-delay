@@ -734,11 +734,13 @@ def reset_benchmark_corridor(db: Session) -> Dict[str, Any]:
             legs[2].status = "SCHEDULED"
             legs[2].delay_hours = 0.0
 
-        # Clean prior disruption reports and shipment delays for this shipment
-        db.query(DisruptionReport).filter(DisruptionReport.shipment_id == s_blr.id).delete()
-        db.query(ShipmentDelay).filter(ShipmentDelay.shipment_id == s_blr.id).delete()
-        db.query(Alert).filter(Alert.entity_id == s_blr.id).delete()
-        db.query(ActionApproval).filter(ActionApproval.action_id.like("%DISRUPTION%")).delete()
+        # Clean prior disruption reports and shipment delays for all demo corridor shipments
+        demo_shipment_ids = [s.id for s in db.query(Shipment).filter(Shipment.external_shipment_id.like("SH-BLR-%")).all()]
+        if demo_shipment_ids:
+            db.query(DisruptionReport).filter(DisruptionReport.shipment_id.in_(demo_shipment_ids)).delete(synchronize_session=False)
+            db.query(ShipmentDelay).filter(ShipmentDelay.shipment_id.in_(demo_shipment_ids)).delete(synchronize_session=False)
+            db.query(Alert).filter(Alert.entity_id.in_(demo_shipment_ids)).delete(synchronize_session=False)
+        db.query(ActionApproval).filter(ActionApproval.action_id.like("%DISRUPTION%")).delete(synchronize_session=False)
 
     db.commit()
     return {
