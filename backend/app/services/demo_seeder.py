@@ -742,6 +742,15 @@ def reset_benchmark_corridor(db: Session) -> Dict[str, Any]:
             db.query(Alert).filter(Alert.entity_id.in_(demo_shipment_ids)).delete(synchronize_session=False)
         db.query(ActionApproval).filter(ActionApproval.action_id.like("%DISRUPTION%")).delete(synchronize_session=False)
 
+        # Remove temporary auto-generated test shipments from previous test runs, leaving clean benchmark
+        temp_ships = db.query(Shipment).filter(
+            Shipment.external_shipment_id.like("SH-BLR-%"),
+            Shipment.external_shipment_id != "SH-BLR-2026-0001"
+        ).all()
+        for ts in temp_ships:
+            db.query(ShipmentLeg).filter(ShipmentLeg.shipment_id == ts.id).delete(synchronize_session=False)
+            db.delete(ts)
+
     db.commit()
     return {
         "status": "success",
