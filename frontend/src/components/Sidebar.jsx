@@ -22,6 +22,7 @@ export default function Sidebar() {
       label: 'Operations',
       links: [
         ['/', 'Overview', LayoutDashboard],
+        ['/shipments', 'Shipments & In-Transit', Truck],
         ['/inventory', 'Inventory Explorer', Boxes],
         ['/products', 'Products & Warehouses', Warehouse],
         ['/demand', 'Demand Forecasts', TrendingUp],

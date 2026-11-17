@@ -417,7 +417,7 @@ export default function Overview({ company }) {
                   <div style={{ textAlign: 'right' }}>
                     <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>Estimated Loss</div>
                     <div style={{ fontSize: '16px', fontWeight: 700, color: d.estimated_cost_loss > 0 ? '#ef4444' : 'var(--status-healthy)' }}>
-                      ${d.estimated_cost_loss?.toLocaleString() || '0'}
+                      {(company?.default_currency === 'INR' || d.currency === 'INR' || true) ? '₹' : '$'}{d.estimated_cost_loss?.toLocaleString() || '0'}
                     </div>
                   </div>
 
