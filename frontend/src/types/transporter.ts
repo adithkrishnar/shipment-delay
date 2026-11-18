@@ -91,6 +91,7 @@ export interface Shipment {
   plannedDelivery: string;
   currentEta: string;
   status: ShipmentStatus;
+  assignmentStatus?: string;
   inventoryRisk: RiskLevel;
   requiresCarrierAction: boolean;
   exceptions: DisruptionReport[];

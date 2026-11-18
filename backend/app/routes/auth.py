@@ -46,13 +46,27 @@ def login_access_token(
 @router.get("/me")
 def read_users_me(current_user: User = Depends(get_current_user)):
     """
-    Get current user profile.
+    Get current user profile with participant role classification.
     """
+    participant_role = "company"
+    company_name = (current_user.company.name if current_user.company else "").lower()
+    email_lower = (current_user.email or "").lower()
+    user_role_lower = (current_user.role or "").lower()
+
+    if user_role_lower == "transporter":
+        participant_role = "transporter"
+    elif user_role_lower in ("sender", "consignor") or "sender" in email_lower or "manufacturing" in company_name:
+        participant_role = "sender"
+    elif user_role_lower in ("receiver", "consignee") or "receiver" in email_lower or "distribution" in company_name:
+        participant_role = "receiver"
+
     return {
         "id": current_user.id,
         "email": current_user.email,
         "role": current_user.role or "company",
+        "participant_role": participant_role,
         "carrier_name": current_user.carrier_name,
+        "transporter_org_id": current_user.transporter_org_id,
         "company_id": current_user.company_id,
         "is_superuser": current_user.is_superuser
     }

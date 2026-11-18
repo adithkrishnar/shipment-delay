@@ -106,6 +106,7 @@ class ShipmentRiskOut(BaseModel):
     destination: str | None
     carrier: str | None
     transport_mode: str | None
+    company_id: int | None = None
     receiver_company_id: int | None = None
     receiver_company_name: str | None = None
     sender_company_name: str | None = None
@@ -122,6 +123,10 @@ class ShipmentRiskOut(BaseModel):
     expected_delay_days: float | None
     top_risk_factors: list[RiskFactorOut]
     model_source: str
+    quantity: float | None = 100.0
+    weight_kg: float | None = None
+    product_name: str | None = None
+    destination_warehouse: str | None = None
 
 
 class ShipmentListResponse(BaseModel):

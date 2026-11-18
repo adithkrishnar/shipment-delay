@@ -93,17 +93,35 @@ def _supplier_for_product(db: Session, company_id: int, product_id: int):
     )
 
 
-def _incoming(db: Session, company_id: int, product_id: int):
-    return (
-        db.query(Shipment)
-        .filter(
-            Shipment.company_id == company_id,
-            Shipment.product_id == product_id,
-            Shipment.actual_delivery.is_(None),
-        )
-        .order_by(Shipment.planned_delivery.asc())
-        .all()
+def _incoming(db: Session, company_id: int, product_id: int, warehouse_id: Optional[int] = None):
+    target_product = db.query(Product).filter(Product.id == product_id).first()
+    matching_prod_ids = [product_id]
+    if target_product and target_product.external_product_id:
+        matching_prod_ids = [p.id for p in db.query(Product.id).filter(Product.external_product_id == target_product.external_product_id).all()]
+
+    # Incoming inventory must only include shipments destined for the receiver:
+    # 1) receiver_company_id == company_id (multi-tenant inbound freight)
+    # 2) OR receiver_company_id is None AND company_id == company_id (legacy single-enterprise inbound procurement)
+    # Outbound dispatches created by company_id for other receivers are strictly excluded.
+    incoming_condition = (
+        (Shipment.receiver_company_id == company_id) |
+        (Shipment.receiver_company_id.is_(None) & (Shipment.company_id == company_id))
     )
+
+    q = db.query(Shipment).filter(
+        incoming_condition,
+        Shipment.product_id.in_(matching_prod_ids),
+        Shipment.actual_delivery.is_(None),
+        Shipment.assignment_status.in_(["IN_TRANSIT", "ACCEPTED", "DELAYED", "ARRIVED", "PENDING"]),
+    )
+
+    if warehouse_id is not None:
+        q = q.filter(
+            (Shipment.destination_warehouse_id == warehouse_id) |
+            (Shipment.destination_warehouse_id.is_(None))
+        )
+
+    return q.order_by(Shipment.planned_delivery.asc()).all()
 
 
 def _risk_tier(prob: float) -> str:
@@ -191,7 +209,7 @@ def get_supplier_lead_time_stats(
     return float(default_lead_time), 0.0, "default_lead_time_fallback"
 
 
-def analyze_product(db: Session, company_id: int, product_id: int, delay_days: float = 0.0, latest_inv_map: dict = None) -> dict:
+def analyze_product(db: Session, company_id: int, product_id: int, delay_days: float = 0.0, latest_inv_map: dict = None, warehouse_id: Optional[int] = None) -> dict:
     product = db.query(Product).filter(Product.company_id == company_id, Product.id == product_id).first()
     if not product:
         raise ValueError("Product not found for company")
@@ -210,7 +228,10 @@ def analyze_product(db: Session, company_id: int, product_id: int, delay_days: f
     )
     reliability = float(supplier.reliability) if supplier and supplier.reliability is not None else 0.85
 
-    incoming = _incoming(db, company_id, product_id)
+    incoming = _incoming(db, company_id, product_id, warehouse_id=warehouse_id)
+    physically_in_transit_qty = sum(float(s.quantity or 0) for s in incoming if s.assignment_status in ["IN_TRANSIT", "DELAYED"])
+    arrived_qty = sum(float(s.quantity or 0) for s in incoming if s.assignment_status == "ARRIVED")
+    awaiting_dispatch_qty = sum(float(s.quantity or 0) for s in incoming if s.assignment_status in ["PENDING", "ACCEPTED"])
     incoming_qty = sum(float(s.quantity or 0) for s in incoming)
     next_arrival = min((s.planned_delivery for s in incoming), default=None)
     if next_arrival and delay_days:
@@ -253,6 +274,15 @@ def analyze_product(db: Session, company_id: int, product_id: int, delay_days: f
         "simulated_delay_days": round(float(delay_days), 1),
         "effective_lead_time_days": round(effective_lead, 1),
         "incoming_quantity": round(incoming_qty, 2),
+        "physically_in_transit_quantity": round(physically_in_transit_qty, 2),
+        "arrived_quantity": round(arrived_qty, 2),
+        "awaiting_dispatch_quantity": round(awaiting_dispatch_qty, 2),
+        "total_expected_inventory": round(inventory + incoming_qty, 2),
+        "pipeline_breakdown": {
+            "physically_in_transit": round(physically_in_transit_qty, 2),
+            "arrived_pending_inward": round(arrived_qty, 2),
+            "awaiting_dispatch": round(awaiting_dispatch_qty, 2),
+        },
         "next_arrival": str(next_arrival) if next_arrival else None,
         "safety_stock": round(safety_stock, 2),
         "reorder_point": round(reorder_point, 2),

@@ -70,7 +70,7 @@ export function RouteTimeline({ shipment, onReportLeg }: RouteTimelineProps) {
                   </strong>
                   <TransportModeBadge mode={leg.mode} />
 
-                  {isAssigned && (
+                  {isAssigned ? (
                     <span
                       style={{
                         fontSize: "10px",
@@ -83,6 +83,20 @@ export function RouteTimeline({ shipment, onReportLeg }: RouteTimelineProps) {
                       }}
                     >
                       ★ Assigned to Your Fleet
+                    </span>
+                  ) : (
+                    <span
+                      style={{
+                        fontSize: "10px",
+                        fontWeight: 600,
+                        padding: "2px 6px",
+                        borderRadius: "4px",
+                        background: "rgba(160, 174, 192, 0.1)",
+                        color: "var(--text-secondary, #A0AEC0)",
+                        border: "1px solid rgba(160, 174, 192, 0.25)",
+                      }}
+                    >
+                      Partner Carrier: {leg.carrierName || "External Partner"}
                     </span>
                   )}
                 </div>

@@ -10,6 +10,7 @@ interface ShipmentTableProps {
   onSelectShipment: (shipment: Shipment) => void;
   onOpenReportModal: (shipment: Shipment) => void;
   onOpenDelayModal: (shipment: Shipment) => void;
+  onAcceptAssignment?: (shipment: Shipment) => void;
   approvedActionIds?: Set<string>;
 }
 
@@ -19,6 +20,7 @@ export function ShipmentTable({
   onSelectShipment,
   onOpenReportModal,
   onOpenDelayModal,
+  onAcceptAssignment,
   approvedActionIds,
 }: ShipmentTableProps) {
   if (shipments.length === 0) {
@@ -302,6 +304,33 @@ export function ShipmentTable({
                     >
                       <Eye size={12} /> Route
                     </button>
+
+                    {/* Primary Accept Assignment button if shipment is PENDING */}
+                    {s.assignmentStatus === "PENDING" && onAcceptAssignment && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onAcceptAssignment(s);
+                        }}
+                        style={{
+                          padding: "5px 12px",
+                          fontSize: "11px",
+                          fontWeight: 700,
+                          borderRadius: "4px",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "4px",
+                          border: "none",
+                          cursor: "pointer",
+                          backgroundColor: "#38E5A3",
+                          color: "#040810",
+                          boxShadow: "0 2px 8px rgba(56, 229, 163, 0.4)",
+                        }}
+                        title="Accept this freight dispatch assignment"
+                      >
+                        <CheckCircle2 size={12} /> Accept Assignment
+                      </button>
+                    )}
 
                     {/* Primary Report Delay button */}
                     <button

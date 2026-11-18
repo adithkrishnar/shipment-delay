@@ -1,13 +1,31 @@
 import { Shipment, DelayCalculationResult, ShipmentLeg, RiskLevel, ShipmentStatus } from "../types/transporter";
 
 /**
- * Format ISO or date string to readable format e.g. "Nov 12, 14:30"
+ * Format ISO, date-only, or timestamp string to human-readable format.
+ * Rule: Date-only strings ("YYYY-MM-DD") must display the calendar date without inventing a time (e.g. "Nov 18, 2026").
+ * Timestamp strings with time ("YYYY-MM-DDTHH:mm:ss") display month, day, and actual time ("Nov 18, 14:30").
  */
 export function formatDateTime(isoOrStr: string): string {
   if (!isoOrStr) return "N/A";
+  const str = String(isoOrStr).trim();
+
+  // 1. Check for date-only pattern (e.g. "2026-11-18" or "2026-11-20")
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+    const [y, m, d] = str.split("-").map(Number);
+    // Construct in UTC to prevent timezone offset shifts
+    const dt = new Date(Date.UTC(y, m - 1, d));
+    return dt.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      timeZone: "UTC",
+    });
+  }
+
+  // 2. Full timestamp with time-of-day information
   try {
-    const d = new Date(isoOrStr);
-    if (isNaN(d.getTime())) return isoOrStr;
+    const d = new Date(str);
+    if (isNaN(d.getTime())) return str;
     return d.toLocaleString("en-US", {
       month: "short",
       day: "numeric",
@@ -16,8 +34,28 @@ export function formatDateTime(isoOrStr: string): string {
       hour12: false,
     });
   } catch {
-    return isoOrStr;
+    return str;
   }
+}
+
+/**
+ * Format string strictly to calendar date ("Nov 18, 2026")
+ */
+export function formatDateOnly(isoOrStr: string): string {
+  if (!isoOrStr) return "N/A";
+  const str = String(isoOrStr).trim();
+  const datePart = str.split(/[T ]/)[0];
+  if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
+    const [y, m, d] = datePart.split("-").map(Number);
+    const dt = new Date(Date.UTC(y, m - 1, d));
+    return dt.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      timeZone: "UTC",
+    });
+  }
+  return datePart;
 }
 
 /**

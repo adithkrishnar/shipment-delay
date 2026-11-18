@@ -311,7 +311,8 @@ def ensure_demo_shipments_and_legs(db: Session):
     """
     from datetime import date, datetime, timedelta
     from app.models import Company, Product, Shipment, TransporterOrganization
-    from app.models.shipment_leg import ShipmentLeg
+    from app.models.shipment_leg import ShipmentLeg, DisruptionReport
+    from app.models.shipment_delay import ShipmentDelay
 
     dataco = db.query(Company).filter(Company.name == "DataCo Global Supply Chain").first()
     if not dataco:
@@ -488,8 +489,9 @@ def ensure_bengaluru_chennai_corridor(db: Session):
     baseline inventory (85 units) at Chennai Central DC, and 30-day sales demand history.
     """
     from datetime import date, datetime, timedelta
-    from app.models import Company, Product, Warehouse, InventoryRecord, Sale, Shipment, TransporterOrganization
-    from app.models.shipment_leg import ShipmentLeg
+    from app.models import Company, Product, Warehouse, InventoryRecord, Sale, Shipment, TransporterOrganization, Supplier
+    from app.models.shipment_leg import ShipmentLeg, DisruptionReport
+    from app.models.shipment_delay import ShipmentDelay
 
     comp_a = db.query(Company).filter(Company.name == "Bengaluru Manufacturing Ltd").first()
     comp_c = db.query(Company).filter(Company.name == "Chennai Central Distribution").first()
@@ -534,6 +536,21 @@ def ensure_bengaluru_chennai_corridor(db: Session):
             unit_cost=4500.0
         )
         db.add(prod_c)
+        db.flush()
+
+    # Primary Upstream Manufacturing Supplier for Company C
+    sup_c = db.query(Supplier).filter(Supplier.company_id == comp_c.id, Supplier.name == "Bengaluru Manufacturing Ltd").first()
+    if not sup_c:
+        sup_c = Supplier(
+            company_id=comp_c.id,
+            external_supplier_id="SUP-BLR-01",
+            name="Bengaluru Manufacturing Ltd",
+            lead_time_days=14.0,
+            reliability=0.96,
+            cost_index=1.0,
+            defect_rate=0.01
+        )
+        db.add(sup_c)
         db.flush()
 
     # Baseline Inventory Record at Chennai Central DC (85 on-hand units)
@@ -589,6 +606,7 @@ def ensure_bengaluru_chennai_corridor(db: Session):
             receiver_company_id=comp_c.id,
             destination_warehouse_id=wh_chn.id,
             product_id=prod_a.id,
+            supplier_id=sup_c.id if sup_c else None,
             external_shipment_id="SH-BLR-2026-0001",
             origin="Bengaluru Electronic City Plant, Karnataka",
             destination="Chennai Central DC, Tamil Nadu",
@@ -660,6 +678,128 @@ def ensure_bengaluru_chennai_corridor(db: Session):
         ]
         db.add_all(legs_blr)
 
+    # Pre-Seeded Delayed Multi-Leg Shipment: SH-BLR-2026-0002
+    s_blr2 = db.query(Shipment).filter(Shipment.external_shipment_id == "SH-BLR-2026-0002").first()
+    if not s_blr2:
+        s_blr2 = Shipment(
+            id=17305,
+            company_id=comp_a.id,
+            receiver_company_id=comp_c.id,
+            destination_warehouse_id=wh_chn.id,
+            product_id=prod_a.id,
+            supplier_id=sup_c.id if sup_c else None,
+            external_shipment_id="SH-BLR-2026-0002",
+            origin="Bengaluru Electronic City Plant, Karnataka",
+            destination="Chennai Central DC, Tamil Nadu",
+            carrier="Karnataka-Tamil Nadu Express Logistics",
+            transport_mode="ROAD",
+            transporter_org_id=carrier_b.id,
+            assignment_status="DELAYED",
+            order_date=today - timedelta(days=1),
+            planned_delivery=today + timedelta(days=2),
+            current_eta=today + timedelta(days=2),
+            distance_km=360.0,
+            weight_kg=450.0,
+            quantity=100.0
+        )
+        db.add(s_blr2)
+        db.flush()
+
+        db.query(ShipmentLeg).filter(ShipmentLeg.shipment_id == s_blr2.id).delete(synchronize_session=False)
+        db.query(ShipmentDelay).filter(ShipmentDelay.shipment_id == s_blr2.id).delete(synchronize_session=False)
+        db.query(DisruptionReport).filter(DisruptionReport.shipment_id == s_blr2.id).delete(synchronize_session=False)
+        db.flush()
+
+        dep_dt2 = datetime.combine(today - timedelta(days=1), datetime.min.time()) + timedelta(hours=8)
+        legs_blr2 = [
+            ShipmentLeg(
+                id=9167,
+                shipment_id=s_blr2.id,
+                sequence=1,
+                mode="ROAD",
+                origin="Bengaluru Electronic City Plant, Karnataka",
+                destination="Intermediate Terminal (First-Mile Pickup & Consolidation)",
+                carrier_name="Apex Logistics Express",
+                distance_km=45.0,
+                expected_duration_hrs=2.0,
+                delay_hours=4.0,
+                status="DELAYED",
+                scheduled_departure=dep_dt2,
+                scheduled_arrival=dep_dt2 + timedelta(hours=6),
+            ),
+            ShipmentLeg(
+                id=9168,
+                shipment_id=s_blr2.id,
+                sequence=2,
+                mode="ROAD",
+                origin="Origin Hub (ROAD)",
+                destination="Destination Hub (ROAD)",
+                carrier_name="Karnataka-Tamil Nadu Express Logistics",
+                distance_km=280.0,
+                expected_duration_hrs=6.0,
+                delay_hours=4.0,
+                status="DELAYED",
+                scheduled_departure=dep_dt2 + timedelta(hours=6),
+                scheduled_arrival=dep_dt2 + timedelta(hours=16),
+            ),
+            ShipmentLeg(
+                id=9169,
+                shipment_id=s_blr2.id,
+                sequence=3,
+                mode="ROAD",
+                origin="Terminal Hub (Last-Mile Delivery to Plant)",
+                destination="Chennai Central DC, Tamil Nadu",
+                carrier_name="City Delivery Couriers",
+                distance_km=35.0,
+                expected_duration_hrs=1.5,
+                delay_hours=12.0,
+                status="DELAYED",
+                scheduled_departure=dep_dt2 + timedelta(hours=16),
+                scheduled_arrival=dep_dt2 + timedelta(hours=29, minutes=30),
+            )
+        ]
+        db.add_all(legs_blr2)
+
+        # Disruption reports & shipment delay
+        db.add(ShipmentDelay(
+            id=31,
+            shipment_id=s_blr2.id,
+            transporter_org_id=carrier_b.id,
+            previous_eta=dep_dt2 + timedelta(hours=24),
+            new_eta=dep_dt2 + timedelta(hours=34),
+            delay_hours=4.0,
+            reason="TRAFFIC_CONGESTION",
+            notes="Highway traffic congestion on NH-48 corridor reported by driver."
+        ))
+        db.add(DisruptionReport(
+            id=51,
+            leg_id=9168,
+            shipment_id=s_blr2.id,
+            delay_hours=4.0,
+            disruption_reason="TRAFFIC_CONGESTION",
+            status="SUBMITTED",
+            notes="Carrier field report logged via Transporter Portal."
+        ))
+        db.add(DisruptionReport(
+            id=52,
+            leg_id=9167,
+            shipment_id=s_blr2.id,
+            delay_hours=4.0,
+            disruption_reason="TRAFFIC_CONGESTION",
+            status="SUBMITTED",
+            notes="First mile pickup delay."
+        ))
+        db.add(DisruptionReport(
+            id=53,
+            leg_id=9169,
+            shipment_id=s_blr2.id,
+            delay_hours=12.0,
+            disruption_reason="Vehicle breakdown",
+            status="SUBMITTED",
+            notes="Mechanical breakdown on final delivery leg."
+        ))
+        db.flush()
+
 
 def reset_benchmark_corridor(db: Session) -> Dict[str, Any]:
     """
@@ -675,7 +815,7 @@ def reset_benchmark_corridor(db: Session) -> Dict[str, Any]:
     from datetime import date, datetime, timedelta
     from app.models import (
         Company, Product, Warehouse, InventoryRecord, 
-        Sale, Shipment, Alert
+        Sale, Shipment, Alert, Supplier
     )
     from app.models.shipment_leg import ShipmentLeg, DisruptionReport
     from app.models.shipment_delay import ShipmentDelay
@@ -690,6 +830,12 @@ def reset_benchmark_corridor(db: Session) -> Dict[str, Any]:
 
     # 1. Reset Inventory at Chennai Central DC to exactly 85.0 units
     if comp_c and wh_chn and prod_c:
+        # Clean any errant/duplicate cross-tenant product records
+        db.query(InventoryRecord).filter(
+            InventoryRecord.company_id == comp_c.id,
+            InventoryRecord.product_id != prod_c.id
+        ).delete(synchronize_session=False)
+
         inv = db.query(InventoryRecord).filter(
             InventoryRecord.company_id == comp_c.id,
             InventoryRecord.warehouse_id == wh_chn.id,
@@ -723,6 +869,9 @@ def reset_benchmark_corridor(db: Session) -> Dict[str, Any]:
         s_blr.current_eta = today + timedelta(days=1)
         s_blr.actual_delivery = None
         s_blr.quantity = 100.0
+        sup_c = db.query(Supplier).filter(Supplier.company_id == comp_c.id, Supplier.name == "Bengaluru Manufacturing Ltd").first() if comp_c else None
+        if sup_c:
+            s_blr.supplier_id = sup_c.id
 
         legs = db.query(ShipmentLeg).filter(ShipmentLeg.shipment_id == s_blr.id).order_by(ShipmentLeg.sequence).all()
         if len(legs) >= 3:
@@ -734,18 +883,18 @@ def reset_benchmark_corridor(db: Session) -> Dict[str, Any]:
             legs[2].status = "SCHEDULED"
             legs[2].delay_hours = 0.0
 
-        # Clean prior disruption reports and shipment delays for all demo corridor shipments
-        demo_shipment_ids = [s.id for s in db.query(Shipment).filter(Shipment.external_shipment_id.like("SH-BLR-%")).all()]
+        # Clean prior disruption reports and shipment delays only for SH-BLR-2026-0001
+        demo_shipment_ids = [s_blr.id]
         if demo_shipment_ids:
             db.query(DisruptionReport).filter(DisruptionReport.shipment_id.in_(demo_shipment_ids)).delete(synchronize_session=False)
             db.query(ShipmentDelay).filter(ShipmentDelay.shipment_id.in_(demo_shipment_ids)).delete(synchronize_session=False)
             db.query(Alert).filter(Alert.entity_id.in_(demo_shipment_ids)).delete(synchronize_session=False)
-        db.query(ActionApproval).filter(ActionApproval.action_id.like("%DISRUPTION%")).delete(synchronize_session=False)
+        db.query(ActionApproval).filter(ActionApproval.action_id.like("%SH-BLR-2026-0001%")).delete(synchronize_session=False)
 
         # Remove temporary auto-generated test shipments from previous test runs, leaving clean benchmark
         temp_ships = db.query(Shipment).filter(
             Shipment.external_shipment_id.like("SH-BLR-%"),
-            Shipment.external_shipment_id != "SH-BLR-2026-0001"
+            Shipment.external_shipment_id.notin_(["SH-BLR-2026-0001", "SH-BLR-2026-0002"])
         ).all()
         for ts in temp_ships:
             db.query(ShipmentLeg).filter(ShipmentLeg.shipment_id == ts.id).delete(synchronize_session=False)

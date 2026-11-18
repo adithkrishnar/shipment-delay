@@ -8,11 +8,13 @@ interface OperationalSummaryProps {
 
 export function OperationalSummary({ shipments }: OperationalSummaryProps) {
   const total = shipments.length;
-  const activeDisruptions = shipments.filter((s) => s.status === "disrupted").length;
-  const atRisk = shipments.filter((s) => s.status === "at_risk").length;
-  const onSchedule = shipments.filter((s) => s.status === "on_schedule").length;
-  const critical = shipments.filter((s) => s.status === "critical").length;
-  const requiresAction = shipments.filter((s) => s.requiresCarrierAction).length;
+  const activeDisruptions = shipments.filter(
+    (s) => s.status === "delayed" || s.status === "disrupted" || s.assignmentStatus === "DELAYED" || s.legs.some((l) => (l.delayHours || 0) > 0)
+  ).length;
+  const atRisk = shipments.filter((s) => s.status === "at_risk" || s.assignmentStatus === "PENDING").length;
+  const onSchedule = shipments.filter((s) => s.status === "on_schedule" && s.assignmentStatus !== "DELIVERED" && !s.legs.some((l) => (l.delayHours || 0) > 0)).length;
+  const critical = shipments.filter((s) => s.inventoryRisk === "critical" || s.status === "critical").length;
+  const requiresAction = shipments.filter((s) => s.requiresCarrierAction || s.assignmentStatus === "PENDING").length;
 
   const kpis = [
     {
@@ -25,9 +27,9 @@ export function OperationalSummary({ shipments }: OperationalSummaryProps) {
       border: "rgba(79, 140, 255, 0.2)",
     },
     {
-      label: "Active Disruptions",
+      label: "Delayed Shipments",
       value: activeDisruptions,
-      subtext: "Reported route exceptions",
+      subtext: "Confirmed route delays",
       icon: AlertOctagon,
       color: "#FF8C42",
       bg: "rgba(255, 140, 66, 0.08)",
@@ -52,9 +54,9 @@ export function OperationalSummary({ shipments }: OperationalSummaryProps) {
       border: "rgba(45, 212, 167, 0.2)",
     },
     {
-      label: "Critical Exceptions",
+      label: "Destination Stock Risk",
       value: critical,
-      subtext: "Missed cutoffs or stockout risk",
+      subtext: "Downstream stockout exposure",
       icon: Flame,
       color: "var(--status-critical, #FF4D5F)",
       bg: "rgba(255, 77, 95, 0.1)",
@@ -63,7 +65,7 @@ export function OperationalSummary({ shipments }: OperationalSummaryProps) {
     {
       label: "Requires Action",
       value: requiresAction,
-      subtext: "Awaiting telematics report",
+      subtext: "Pending carrier action / dispatch",
       icon: UserCheck,
       color: "#8B5CF6",
       bg: "rgba(139, 92, 246, 0.08)",

@@ -39,15 +39,32 @@ def compute_replenishment_plan(
     latest_inv_map = _latest_inventory(db, company_id)
     stock_map = {pid: float(item.inventory_level) for pid, item in latest_inv_map.items()}
 
-    # Fetch open incoming shipments
+    # Fetch open incoming shipments destined for this company
     open_shipments = (
         db.query(Shipment)
-        .filter(Shipment.company_id == company_id, Shipment.actual_delivery.is_(None))
+        .filter(
+            (
+                (Shipment.receiver_company_id == company_id) |
+                (Shipment.receiver_company_id.is_(None) & (Shipment.company_id == company_id))
+            ),
+            Shipment.actual_delivery.is_(None),
+            Shipment.assignment_status.notin_(["DELIVERED", "CANCELLED", "REJECTED"])
+        )
         .all()
     )
     incoming_map: Dict[int, float] = {}
     for s in open_shipments:
-        incoming_map[s.product_id] = incoming_map.get(s.product_id, 0.0) + float(s.quantity or 0.0)
+        local_pids = [s.product_id]
+        shp_prod = db.query(Product).filter(Product.id == s.product_id).first()
+        if shp_prod and shp_prod.external_product_id:
+            matched_products = db.query(Product).filter(
+                Product.company_id == company_id,
+                Product.external_product_id == shp_prod.external_product_id
+            ).all()
+            if matched_products:
+                local_pids = [mp.id for mp in matched_products]
+        for pid in local_pids:
+            incoming_map[pid] = incoming_map.get(pid, 0.0) + float(s.quantity or 0.0)
 
     default_lead_time = 14.0
 
@@ -69,10 +86,17 @@ def compute_replenishment_plan(
         demand_std = float(np.std(sales_vals, ddof=1)) if len(sales_vals) > 1 else (daily_demand * 0.25)
 
         # Real supplier relationship via historical or planned shipments
+        matching_pids = [p.id]
+        if p.external_product_id:
+            matching_pids = [prod.id for prod in db.query(Product.id).filter(Product.external_product_id == p.external_product_id).all()]
+
         sup = (
             db.query(Supplier)
             .join(Shipment, Shipment.supplier_id == Supplier.id)
-            .filter(Shipment.company_id == company_id, Shipment.product_id == p.id)
+            .filter(
+                ((Shipment.company_id == company_id) | (Shipment.receiver_company_id == company_id)),
+                Shipment.product_id.in_(matching_pids)
+            )
             .order_by(Shipment.planned_delivery.desc())
             .first()
         )

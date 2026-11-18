@@ -172,9 +172,13 @@ def list_shipment_risk(
         rec_name = shipment.receiver_company.name if shipment.receiver_company else None
         sender_name = shipment.company.name if shipment.company else None
 
+        prod_name = shipment.product.name if shipment.product else f"Product #{shipment.product_id}"
+        dest_wh_name = shipment.destination_warehouse.name if shipment.destination_warehouse else shipment.destination
+
         results.append(ShipmentRiskOut(
             shipment_id=shipment.id,
             external_shipment_id=shipment.external_shipment_id,
+            company_id=shipment.company_id,
             product_id=shipment.product_id,
             supplier_id=shipment.supplier_id,
             origin=shipment.origin,
@@ -196,7 +200,11 @@ def list_shipment_risk(
             risk_tier=risk_tier,
             expected_delay_days=expected_days,
             top_risk_factors=[RiskFactorOut(**f) for f in risk.get("top_risk_factors", [])],
-            model_source=model_source
+            model_source=model_source,
+            quantity=float(shipment.quantity or 100.0),
+            weight_kg=float(shipment.weight_kg) if shipment.weight_kg else None,
+            product_name=prod_name,
+            destination_warehouse=dest_wh_name
         ))
 
     return ShipmentListResponse(
@@ -265,10 +273,13 @@ def get_shipment_risk(
 
     rec_name = shipment.receiver_company.name if shipment.receiver_company else None
     sender_name = shipment.company.name if shipment.company else None
+    prod_name = shipment.product.name if shipment.product else f"Product #{shipment.product_id}"
+    dest_wh_name = shipment.destination_warehouse.name if shipment.destination_warehouse else shipment.destination
 
     return ShipmentRiskOut(
         shipment_id=shipment.id,
         external_shipment_id=shipment.external_shipment_id,
+        company_id=shipment.company_id,
         product_id=shipment.product_id,
         supplier_id=shipment.supplier_id,
         origin=shipment.origin,
@@ -290,23 +301,38 @@ def get_shipment_risk(
         risk_tier=risk_tier,
         expected_delay_days=expected_days,
         top_risk_factors=[RiskFactorOut(**f) for f in risk.get("top_risk_factors", [])],
-        model_source=model_source
+        model_source=model_source,
+        quantity=float(shipment.quantity or 100.0),
+        weight_kg=float(shipment.weight_kg) if shipment.weight_kg else None,
+        product_name=prod_name,
+        destination_warehouse=dest_wh_name
     )
 
 
 @router.get("/{company_id}/multi-leg/{shipment_id}")
 def get_multi_leg_shipment(
     company_id: int,
-    shipment_id: int,
+    shipment_id: str,
     scenario: int = 1,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user_or_demo)
 ):
     from app.services.multi_leg_service import analyze_multi_leg_shipment
+    if not current_user.is_superuser:
+        if current_user.role == "company" and current_user.company_id != company_id:
+            raise HTTPException(
+                status_code=403,
+                detail="Forbidden: Not authorized to view another enterprise's corridor telematics."
+            )
     try:
-        return analyze_multi_leg_shipment(db, company_id, shipment_id, scenario)
+        return analyze_multi_leg_shipment(db, company_id, shipment_id, scenario, current_user=current_user)
     except ValueError as e:
         raise HTTPException(404, str(e))
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Error in multi-leg analysis: %s", e)
+        raise HTTPException(500, f"Multi-leg calculation error: {str(e)}")
 
 
 @router.post("/{company_id}", status_code=201)

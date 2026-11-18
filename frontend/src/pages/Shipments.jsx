@@ -19,6 +19,12 @@ import { useAuth } from '../auth/AuthContext';
 
 export default function Shipments({ company }) {
   const { user } = useAuth();
+  const participantRole = user?.participant_role || (user?.role === 'transporter' ? 'transporter' : 'company');
+  const isSuperuser = Boolean(user?.is_superuser);
+  const isSender = participantRole === 'sender' || isSuperuser;
+  const isReceiver = participantRole === 'receiver' || isSuperuser;
+  const isTransporter = participantRole === 'transporter' || isSuperuser;
+
   const [d, setD] = useState(null);
   const [expandedId, setExpandedId] = useState(null);
   const [impactData, setImpactData] = useState(null);
@@ -26,7 +32,9 @@ export default function Shipments({ company }) {
   const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
-  const [directionFilter, setDirectionFilter] = useState('ALL'); // ALL, OUTBOUND, INBOUND
+  const [directionFilter, setDirectionFilter] = useState(
+    participantRole === 'sender' ? 'OUTBOUND' : participantRole === 'receiver' ? 'INBOUND' : 'ALL'
+  ); // ALL, OUTBOUND, INBOUND
   const [actionLoading, setActionLoading] = useState(false);
   const [actionSuccessMsg, setActionSuccessMsg] = useState('');
 
@@ -249,13 +257,15 @@ export default function Shipments({ company }) {
           </p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="btn-primary"
-            style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', fontSize: '13px' }}
-          >
-            <Plus size={16} /> Dispatch New Shipment
-          </button>
+          {isSender && (
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="btn-primary"
+              style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', fontSize: '13px' }}
+            >
+              <Plus size={16} /> Dispatch New Shipment
+            </button>
+          )}
         </div>
       </div>
 
@@ -475,8 +485,8 @@ export default function Shipments({ company }) {
 
                                 {/* Operational Action Buttons */}
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                  {/* Report Delay Button */}
-                                  {!isDelivered && (
+                                  {/* Report Delay Button (Transporter / Fleet only) */}
+                                  {!isDelivered && isTransporter && (
                                     <button 
                                       onClick={() => setDelayModalShipment(s)}
                                       className="btn-secondary" 
@@ -486,8 +496,8 @@ export default function Shipments({ company }) {
                                     </button>
                                   )}
 
-                                  {/* Confirm Delivery Button for Receiver / Consignee */}
-                                  {!isDelivered && (
+                                  {/* Confirm Delivery Button for Receiver / Consignee only */}
+                                  {!isDelivered && isReceiver && (
                                     <button
                                       disabled={actionLoading}
                                       onClick={() => handleConfirmDelivery(s.shipment_id)}
@@ -505,7 +515,7 @@ export default function Shipments({ company }) {
                               </div>
 
                               {/* Multi-Leg Progression Map */}
-                              <MultiLegDemo companyId={company.id} shipmentId={s.shipment_id} />
+                              <MultiLegDemo companyId={company?.id} shipmentId={s.shipment_id} />
 
                               {/* Multi-Leg Handover Transition Panel */}
                               <div style={{ marginTop: '24px', padding: '16px 20px', background: 'var(--bg-surface-1)', border: '1px solid var(--border-default)', borderRadius: '8px' }}>
@@ -540,7 +550,7 @@ export default function Shipments({ company }) {
                                     <div style={{ fontSize: '12px', color: 'var(--text-primary)', fontWeight: 500 }}>Hosur Hub → Sriperumbudur Depot</div>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px' }}>
                                       <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>Carrier: {s.carrier || 'Express Fleet'}</span>
-                                      {!isDelivered && (
+                                      {!isDelivered && isTransporter && (
                                         <button
                                           disabled={actionLoading}
                                           onClick={() => handleAdvanceLeg(s.shipment_id, 9012)}
@@ -564,7 +574,7 @@ export default function Shipments({ company }) {
                                     <div style={{ fontSize: '12px', color: 'var(--text-primary)', fontWeight: 500 }}>Sriperumbudur Depot → Chennai DC</div>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px' }}>
                                       <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>Final Destination Delivery</span>
-                                      {!isDelivered && isArrived && (
+                                      {!isDelivered && isArrived && isReceiver && (
                                         <button
                                           disabled={actionLoading}
                                           onClick={() => handleConfirmDelivery(s.shipment_id)}
@@ -579,69 +589,124 @@ export default function Shipments({ company }) {
                                 </div>
                               </div>
 
-                              {/* Downstream Inventory Impact Panel */}
-                              <div className="grid-2" style={{ marginTop: '24px' }}>
-                                <div>
-                                  <h2 className="section-title">DESTINATION INVENTORY EXPOSURE</h2>
-                                  <div className="panel" style={{ padding: '16px' }}>
-                                    <div className="flex-col" style={{ gap: '10px' }}>
-                                      <div className="flex-between">
-                                        <span style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>Destination Facility</span>
-                                        <strong>{s.destination || 'Chennai Central DC'}</strong>
-                                      </div>
-                                      <div className="flex-between">
-                                        <span style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>Current On-Hand Buffer</span>
-                                        <strong>{isDelivered ? '185 units (Replenished +100 units)' : '85 units (Depleting @ 50 units/day)'}</strong>
-                                      </div>
-                                      <div className="flex-between">
-                                        <span style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>Stockout Exposure Risk</span>
-                                        <strong style={{ color: isDelayed ? 'var(--status-critical)' : 'var(--status-healthy)' }}>
-                                          {isDelayed ? 'CRITICAL (Shortage 31.5 units)' : isDelivered ? 'RESOLVED (Stock Received)' : 'HEALTHY (Stock Sufficient)'}
-                                        </strong>
-                                      </div>
-                                      <div className="flex-between">
-                                        <span style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>Financial Risk Exposure</span>
-                                        <strong style={{ color: isDelayed ? 'var(--status-critical)' : 'inherit' }}>
-                                          {isDelayed ? '₹1,71,600.00 (Loss & SLA Penalty)' : '₹0.00'}
-                                        </strong>
+                              {/* Downstream Inventory Impact Panel (Receiver) or Outbound Linehaul Dossier (Sender) */}
+                              {isReceiver ? (
+                                <div className="grid-2" style={{ marginTop: '24px' }}>
+                                  <div>
+                                    <h2 className="section-title">DESTINATION INVENTORY EXPOSURE</h2>
+                                    <div className="panel" style={{ padding: '16px' }}>
+                                      <div className="flex-col" style={{ gap: '10px' }}>
+                                        <div className="flex-between">
+                                          <span style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>Destination Facility</span>
+                                          <strong>{s.destination || 'Chennai Central DC'}</strong>
+                                        </div>
+                                        <div className="flex-between">
+                                          <span style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>Current On-Hand Buffer</span>
+                                          <strong>{isDelivered ? '185 units (Replenished +100 units)' : '85 units (Depleting @ 50 units/day)'}</strong>
+                                        </div>
+                                        <div className="flex-between">
+                                          <span style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>Stockout Exposure Risk</span>
+                                          <strong style={{ color: isDelayed ? 'var(--status-critical)' : 'var(--status-healthy)' }}>
+                                            {isDelayed ? 'CRITICAL (Shortage 31.5 units)' : isDelivered ? 'RESOLVED (Stock Received)' : 'HEALTHY (Stock Sufficient)'}
+                                          </strong>
+                                        </div>
+                                        <div className="flex-between">
+                                          <span style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>Financial Risk Exposure</span>
+                                          <strong style={{ color: isDelayed ? 'var(--status-critical)' : 'inherit' }}>
+                                            {isDelayed ? '₹1,71,600.00 (Loss & SLA Penalty)' : '₹0.00'}
+                                          </strong>
+                                        </div>
                                       </div>
                                     </div>
                                   </div>
-                                </div>
 
-                                <div>
-                                  <h2 className="section-title">RECOMMENDED MITIGATION (ACTION CENTER)</h2>
-                                  <div style={{ 
-                                    padding: '16px', 
-                                    background: isDelayed ? 'var(--status-watch-bg)' : 'rgba(45, 212, 167, 0.1)', 
-                                    border: `1px solid ${isDelayed ? 'var(--status-watch-border)' : 'rgba(45, 212, 167, 0.3)'}`, 
-                                    borderRadius: 'var(--r-md)', 
-                                    color: isDelayed ? 'var(--status-watch)' : '#2DD4A7' 
-                                  }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-                                      <strong style={{ fontSize: '14px' }}>
-                                        {isDelayed ? 'Emergency Inter-Warehouse Stock Transfer' : 'Autonomous Schedule Monitoring'}
-                                      </strong>
-                                      <span style={{ fontSize: '11px', padding: '2px 6px', borderRadius: '4px', background: 'rgba(0,0,0,0.2)' }}>
-                                        {isDelayed ? 'HIGH ROI' : 'STABLE'}
-                                      </span>
-                                    </div>
-                                    <p style={{ fontSize: '12px', margin: 0, opacity: 0.9 }}>
-                                      {isDelayed 
-                                        ? 'Transfer 32 units from neighboring regional DC in under 12 hours (₹450 cost) to prevent ₹1,71,600 in lost sales and contract SLA penalties (Net savings: ₹171,150.00).'
-                                        : 'Transit schedule is operating within buffer tolerances. Safety buffer absorbs standard operational dwell.'
-                                      }
-                                    </p>
-                                    {isDelayed && (
-                                      <div style={{ marginTop: '12px' }}>
-                                        <a href="/recommendations" className="btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px', padding: '6px 12px' }}>
-                                          Go to Action Center to Approve <ArrowUpRight size={14} />
-                                        </a>
+                                  <div>
+                                    <h2 className="section-title">RECOMMENDED MITIGATION (ACTION CENTER)</h2>
+                                    <div style={{ 
+                                      padding: '16px', 
+                                      background: isDelayed ? 'var(--status-watch-bg)' : 'rgba(45, 212, 167, 0.1)', 
+                                      border: `1px solid ${isDelayed ? 'var(--status-watch-border)' : 'rgba(45, 212, 167, 0.3)'}`, 
+                                      borderRadius: 'var(--r-md)', 
+                                      color: isDelayed ? 'var(--status-watch)' : '#2DD4A7' 
+                                    }}>
+                                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                                        <strong style={{ fontSize: '14px' }}>
+                                          {isDelayed ? 'Emergency Inter-Warehouse Stock Transfer' : 'Autonomous Schedule Monitoring'}
+                                        </strong>
+                                        <span style={{ fontSize: '11px', padding: '2px 6px', borderRadius: '4px', background: 'rgba(0,0,0,0.2)' }}>
+                                          {isDelayed ? 'HIGH ROI' : 'STABLE'}
+                                        </span>
                                       </div>
-                                    )}
+                                      <p style={{ fontSize: '12px', margin: 0, opacity: 0.9 }}>
+                                        {isDelayed 
+                                          ? 'Transfer 32 units from neighboring regional DC in under 12 hours (₹450 cost) to prevent ₹1,71,600 in lost sales and contract SLA penalties (Net savings: ₹171,150.00).'
+                                          : 'Transit schedule is operating within buffer tolerances. Safety buffer absorbs standard operational dwell.'
+                                        }
+                                      </p>
+                                      {isDelayed && (
+                                        <div style={{ marginTop: '12px' }}>
+                                          <a href="/recommendations" className="btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px', padding: '6px 12px' }}>
+                                            Go to Action Center to Approve <ArrowUpRight size={14} />
+                                          </a>
+                                        </div>
+                                      )}
+                                    </div>
                                   </div>
                                 </div>
-                              </div>
+                              ) : (
+                                <div className="grid-2" style={{ marginTop: '24px' }}>
+                                  <div>
+                                    <h2 className="section-title">LINEHAUL DISPATCH TELEMATICS</h2>
+                                    <div className="panel" style={{ padding: '16px' }}>
+                                      <div className="flex-col" style={{ gap: '10px' }}>
+                                        <div className="flex-between">
+                                          <span style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>Consignee Destination</span>
+                                          <strong>{receiverName}</strong>
+                                        </div>
+                                        <div className="flex-between">
+                                          <span style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>Carrier Partner</span>
+                                          <strong>{s.carrier || 'Logistics Carrier'}</strong>
+                                        </div>
+                                        <div className="flex-between">
+                                          <span style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>Corridor Mode</span>
+                                          <strong>{s.transport_mode} (360 km Highway Route)</strong>
+                                        </div>
+                                        <div className="flex-between">
+                                          <span style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>Delivery Status</span>
+                                          <strong style={{ color: isDelayed ? 'var(--status-critical)' : isDelivered ? '#10B981' : 'var(--accent-primary)' }}>
+                                            {badgeText}
+                                          </strong>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <h2 className="section-title">DISPATCH & LINEHAUL STATUS</h2>
+                                    <div className="panel" style={{ padding: '16px' }}>
+                                      <div className="flex-col" style={{ gap: '10px' }}>
+                                        <div className="flex-between">
+                                          <span style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>Dispatch Reference</span>
+                                          <strong>{s.external_shipment_id}</strong>
+                                        </div>
+                                        <div className="flex-between">
+                                          <span style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>Planned Delivery</span>
+                                          <strong>{expectedStr}</strong>
+                                        </div>
+                                        <div className="flex-between">
+                                          <span style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>Calculated Transit Variance</span>
+                                          <strong style={{ color: isDelayed ? 'var(--status-critical)' : 'var(--status-healthy)' }}>
+                                            {isDelayed ? delayStr + ' variance' : 'On Schedule (0h variance)'}
+                                          </strong>
+                                        </div>
+                                        <div className="flex-between">
+                                          <span style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>Custody Chain</span>
+                                          <strong>{isDelivered ? 'Delivered to Consignee' : 'In Custody of Carrier'}</strong>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
 
                             </div>
                           </td>
@@ -783,10 +848,16 @@ export default function Shipments({ company }) {
                   value={formData.receiver_company_id}
                   onChange={(e) => {
                     const selComp = allCompanies.find(c => c.id === parseInt(e.target.value, 10));
+                    let destName = formData.destination;
+                    if (selComp) {
+                      destName = selComp.name.toLowerCase().includes('chennai') 
+                        ? 'Chennai Central DC, Tamil Nadu' 
+                        : `${selComp.name} Central DC`;
+                    }
                     setFormData({ 
                       ...formData, 
                       receiver_company_id: e.target.value,
-                      destination: selComp ? `${selComp.name} Central DC` : formData.destination
+                      destination: destName
                     });
                   }}
                   style={{ width: '100%', padding: '8px 10px', background: 'var(--bg-base)', border: '1px solid var(--border-default)', borderRadius: '6px', color: 'var(--text-primary)', fontSize: '13px' }}

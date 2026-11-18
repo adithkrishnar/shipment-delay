@@ -80,3 +80,5 @@ Thumbs.db
 !trained_models/*.pkl
 !backend/trained_models/*.pkl
 data/raw/
+scratch/
+

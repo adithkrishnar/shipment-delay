@@ -363,8 +363,8 @@ input:focus, select:focus, textarea:focus {
 }
 
 .page {
-  padding: 32px 40px 64px;
-  max-width: 1200px;
+  padding: 24px 32px 64px;
+  max-width: 1600px;
   width: 100%;
   margin: 0 auto;
   flex: 1;

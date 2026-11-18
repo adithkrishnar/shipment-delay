@@ -11,8 +11,9 @@ import { DisruptionForm } from "../components/transporter/DisruptionForm";
 import { ReportDelayModal } from "../components/transporter/ReportDelayModal";
 import { CheckCircle2, AlertOctagon, X, Clock } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
-import { reportLegDisruption, reportShipmentDelay, getAssignedShipments } from "../services/api";
+import { reportLegDisruption, reportShipmentDelay, getAssignedShipments, updateAssignmentAction } from "../services/api";
 import { useAlert } from "../context/AlertContext";
+import { formatDateTime } from "../utils/delayPropagation";
 
 export default function TransporterPortal() {
   const { user } = useAuth();
@@ -106,24 +107,30 @@ export default function TransporterPortal() {
               status: isPending ? ("at_risk" as const) :
                       (hasDelayedLeg || s.assignment_status === "DELAYED") ? ("delayed" as const) :
                       isDelivered ? ("on_schedule" as const) : ("on_schedule" as const),
+              assignmentStatus: s.assignment_status || "ACCEPTED",
               inventoryRisk: (hasDelayedLeg || s.assignment_status === "DELAYED") ? ("critical" as const) : ("low" as const),
               requiresCarrierAction: isPending || hasDelayedLeg,
-              legs: (s.legs || []).map((l: any) => ({
-                id: String(l.id),
-                sequence: l.sequence,
-                mode: (l.mode?.toLowerCase() || "road") as any,
-                carrierId: "CARRIER-B",
-                carrierName: l.carrier_name || carrierName,
-                origin: l.origin,
-                destination: l.destination,
-                plannedDeparture: s.order_date || s.planned_delivery,
-                plannedArrival: s.planned_delivery,
-                status: l.status === "COMPLETED" ? ("on_schedule" as const) :
-                        l.status === "IN_TRANSIT" ? ("on_schedule" as const) :
-                        l.status === "DELAYED" ? ("delayed" as const) : ("monitoring" as const),
-                delayHours: l.delay_hours || 0,
-                isCarrierAssigned: true
-              })),
+              legs: (s.legs || []).map((l: any) => {
+                const isLegAssigned = l.is_assigned_to_caller !== undefined
+                  ? Boolean(l.is_assigned_to_caller)
+                  : (!l.carrier_name || l.carrier_name.toLowerCase().trim() === carrierName.toLowerCase().trim() || Boolean(user?.is_superuser));
+                return {
+                  id: String(l.id),
+                  sequence: l.sequence,
+                  mode: (l.mode?.toLowerCase() || "road") as any,
+                  carrierId: isLegAssigned ? "CARRIER-B" : "CARRIER-PARTNER",
+                  carrierName: l.carrier_name || carrierName,
+                  origin: l.origin,
+                  destination: l.destination,
+                  plannedDeparture: s.order_date || s.planned_delivery,
+                  plannedArrival: s.planned_delivery,
+                  status: l.status === "COMPLETED" ? ("on_schedule" as const) :
+                          l.status === "IN_TRANSIT" ? ("on_schedule" as const) :
+                          l.status === "DELAYED" ? ("delayed" as const) : ("monitoring" as const),
+                  delayHours: l.delay_hours || 0,
+                  isCarrierAssigned: isLegAssigned
+                };
+              }),
               exceptions: [],
               notifications: []
             };
@@ -385,7 +392,7 @@ export default function TransporterPortal() {
           id: `notif-${Date.now()}`,
           timestamp: new Date().toISOString(),
           type: "ETA_RECALCULATION" as const,
-          message: `Carrier reported ${data.reason.replace(/_/g, " ")} (+${data.delayHours}h). Revised ETA: ${new Date(data.newEta).toLocaleString()}`,
+          message: `Carrier reported ${data.reason.replace(/_/g, " ")} (+${data.delayHours}h). Revised ETA: ${formatDateTime(data.newEta)}`,
           prescribedAction: "Control Tower Updated",
         };
 
@@ -402,7 +409,7 @@ export default function TransporterPortal() {
     setSuccessToast({
       reference: targetShipment?.reference || data.shipmentId,
       delayHours: data.delayHours,
-      revisedEta: new Date(data.newEta).toLocaleString(),
+      revisedEta: formatDateTime(data.newEta),
       impactExplanation: `Delay of ${data.delayHours}h reported due to ${data.reason.replace(/_/g, " ")}. Control Tower notified.`,
     });
 
@@ -538,6 +545,20 @@ export default function TransporterPortal() {
     });
   };
 
+  const handleAcceptAssignment = async (shipment: Shipment) => {
+    try {
+      await updateAssignmentAction(Number(shipment.id), { action: "ACCEPT" });
+      triggerAlert({
+        title: "Assignment Accepted",
+        message: `Freight assignment for ${shipment.reference} accepted! Transit corridor is now active.`,
+        severity: "healthy",
+      });
+      handleRefresh();
+    } catch (err: any) {
+      alert(err.response?.data?.detail || err.message || "Failed to accept assignment");
+    }
+  };
+
   return (
     <div
       className="page animate-fade transporter-portal-page"
@@ -647,6 +668,7 @@ export default function TransporterPortal() {
             onSelectShipment={(s) => setSelectedShipmentId(s.id)}
             onOpenReportModal={(s) => handleOpenReportModal(s)}
             onOpenDelayModal={(s) => handleOpenDelayModal(s)}
+            onAcceptAssignment={handleAcceptAssignment}
             approvedActionIds={approvedActionIds}
           />
         </section>
@@ -668,6 +690,7 @@ export default function TransporterPortal() {
                 shipment={selectedShipment}
                 onOpenReportModal={(legId) => handleOpenReportModal(selectedShipment, legId)}
                 onOpenDelayModal={() => handleOpenDelayModal(selectedShipment)}
+                onAcceptAssignment={() => handleAcceptAssignment(selectedShipment)}
                 isApproved={isSelectedApproved}
               />
             </section>

@@ -1,3 +1,4 @@
+import React from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, Boxes, Warehouse, TrendingUp, RefreshCw,
@@ -7,45 +8,105 @@ import { useAuth } from '../auth/AuthContext';
 
 export default function Sidebar() {
   const { user } = useAuth();
-  const isTransporter = user?.role === 'transporter';
+  const participantRole = user?.participant_role || (user?.role === 'transporter' ? 'transporter' : 'company');
+  const isSuperuser = Boolean(user?.is_superuser);
 
-  // If transporter, strictly show ONLY the Carrier Operations Portal
-  const navGroups = isTransporter ? [
-    {
-      label: 'Carrier Portal',
-      links: [
-        ['/transporter', 'My Corridors & Disruption Reports', Truck],
-      ]
-    }
-  ] : [
-    {
-      label: 'Operations',
-      links: [
-        ['/', 'Overview', LayoutDashboard],
-        ['/shipments', 'Shipments & In-Transit', Truck],
-        ['/inventory', 'Inventory Explorer', Boxes],
-        ['/products', 'Products & Warehouses', Warehouse],
-        ['/demand', 'Demand Forecasts', TrendingUp],
-        ['/replenishment', 'Replenishment', RefreshCw],
-      ]
-    },
-    {
-      label: 'Decision Support',
-      links: [
-        ['/delay-simulator', 'Delay Simulator', SlidersHorizontal],
-        ['/what-if', 'What-If Lab', FlaskConical],
-        ['/recommendations', 'Action Center', Sparkles],
-        ['/insights', 'Inventory Insights', Grid3X3],
-      ]
-    },
-    {
-      label: 'System',
-      links: [
-        ['/data', 'Data & Imports', UploadCloud],
-        ['/models', 'Models & Quality', BrainCircuit],
-      ]
-    }
-  ];
+  let navGroups = [];
+
+  if (participantRole === 'transporter') {
+    navGroups = [
+      {
+        label: 'Carrier Fleet Operations',
+        links: [
+          ['/transporter', 'Assigned Shipments & Corridors', Truck],
+        ]
+      }
+    ];
+  } else if (participantRole === 'sender' && !isSuperuser) {
+    navGroups = [
+      {
+        label: 'Outbound Operations',
+        links: [
+          ['/', 'Dispatch Operations Cockpit', LayoutDashboard],
+          ['/shipments', 'Outbound Shipments & Linehaul', Truck],
+        ]
+      },
+      {
+        label: 'Corridor Analytics',
+        links: [
+          ['/delay-simulator', 'Transit Delay Simulator', SlidersHorizontal],
+          ['/what-if', 'Corridor What-If Lab', FlaskConical],
+        ]
+      },
+      {
+        label: 'System & Enterprise',
+        links: [
+          ['/data', 'Enterprise Data & Shipments', UploadCloud],
+          ['/models', 'ML Models & Route Quality', BrainCircuit],
+        ]
+      }
+    ];
+  } else if (participantRole === 'receiver' && !isSuperuser) {
+    navGroups = [
+      {
+        label: 'Warehouse Operations',
+        links: [
+          ['/', 'Warehouse Receiving Tower', LayoutDashboard],
+          ['/inventory', 'Inventory Explorer', Boxes],
+          ['/shipments', 'Inbound Freight & Goods Inward', Truck],
+          ['/suppliers', 'Supplier Intelligence', Warehouse],
+          ['/replenishment', 'Replenishment Planning', RefreshCw],
+        ]
+      },
+      {
+        label: 'Inventory Intelligence',
+        links: [
+          ['/demand', 'Consumption & Demand Forecasts', TrendingUp],
+          ['/delay-simulator', 'Stockout Risk Simulator', SlidersHorizontal],
+          ['/recommendations', 'Prescriptive Action Center', Sparkles],
+          ['/insights', 'ABC-XYZ Inventory Insights', Grid3X3],
+        ]
+      },
+      {
+        label: 'System',
+        links: [
+          ['/data', 'Warehouse Data & Imports', UploadCloud],
+          ['/models', 'Forecasting & Risk Models', BrainCircuit],
+        ]
+      }
+    ];
+  } else {
+    // Administrator / Superuser view spanning all capabilities
+    navGroups = [
+      {
+        label: 'Operations',
+        links: [
+          ['/', 'Overview', LayoutDashboard],
+          ['/shipments', 'Shipments & In-Transit', Truck],
+          ['/inventory', 'Inventory Explorer', Boxes],
+          ['/products', 'Products & Warehouses', Warehouse],
+          ['/demand', 'Demand Forecasts', TrendingUp],
+          ['/replenishment', 'Replenishment', RefreshCw],
+        ]
+      },
+      {
+        label: 'Decision Support',
+        links: [
+          ['/delay-simulator', 'Delay Simulator', SlidersHorizontal],
+          ['/what-if', 'What-If Lab', FlaskConical],
+          ['/recommendations', 'Action Center', Sparkles],
+          ['/insights', 'Inventory Insights', Grid3X3],
+        ]
+      },
+      {
+        label: 'System',
+        links: [
+          ['/data', 'Data & Imports', UploadCloud],
+          ['/models', 'Models & Quality', BrainCircuit],
+        ]
+      }
+    ];
+  }
 
   return (
     <aside className="sidebar">

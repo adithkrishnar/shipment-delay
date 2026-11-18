@@ -9,6 +9,9 @@ import {
 } from 'recharts';
 import { getInventoryOverview, getWarehousesAnalytics, getRecentDisruptions, approveAction } from '../services/api';
 import { useAlert } from '../context/AlertContext';
+import { useAuth } from '../auth/AuthContext';
+import SenderDashboard from './SenderDashboard';
+import ReceiverDashboard from './ReceiverDashboard';
 import Loader from '../components/Loader';
 
 const RISK_COLORS = {
@@ -17,7 +20,7 @@ const RISK_COLORS = {
   CRITICAL: '#FF5A6B',
 };
 
-export default function Overview({ company }) {
+function ReceiverOverview({ company }) {
   const { triggerAlert } = useAlert();
   const [data, setData] = useState(null);
   const [warehouses, setWarehouses] = useState([]);
@@ -809,4 +812,15 @@ export default function Overview({ company }) {
       )}
     </div>
   );
+}
+
+export default function Overview({ company }) {
+  const { user } = useAuth();
+  const isSender = user?.participant_role === 'sender' || user?.role === 'sender';
+
+  if (isSender) {
+    return <SenderDashboard company={company} user={user} />;
+  }
+
+  return <ReceiverDashboard company={company} user={user} />;
 }

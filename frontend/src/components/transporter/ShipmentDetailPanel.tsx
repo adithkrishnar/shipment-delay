@@ -9,6 +9,7 @@ interface ShipmentDetailPanelProps {
   shipment: Shipment;
   onOpenReportModal: (legId?: string) => void;
   onOpenDelayModal?: () => void;
+  onAcceptAssignment?: () => void;
   onClose?: () => void;
   isApproved?: boolean;
 }
@@ -17,6 +18,7 @@ export function ShipmentDetailPanel({
   shipment,
   onOpenReportModal,
   onOpenDelayModal,
+  onAcceptAssignment,
   onClose,
   isApproved,
 }: ShipmentDetailPanelProps) {
@@ -114,6 +116,29 @@ export function ShipmentDetailPanel({
 
         {/* Action Button */}
         <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+          {shipment.assignmentStatus === "PENDING" && onAcceptAssignment && (
+            <button
+              onClick={onAcceptAssignment}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "8px",
+                padding: "10px 18px",
+                fontSize: "13px",
+                fontWeight: 700,
+                borderRadius: "6px",
+                border: "none",
+                cursor: "pointer",
+                backgroundColor: "#38E5A3",
+                color: "#040810",
+                boxShadow: "0 2px 10px rgba(56, 229, 163, 0.4)",
+              }}
+            >
+              <CheckCircle2 size={16} />
+              Accept Assignment
+            </button>
+          )}
+
           {onOpenDelayModal && (
             <button
               onClick={onOpenDelayModal}

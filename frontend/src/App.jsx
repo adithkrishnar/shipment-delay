@@ -53,7 +53,7 @@ function MainApp() {
     }
 
     // Transporter users do not need or belong to global company lists
-    if (user?.role === 'transporter') {
+    if (user?.role === 'transporter' || user?.participant_role === 'transporter') {
       setLoading(false);
       return;
     }
@@ -130,7 +130,7 @@ function MainApp() {
   const company = companies.find(x => x.id === id) || (id ? { id, name: 'Loading...' } : companies[0]);
 
   // Show sidebar ONLY for company users (Transporter has its own dedicated portal header)
-  const isTransporter = user?.role === 'transporter';
+  const isTransporter = user?.role === 'transporter' || user?.participant_role === 'transporter';
   const showSidebar = isAuthenticated && !isAuthPage && !isTransporter;
   const showTopbar = isAuthenticated && !isAuthPage && !isTransporter;
 
@@ -155,7 +155,7 @@ function MainApp() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route element={<ProtectedRoute />}>
-            <Route path="/" element={<Overview company={company} />} />
+            <Route path="/" element={isTransporter ? <TransporterPortal company={company} /> : <Overview company={company} />} />
             <Route path="/transporter" element={<TransporterPortal company={company} />} />
             <Route path="/inventory" element={<Inventory company={company} />} />
             <Route path="/products" element={<Products company={company} />} />

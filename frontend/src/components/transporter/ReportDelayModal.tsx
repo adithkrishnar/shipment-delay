@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Shipment } from "../../types/transporter";
 import { X, Clock, AlertTriangle, Calendar, FileText, CheckCircle2, ShieldAlert } from "lucide-react";
 import { reportShipmentDelay } from "../../services/api";
+import { formatDateTime } from "../../utils/delayPropagation";
 
 interface ReportDelayModalProps {
   shipment: Shipment | null;
@@ -305,11 +306,11 @@ export function ReportDelayModal({
             </div>
             <div>
               <span style={{ color: "var(--text-tertiary, #6F7C8C)", display: "block" }}>Baseline Planned ETA:</span>
-              <span style={{ color: "#A0AEC0" }}>{new Date(shipment.plannedDelivery).toLocaleString()}</span>
+              <span style={{ color: "#A0AEC0" }}>{formatDateTime(shipment.plannedDelivery)}</span>
             </div>
             <div>
               <span style={{ color: "var(--text-tertiary, #6F7C8C)", display: "block" }}>Current ETA:</span>
-              <span style={{ color: "#FFB074", fontWeight: 600 }}>{currentEtaDate.toLocaleString()}</span>
+              <span style={{ color: "#FFB074", fontWeight: 600 }}>{formatDateTime(shipment.currentEta || shipment.plannedDelivery)}</span>
             </div>
           </div>
 
@@ -561,8 +562,8 @@ export function ReportDelayModal({
               Timeline Impact Preview:
             </div>
             <div>
-              Current ETA: <strong>{currentEtaDate.toLocaleString()}</strong> → New ETA:{" "}
-              <strong style={{ color: "#2DD4A7" }}>{preview.previewEta.toLocaleString()}</strong>{" "}
+              Current ETA: <strong>{formatDateTime(shipment?.currentEta || shipment?.plannedDelivery || "")}</strong> → New ETA:{" "}
+              <strong style={{ color: "#2DD4A7" }}>{formatDateTime(preview.previewEta.toISOString())}</strong>{" "}
               <span style={{ color: "#FF8C42", fontWeight: 700 }}>(+{preview.hoursDiff} hours)</span>
             </div>
           </div>
