@@ -73,13 +73,17 @@ export default function ReceiverDashboard({ company, user }) {
       if (resRepl) setReplenishmentData(resRepl);
       if (resSupp?.suppliers) setSuppliersData(resSupp.suppliers);
 
-      // Inbound shipments: filter shipments destined to this Receiver
+      // Inbound shipments: filter shipments strictly destined to this Receiver (Priority 3)
       const allShps = resShip?.shipments || [];
-      const inbound = allShps.filter(
-        s => s.receiver_company_id === company.id ||
-             (s.destination && s.destination.toLowerCase().includes('chennai')) ||
-             (!s.company_id && s.receiver_company_id === company.id)
-      );
+      const inbound = allShps.filter(s => {
+        // Multi-tenant inbound: explicitly destined for this receiver
+        if (s.receiver_company_id === company.id) return true;
+        // Legacy DataCo procurement POs for Company 16
+        if (!s.receiver_company_id && s.company_id === company.id && s.external_shipment_id?.startsWith('DC-PO-')) {
+          return true;
+        }
+        return false;
+      });
       setShipmentsData(inbound);
 
       // Maintain user's active tracking selection across polling cycles with active shipment prioritization

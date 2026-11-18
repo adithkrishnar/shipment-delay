@@ -38,9 +38,10 @@ def get_current_user_or_demo(
     token: Optional[str] = Depends(oauth2_scheme_optional)
 ) -> User:
     """
-    Validates token if provided; otherwise resolves to active demo user or carrier.
-    Ensures public-facing demo routes (like Transporter field reports and multi-laptop sync)
-    function reliably without crashing if an unauthenticated tab triggers a simulation.
+    Validates token if provided.
+    If no token is provided, enforces an explicit, restricted demo policy:
+    resolves strictly to a non-superuser demo company user (scoped to demo company),
+    and NEVER silently grants unrestricted carrier or superuser access.
     """
     if token:
         try:
@@ -53,14 +54,28 @@ def get_current_user_or_demo(
         except Exception:
             pass
     
-    # Fallback to demo carrier or admin
-    demo_carrier = db.query(User).filter(User.role == "transporter").first()
-    if demo_carrier:
-        return demo_carrier
-    demo_admin = db.query(User).filter(User.email == "admin@dataco.com").first()
-    if demo_admin:
-        return demo_admin
-    return db.query(User).first()
+    # Explicit restricted demo policy:
+    # Resolve strictly to a non-superuser demo company account
+    demo_user = db.query(User).filter(User.email == "demo@globallogistics.com").first()
+    if not demo_user:
+        demo_user = db.query(User).filter(
+            User.role == "company",
+            User.is_superuser.is_(False),
+            User.company_id == 16
+        ).first()
+    if not demo_user:
+        demo_user = db.query(User).filter(
+            User.role == "company",
+            User.is_superuser.is_(False)
+        ).first()
+
+    if demo_user:
+        return demo_user
+
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Authentication credentials required"
+    )
 
 def get_current_active_superuser(
     current_user: User = Depends(get_current_user),

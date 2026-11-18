@@ -662,12 +662,20 @@ def report_shipment_delay(
     # 3. Carrier Isolation & Authorization
     if not current_user.is_superuser:
         if current_user.role == "transporter":
-            is_assigned = (
-                not shipment.transporter_org_id or
-                (shipment.transporter_org_id == current_user.transporter_org_id) or
-                (shipment.carrier and current_user.carrier_name and shipment.carrier.strip().lower() in current_user.carrier_name.strip().lower()) or
-                (current_user.company_id == shipment.company_id)
+            # Priority 2: A NULL transporter assignment must NEVER automatically authorize a transporter.
+            # Carrier must be explicitly assigned via transporter_org_id or carrier_name.
+            has_org_match = bool(
+                shipment.transporter_org_id and
+                current_user.transporter_org_id and
+                shipment.transporter_org_id == current_user.transporter_org_id
             )
+            has_carrier_match = bool(
+                shipment.carrier and
+                current_user.carrier_name and
+                (shipment.carrier.strip().lower() == current_user.carrier_name.strip().lower() or
+                 current_user.carrier_name.strip().lower() in shipment.carrier.strip().lower())
+            )
+            is_assigned = has_org_match or has_carrier_match
             if not is_assigned:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,

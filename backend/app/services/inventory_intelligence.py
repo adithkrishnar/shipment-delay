@@ -99,13 +99,26 @@ def _incoming(db: Session, company_id: int, product_id: int, warehouse_id: Optio
     if target_product and target_product.external_product_id:
         matching_prod_ids = [p.id for p in db.query(Product.id).filter(Product.external_product_id == target_product.external_product_id).all()]
 
-    # Incoming inventory must only include shipments destined for the receiver:
-    # 1) receiver_company_id == company_id (multi-tenant inbound freight)
-    # 2) OR receiver_company_id is None AND company_id == company_id (legacy single-enterprise inbound procurement)
-    # Outbound dispatches created by company_id for other receivers are strictly excluded.
+    # Priority 3: Incoming inventory must strictly include shipments destined for this company:
+    # 1) Multi-tenant inbound freight explicitly consigned to this receiver (receiver_company_id == company_id)
+    # 2) Legitimate legacy single-enterprise inbound procurement (e.g. DataCo Company 16)
+    #    where receiver_company_id is NULL, company_id matches, and an active supplier or legacy PO reference exists.
+    # Outbound dispatches created by company_id (where receiver_company_id is NULL or another company)
+    # are strictly excluded from incoming stock.
+    legacy_procurement_condition = (
+        Shipment.receiver_company_id.is_(None) &
+        (Shipment.company_id == company_id) &
+        (
+            Shipment.supplier_id.isnot(None) |
+            Shipment.external_shipment_id.like("DC-PO-%") |
+            Shipment.external_shipment_id.like("PO-%")
+        ) &
+        ~Shipment.external_shipment_id.like("SH-%")
+    )
+
     incoming_condition = (
         (Shipment.receiver_company_id == company_id) |
-        (Shipment.receiver_company_id.is_(None) & (Shipment.company_id == company_id))
+        legacy_procurement_condition
     )
 
     q = db.query(Shipment).filter(
@@ -115,11 +128,11 @@ def _incoming(db: Session, company_id: int, product_id: int, warehouse_id: Optio
         Shipment.assignment_status.in_(["IN_TRANSIT", "ACCEPTED", "DELAYED", "ARRIVED", "PENDING"]),
     )
 
+    # Priority 4: Warehouse-specific filtering
+    # When a warehouse_id is specified, include ONLY shipments strictly assigned to that warehouse.
+    # NULL destination warehouse shipments must NOT contaminate individual warehouse inventories.
     if warehouse_id is not None:
-        q = q.filter(
-            (Shipment.destination_warehouse_id == warehouse_id) |
-            (Shipment.destination_warehouse_id.is_(None))
-        )
+        q = q.filter(Shipment.destination_warehouse_id == warehouse_id)
 
     return q.order_by(Shipment.planned_delivery.asc()).all()
 

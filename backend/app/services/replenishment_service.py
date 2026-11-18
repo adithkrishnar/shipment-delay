@@ -27,6 +27,7 @@ def compute_replenishment_plan(
     company_id: int,
     service_level: float = 0.95,
     planning_horizon_days: int = 30,
+    warehouse_id: Optional[int] = None,
 ) -> Dict[str, Any]:
     """
     Computes reorder requirements, safety stock targets, and purchase order suggestions
@@ -39,32 +40,45 @@ def compute_replenishment_plan(
     latest_inv_map = _latest_inventory(db, company_id)
     stock_map = {pid: float(item.inventory_level) for pid, item in latest_inv_map.items()}
 
-    # Fetch open incoming shipments destined for this company
-    open_shipments = (
-        db.query(Shipment)
-        .filter(
-            (
-                (Shipment.receiver_company_id == company_id) |
-                (Shipment.receiver_company_id.is_(None) & (Shipment.company_id == company_id))
-            ),
-            Shipment.actual_delivery.is_(None),
-            Shipment.assignment_status.notin_(["DELIVERED", "CANCELLED", "REJECTED"])
-        )
-        .all()
+    # Priority 3 & 4: Fetch open incoming shipments strictly destined for this company
+    legacy_procurement_condition = (
+        Shipment.receiver_company_id.is_(None) &
+        (Shipment.company_id == company_id) &
+        (
+            Shipment.supplier_id.isnot(None) |
+            Shipment.external_shipment_id.like("DC-PO-%") |
+            Shipment.external_shipment_id.like("PO-%")
+        ) &
+        ~Shipment.external_shipment_id.like("SH-%")
     )
+    incoming_condition = (
+        (Shipment.receiver_company_id == company_id) |
+        legacy_procurement_condition
+    )
+
+    open_shps_q = db.query(Shipment).filter(
+        incoming_condition,
+        Shipment.actual_delivery.is_(None),
+        Shipment.assignment_status.notin_(["DELIVERED", "CANCELLED", "REJECTED"])
+    )
+    if warehouse_id is not None:
+        open_shps_q = open_shps_q.filter(Shipment.destination_warehouse_id == warehouse_id)
+
+    open_shipments = open_shps_q.all()
+
     incoming_map: Dict[int, float] = {}
     for s in open_shipments:
-        local_pids = [s.product_id]
+        local_pid = s.product_id
         shp_prod = db.query(Product).filter(Product.id == s.product_id).first()
         if shp_prod and shp_prod.external_product_id:
-            matched_products = db.query(Product).filter(
+            matched_product = db.query(Product).filter(
                 Product.company_id == company_id,
                 Product.external_product_id == shp_prod.external_product_id
-            ).all()
-            if matched_products:
-                local_pids = [mp.id for mp in matched_products]
-        for pid in local_pids:
-            incoming_map[pid] = incoming_map.get(pid, 0.0) + float(s.quantity or 0.0)
+            ).first()
+            if matched_product:
+                local_pid = matched_product.id
+
+        incoming_map[local_pid] = incoming_map.get(local_pid, 0.0) + float(s.quantity or 0.0)
 
     default_lead_time = 14.0
 

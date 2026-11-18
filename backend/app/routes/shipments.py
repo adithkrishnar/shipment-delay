@@ -1,7 +1,8 @@
 from typing import Optional
 from datetime import datetime, date
 import pandas as pd
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import or_, func
 from sqlalchemy.orm import Session
 
 from app.auth.deps import get_current_user_or_demo
@@ -61,8 +62,21 @@ def list_shipment_risk(
     enriched with ML delay probability and live carrier assignment statuses.
     """
     if not current_user.is_superuser:
-        if current_user.role == "company" and current_user.company_id != company_id:
-            raise HTTPException(status_code=403, detail="Forbidden: Not authorized to view another company's shipments.")
+        if current_user.role == "company":
+            if current_user.company_id != company_id:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Forbidden: Not authorized to view another company's shipments."
+                )
+        elif current_user.role == "transporter":
+            # Transporters cannot view an entire enterprise shipment registry.
+            # Access is limited strictly to shipments assigned to their transporter organization.
+            pass
+        else:
+            raise HTTPException(
+                status_code=403,
+                detail="Forbidden: Unauthorized role."
+            )
 
     company = db.query(Company).filter(Company.id == company_id).first()
     if not company:
@@ -80,14 +94,32 @@ def list_shipment_risk(
     except Exception as exc:
         logger.info("Using baseline risk heuristics for company %d (%s)", company_id, exc)
 
-    # Fetch shipments where this company is either Sender (company_id) or Receiver (receiver_company_id)
+    # Base filter: shipments where this company is either Sender (company_id) or Receiver (receiver_company_id)
+    base_filter = (
+        (Shipment.company_id == company_id) |
+        (Shipment.receiver_company_id == company_id)
+    )
+
+    # If requested by a transporter, limit strictly to shipments assigned to their organization
+    if not current_user.is_superuser and current_user.role == "transporter":
+        carrier_conditions = []
+        if current_user.transporter_org_id:
+            carrier_conditions.append(Shipment.transporter_org_id == current_user.transporter_org_id)
+        if current_user.carrier_name:
+            carrier_conditions.append(func.lower(Shipment.carrier) == current_user.carrier_name.strip().lower())
+
+        if not carrier_conditions:
+            raise HTTPException(
+                status_code=403,
+                detail="Forbidden: Transporter is not associated with any active carrier organization."
+            )
+        base_filter = base_filter & or_(*carrier_conditions)
+
+    # Fetch shipments matching the authorized filter
     shipments_and_suppliers = (
         db.query(Shipment, Supplier)
         .outerjoin(Supplier, Supplier.id == Shipment.supplier_id)
-        .filter(
-            (Shipment.company_id == company_id) |
-            (Shipment.receiver_company_id == company_id)
-        )
+        .filter(base_filter)
         .order_by(Shipment.id.desc())
         .limit(limit_val)
         .all()
@@ -710,40 +742,70 @@ def confirm_shipment_delivery(
     received_qty = float((payload or {}).get("received_quantity") or shipment.quantity or 100.0)
     new_inv_level = received_qty
 
-    # Resolve product matching for target company
-    target_product_id = shipment.product_id
-    if shipment.product_id:
-        source_prod = db.query(Product).filter(Product.id == shipment.product_id).first()
-        if source_prod:
-            rec_prod = db.query(Product).filter(
-                Product.company_id == target_company_id,
-                (Product.external_product_id == source_prod.external_product_id) | (Product.name == source_prod.name)
-            ).first()
-            if rec_prod:
-                target_product_id = rec_prod.id
+    # Resolve product matching for destination company with strict unambiguous validation
+    if not shipment.product_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot confirm delivery: Shipment has no assigned product."
+        )
+
+    source_prod = db.query(Product).filter(Product.id == shipment.product_id).first()
+    if not source_prod:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot confirm delivery: Source product ID {shipment.product_id} not found."
+        )
+
+    target_product_id = None
+    if source_prod.company_id == target_company_id:
+        # Same company shipment (internal warehouse movement)
+        target_product_id = source_prod.id
+    elif source_prod.external_product_id and source_prod.external_product_id.strip():
+        # Priority 5 Rule 1 & 2: Match by external product ID first.
+        # Do NOT fall back to name when external product ID exists but has no matching Receiver product.
+        sku = source_prod.external_product_id.strip()
+        matched_skus = db.query(Product).filter(
+            Product.company_id == target_company_id,
+            Product.external_product_id == sku
+        ).all()
+        if len(matched_skus) == 1:
+            target_product_id = matched_skus[0].id
+        elif len(matched_skus) > 1:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Cannot confirm delivery: Ambiguous SKU '{sku}' ({len(matched_skus)} matching products found in receiver catalog)."
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Cannot confirm delivery: SKU '{sku}' is not registered in the destination company's product catalog."
+            )
+    else:
+        # Priority 5 Rule 3 & 4: Source external product ID is missing; name-based matching permitted ONLY if exactly one matches
+        name_matches = db.query(Product).filter(
+            Product.company_id == target_company_id,
+            Product.name == source_prod.name
+        ).all()
+        if len(name_matches) == 1:
+            target_product_id = name_matches[0].id
+        elif len(name_matches) > 1:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Cannot confirm delivery: Product name '{source_prod.name}' is ambiguous ({len(name_matches)} matching products found in receiver catalog)."
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Cannot confirm delivery: Product name '{source_prod.name}' not found in destination company's product catalog."
+            )
 
     if wh:
-        # Match by resolved product_id, or shipment product_id, or latest record at this warehouse
-        inv_rec = None
-        if target_product_id:
-            inv_rec = db.query(InventoryRecord).filter(
-                InventoryRecord.company_id == target_company_id,
-                InventoryRecord.warehouse_id == wh.id,
-                InventoryRecord.product_id == target_product_id
-            ).order_by(InventoryRecord.date.desc()).first()
-        if not inv_rec and shipment.product_id:
-            inv_rec = db.query(InventoryRecord).filter(
-                InventoryRecord.company_id == target_company_id,
-                InventoryRecord.warehouse_id == wh.id,
-                InventoryRecord.product_id == shipment.product_id
-            ).order_by(InventoryRecord.date.desc()).first()
-        if not inv_rec:
-            inv_rec = db.query(InventoryRecord).filter(
-                InventoryRecord.company_id == target_company_id,
-                InventoryRecord.warehouse_id == wh.id
-            ).order_by(InventoryRecord.date.desc()).first()
-            if inv_rec and not target_product_id:
-                target_product_id = inv_rec.product_id
+        # Match inventory strictly by resolved target_product_id at this destination warehouse
+        inv_rec = db.query(InventoryRecord).filter(
+            InventoryRecord.company_id == target_company_id,
+            InventoryRecord.warehouse_id == wh.id,
+            InventoryRecord.product_id == target_product_id
+        ).order_by(InventoryRecord.date.desc()).first()
 
         if inv_rec:
             inv_rec.inventory_level = (inv_rec.inventory_level or 0.0) + received_qty
@@ -753,7 +815,7 @@ def confirm_shipment_delivery(
             inv_rec = InventoryRecord(
                 company_id=target_company_id,
                 warehouse_id=wh.id,
-                product_id=target_product_id or shipment.product_id,
+                product_id=target_product_id,
                 date=today_date,
                 inventory_level=received_qty
             )
