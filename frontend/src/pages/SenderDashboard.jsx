@@ -193,6 +193,7 @@ export default function SenderDashboard({ company, user }) {
       activeCount: physicallyInTransitDispatches.length + arrivedDispatches.length + awaitingDispatchDispatches.length,
       delayedCount: delayedDispatches.length,
       arrivedCount: arrivedDispatches.length,
+      completedCount: completedDispatches.length,
       unitsPhysicallyInTransit,
       unitsArrivedPendingReceipt,
       unitsAwaitingDispatch,
@@ -728,7 +729,11 @@ export default function SenderDashboard({ company, user }) {
                         </div>
                         {s.assignment_status === 'DELAYED' && (
                           <div style={{ fontSize: '11px', color: 'var(--status-critical)', fontWeight: 600 }}>
-                            +16h Highway Delay
+                            {(() => {
+                              const match = groupedSenderDelays.find(g => g.reference === s.external_shipment_id || g.shipment_id === s.shipment_id);
+                              const h = match?.totalDelayHours || s.delay_hours || 16;
+                              return `+${h}h Highway Delay`;
+                            })()}
                           </div>
                         )}
                       </td>

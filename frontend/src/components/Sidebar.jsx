@@ -32,13 +32,6 @@ export default function Sidebar() {
         ]
       },
       {
-        label: 'Corridor Analytics',
-        links: [
-          ['/delay-simulator', 'Transit Delay Simulator', SlidersHorizontal],
-          ['/what-if', 'Corridor What-If Lab', FlaskConical],
-        ]
-      },
-      {
         label: 'System & Enterprise',
         links: [
           ['/data', 'Enterprise Data & Shipments', UploadCloud],

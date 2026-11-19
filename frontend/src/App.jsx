@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import Topbar from './components/Topbar';
 import { getCompanies, seedDemo } from './services/api';
@@ -129,8 +129,9 @@ function MainApp() {
 
   const company = companies.find(x => x.id === id) || (id ? { id, name: 'Loading...' } : companies[0]);
 
-  // Show sidebar ONLY for company users (Transporter has its own dedicated portal header)
+  // Role differentiation
   const isTransporter = user?.role === 'transporter' || user?.participant_role === 'transporter';
+  const isSender = user?.participant_role === 'sender' || user?.role === 'sender';
   const showSidebar = isAuthenticated && !isAuthPage && !isTransporter;
   const showTopbar = isAuthenticated && !isAuthPage && !isTransporter;
 
@@ -157,20 +158,20 @@ function MainApp() {
           <Route element={<ProtectedRoute />}>
             <Route path="/" element={isTransporter ? <TransporterPortal company={company} /> : <Overview company={company} />} />
             <Route path="/transporter" element={<TransporterPortal company={company} />} />
-            <Route path="/inventory" element={<Inventory company={company} />} />
-            <Route path="/products" element={<Products company={company} />} />
-            <Route path="/demand" element={<Demand company={company} />} />
-            <Route path="/replenishment" element={<Replenishment company={company} />} />
-            <Route path="/delay-simulator" element={<Simulator company={company} />} />
-            <Route path="/simulator" element={<Simulator company={company} />} />
-            <Route path="/what-if" element={<WhatIfLab company={company} />} />
-            <Route path="/recommendations" element={<Recommendations company={company} />} />
-            <Route path="/insights" element={<Insights company={company} />} />
+            <Route path="/inventory" element={isSender ? <Navigate to="/" replace /> : <Inventory company={company} />} />
+            <Route path="/products" element={isSender ? <Navigate to="/" replace /> : <Products company={company} />} />
+            <Route path="/demand" element={isSender ? <Navigate to="/" replace /> : <Demand company={company} />} />
+            <Route path="/replenishment" element={isSender ? <Navigate to="/" replace /> : <Replenishment company={company} />} />
+            <Route path="/delay-simulator" element={isSender ? <Navigate to="/" replace /> : <Simulator company={company} />} />
+            <Route path="/simulator" element={isSender ? <Navigate to="/" replace /> : <Simulator company={company} />} />
+            <Route path="/what-if" element={isSender ? <Navigate to="/" replace /> : <WhatIfLab company={company} />} />
+            <Route path="/recommendations" element={isSender ? <Navigate to="/" replace /> : <Recommendations company={company} />} />
+            <Route path="/insights" element={isSender ? <Navigate to="/" replace /> : <Insights company={company} />} />
             <Route path="/data" element={<Data company={company} onCompanyChange={changeCompany} />} />
             <Route path="/models" element={<Models company={company} />} />
             <Route path="/shipments" element={<Shipments company={company} />} />
-            <Route path="/suppliers" element={<Suppliers company={company} />} />
-            <Route path="/anomalies" element={<Anomalies company={company} />} />
+            <Route path="/suppliers" element={isSender ? <Navigate to="/" replace /> : <Suppliers company={company} />} />
+            <Route path="/anomalies" element={isSender ? <Navigate to="/" replace /> : <Anomalies company={company} />} />
             <Route path="*" element={
               <div className="page animate-fade" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', minHeight: '60vh' }}>
                 <h1 style={{ fontSize: '48px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '16px' }}>404</h1>
