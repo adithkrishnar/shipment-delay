@@ -194,8 +194,22 @@ export default function Shipments({ company }) {
   );
   if (!d) return <Loader />;
 
+  const allShipments = d.shipments || [];
+
+  // DEF-018: Mutually exclusive and collectively exhaustive status classification
+  const isDelivered = (s) => (s.assignment_status || '').toUpperCase() === 'DELIVERED' || Boolean(s.actual_delivery);
+  const isArrived = (s) => !isDelivered(s) && (s.assignment_status || '').toUpperCase() === 'ARRIVED';
+  const isInTransit = (s) => !isDelivered(s) && !isArrived(s); // covers PENDING, ACCEPTED, IN_TRANSIT, DELAYED
+  const isCriticalDelayed = (s) => isInTransit(s) && ((s.assignment_status || '').toUpperCase() === 'DELAYED' || String(s.risk_tier || '').toUpperCase() === 'CRITICAL');
+
+  const inTransitCount = allShipments.filter(isInTransit).length;
+  const arrivedCount = allShipments.filter(isArrived).length;
+  const deliveredCount = allShipments.filter(isDelivered).length;
+  const total = allShipments.length;
+  const critical = allShipments.filter(isCriticalDelayed).length;
+
   // Filter logic
-  const filteredShipments = (d.shipments || []).filter(s => {
+  const filteredShipments = allShipments.filter(s => {
     // Search
     const q = search.toLowerCase();
     const matchesSearch = 
@@ -210,11 +224,10 @@ export default function Shipments({ company }) {
 
     // Status filter
     if (statusFilter !== 'ALL') {
-      const st = (s.assignment_status || 'IN_TRANSIT').toUpperCase();
-      if (statusFilter === 'DELAYED' && st !== 'DELAYED' && s.risk_tier !== 'CRITICAL') return false;
-      if (statusFilter === 'IN_TRANSIT' && st !== 'IN_TRANSIT' && st !== 'ACCEPTED') return false;
-      if (statusFilter === 'ARRIVED' && st !== 'ARRIVED') return false;
-      if (statusFilter === 'DELIVERED' && st !== 'DELIVERED') return false;
+      if (statusFilter === 'IN_TRANSIT' && !isInTransit(s)) return false;
+      if (statusFilter === 'ARRIVED' && !isArrived(s)) return false;
+      if (statusFilter === 'DELIVERED' && !isDelivered(s)) return false;
+      if (statusFilter === 'DELAYED' && !isCriticalDelayed(s)) return false;
     }
 
     // Direction filter
@@ -228,11 +241,6 @@ export default function Shipments({ company }) {
 
     return true;
   });
-
-  const total = (d.shipments || []).length;
-  const critical = (d.shipments || []).filter(s => String(s.risk_tier).toUpperCase() === 'CRITICAL' || s.assignment_status === 'DELAYED').length;
-  const inTransitCount = (d.shipments || []).filter(s => ['IN_TRANSIT', 'ACCEPTED', 'PENDING'].includes((s.assignment_status || '').toUpperCase())).length;
-  const deliveredCount = (d.shipments || []).filter(s => (s.assignment_status || '').toUpperCase() === 'DELIVERED').length;
 
   const isCompanyC = (company?.name || '').toLowerCase().includes('chennai');
   const isCompanyA = (company?.name || '').toLowerCase().includes('bengaluru');
@@ -285,18 +293,30 @@ export default function Shipments({ company }) {
         <div className="kpi-card">
           <div className="kpi-label">Total Enterprise Shipments</div>
           <div className="kpi-value">{total}</div>
-        </div>
-        <div className="kpi-card">
-          <div className="kpi-label">Transit Disrupted / Critical Risk</div>
-          <div className="kpi-value" style={{ color: critical > 0 ? 'var(--status-critical)' : 'inherit' }}>{critical}</div>
+          <div className="kpi-sub" style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
+            Reconciled: In-Transit ({inTransitCount}) + Arrived ({arrivedCount}) + Delivered ({deliveredCount})
+          </div>
         </div>
         <div className="kpi-card">
           <div className="kpi-label">Active In-Transit</div>
           <div className="kpi-value" style={{ color: 'var(--accent-primary)' }}>{inTransitCount}</div>
+          <div className="kpi-sub" style={{ fontSize: '11px', color: critical > 0 ? 'var(--status-critical)' : 'var(--text-tertiary)' }}>
+            {critical > 0 ? `⚠️ ${critical} delayed / critical risk` : 'All corridors on schedule'}
+          </div>
         </div>
         <div className="kpi-card">
-          <div className="kpi-label">Delivered & Stock Received</div>
+          <div className="kpi-label">Arrived at Destination</div>
+          <div className="kpi-value" style={{ color: '#F59E0B' }}>{arrivedCount}</div>
+          <div className="kpi-sub" style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
+            Awaiting receiver goods inward
+          </div>
+        </div>
+        <div className="kpi-card">
+          <div className="kpi-label">Delivered &amp; Stock Received</div>
           <div className="kpi-value" style={{ color: 'var(--status-healthy)' }}>{deliveredCount}</div>
+          <div className="kpi-sub" style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
+            Goods inward confirmed to stock
+          </div>
         </div>
       </div>
 
@@ -349,11 +369,11 @@ export default function Shipments({ company }) {
               border: '1px solid var(--border-default)', borderRadius: '6px', color: 'var(--text-primary)'
             }}
           >
-            <option value="ALL">All Statuses</option>
-            <option value="IN_TRANSIT">In Transit</option>
-            <option value="DELAYED">Delayed / Critical</option>
-            <option value="ARRIVED">Arrived (Ready for Receipt)</option>
-            <option value="DELIVERED">Delivered</option>
+            <option value="ALL">All Statuses ({total})</option>
+            <option value="IN_TRANSIT">In Transit ({inTransitCount})</option>
+            <option value="ARRIVED">Arrived / Dock ({arrivedCount})</option>
+            <option value="DELIVERED">Delivered ({deliveredCount})</option>
+            <option value="DELAYED">Delayed / Critical Only ({critical})</option>
           </select>
         </div>
 
@@ -498,18 +518,37 @@ export default function Shipments({ company }) {
 
                                   {/* Confirm Delivery Button for Receiver / Consignee only */}
                                   {!isDelivered && isReceiver && (
-                                    <button
-                                      disabled={actionLoading}
-                                      onClick={() => handleConfirmDelivery(s.shipment_id)}
-                                      className="btn-primary"
-                                      style={{ 
-                                        display: 'flex', alignItems: 'center', gap: '6px', 
-                                        padding: '6px 14px', fontSize: '12px', 
-                                        background: '#10B981', borderColor: '#10B981', color: '#fff' 
-                                      }}
-                                    >
-                                      <CheckCircle2 size={14} /> Confirm Delivery & Receive Stock
-                                    </button>
+                                    isArrived ? (
+                                      <button
+                                        disabled={actionLoading}
+                                        onClick={() => handleConfirmDelivery(s.shipment_id)}
+                                        className="btn-primary"
+                                        style={{
+                                          display: 'flex', alignItems: 'center', gap: '6px',
+                                          padding: '6px 14px', fontSize: '12px',
+                                          background: '#10B981', borderColor: '#10B981', color: '#fff'
+                                        }}
+                                        title="Cargo arrived at destination facility gate: Confirm Goods Inward and replenish warehouse stock"
+                                      >
+                                        <CheckCircle2 size={14} /> Confirm Delivery & Receive Stock
+                                      </button>
+                                    ) : (
+                                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px' }}>
+                                        <button
+                                          disabled
+                                          className="btn-secondary"
+                                          style={{
+                                            display: 'flex', alignItems: 'center', gap: '6px',
+                                            padding: '6px 12px', fontSize: '12px',
+                                            opacity: 0.5, cursor: 'not-allowed'
+                                          }}
+                                          title="Gate arrival required: Physical cargo has not reached destination facility yet"
+                                        >
+                                          <Clock size={14} /> Inward Pending (Gate Arrival Required)
+                                        </button>
+                                        <span style={{ fontSize: '10px', color: 'var(--text-tertiary)' }}>Gate arrival required</span>
+                                      </div>
+                                    )
                                   )}
                                 </div>
                               </div>
@@ -528,66 +567,83 @@ export default function Shipments({ company }) {
                                   </span>
                                 </div>
 
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '12px' }}>
-                                  {/* Leg 1 */}
-                                  <div style={{ padding: '12px', border: '1px solid var(--border-subtle)', borderRadius: '6px', background: 'var(--bg-base)' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                                      <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)' }}>LEG #1 (ROAD)</span>
-                                      <span style={{ fontSize: '11px', color: '#10B981', fontWeight: 600 }}>COMPLETED</span>
-                                    </div>
-                                    <div style={{ fontSize: '12px', color: 'var(--text-primary)', fontWeight: 500 }}>Bengaluru Plant → Hosur Hub</div>
-                                    <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '4px' }}>First-Mile Consolidation</div>
-                                  </div>
+                                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '12px' }}>
+                                    {(s.legs && s.legs.length > 0 ? s.legs : [
+                                      { id: 1, sequence: 1, mode: s.transport_mode || 'ROAD', origin: s.origin || 'Source Facility', destination: s.destination || 'Destination Facility', carrier_name: s.carrier || 'Assigned Carrier', status: s.assignment_status || 'IN_TRANSIT', delay_hours: isDelayed ? 16 : 0 }
+                                    ]).map((leg, legIdx, allLegs) => {
+                                      const isLegCompleted = leg.status === 'COMPLETED';
+                                      const isLegActive = leg.status === 'IN_TRANSIT' || leg.status === 'DELAYED';
+                                      const isLegDelayed = leg.status === 'DELAYED' || (isLegActive && isDelayed);
+                                      const isFinalLeg = legIdx === allLegs.length - 1;
 
-                                  {/* Leg 2 */}
-                                  <div style={{ padding: '12px', border: '1px solid var(--accent-primary)', borderRadius: '6px', background: 'var(--bg-base)' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                                      <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--accent-primary)' }}>LEG #2 (HIGHWAY CORRIDOR)</span>
-                                      <span style={{ fontSize: '11px', color: isDelayed ? 'var(--status-critical)' : 'var(--accent-primary)', fontWeight: 600 }}>
-                                        {isDelayed ? 'DELAYED (+16h)' : 'IN TRANSIT'}
-                                      </span>
-                                    </div>
-                                    <div style={{ fontSize: '12px', color: 'var(--text-primary)', fontWeight: 500 }}>Hosur Hub → Sriperumbudur Depot</div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px' }}>
-                                      <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>Carrier: {s.carrier || 'Express Fleet'}</span>
-                                      {!isDelivered && isTransporter && (
-                                        <button
-                                          disabled={actionLoading}
-                                          onClick={() => handleAdvanceLeg(s.shipment_id, 9012)}
-                                          className="btn-secondary"
-                                          style={{ padding: '3px 8px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                      return (
+                                        <div
+                                          key={leg.id || leg.sequence}
+                                          style={{
+                                            padding: '12px',
+                                            border: isLegActive ? '1px solid var(--accent-primary)' : '1px solid var(--border-subtle)',
+                                            borderRadius: '6px',
+                                            background: 'var(--bg-base)'
+                                          }}
                                         >
-                                          Advance to Leg #3 <ArrowRight size={12} />
-                                        </button>
-                                      )}
-                                    </div>
-                                  </div>
+                                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                                            <span style={{ fontSize: '11px', fontWeight: 700, color: isLegActive ? 'var(--accent-primary)' : 'var(--text-secondary)' }}>
+                                              LEG #{leg.sequence} ({(leg.mode || 'ROAD').toUpperCase()})
+                                            </span>
+                                            {isLegCompleted ? (
+                                              <span style={{ fontSize: '11px', color: '#10B981', fontWeight: 600 }}>COMPLETED</span>
+                                            ) : isLegDelayed ? (
+                                              <span style={{ fontSize: '11px', color: 'var(--status-critical)', fontWeight: 600 }}>
+                                                DELAYED (+{leg.delay_hours || 4}h)
+                                              </span>
+                                            ) : isLegActive ? (
+                                              <span style={{ fontSize: '11px', color: 'var(--accent-primary)', fontWeight: 600 }}>IN TRANSIT</span>
+                                            ) : (
+                                              <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 600 }}>
+                                                {isDelivered ? 'COMPLETED' : (isArrived && isFinalLeg ? 'ARRIVED' : (leg.status || 'SCHEDULED'))}
+                                              </span>
+                                            )}
+                                          </div>
 
-                                  {/* Leg 3 */}
-                                  <div style={{ padding: '12px', border: '1px solid var(--border-subtle)', borderRadius: '6px', background: 'var(--bg-base)' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                                      <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)' }}>LEG #3 (LAST-MILE)</span>
-                                      <span style={{ fontSize: '11px', color: isDelivered ? '#10B981' : 'var(--text-tertiary)', fontWeight: 600 }}>
-                                        {isDelivered ? 'COMPLETED' : (isArrived ? 'ARRIVED' : 'SCHEDULED')}
-                                      </span>
-                                    </div>
-                                    <div style={{ fontSize: '12px', color: 'var(--text-primary)', fontWeight: 500 }}>Sriperumbudur Depot → Chennai DC</div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px' }}>
-                                      <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>Final Destination Delivery</span>
-                                      {!isDelivered && isArrived && isReceiver && (
-                                        <button
-                                          disabled={actionLoading}
-                                          onClick={() => handleConfirmDelivery(s.shipment_id)}
-                                          className="btn-primary"
-                                          style={{ padding: '3px 8px', fontSize: '11px', background: '#10B981', borderColor: '#10B981', color: '#fff' }}
-                                        >
-                                          Accept Stock
-                                        </button>
-                                      )}
-                                    </div>
+                                          <div style={{ fontSize: '12px', color: 'var(--text-primary)', fontWeight: 500 }}>
+                                            {leg.origin} → {leg.destination}
+                                          </div>
+
+                                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px' }}>
+                                            <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
+                                              Carrier: {leg.carrier_name || s.carrier || 'Fleet Courier'}
+                                            </span>
+
+                                            {/* Transporter / Consignor Advance Leg Handover Button */}
+                                            {!isDelivered && isLegActive && (isTransporter || isSender) && (
+                                              <button
+                                                disabled={actionLoading}
+                                                onClick={() => handleAdvanceLeg(s.shipment_id, leg.id)}
+                                                className="btn-secondary"
+                                                style={{ padding: '3px 8px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                                title={`Advance leg #${leg.sequence} handover`}
+                                              >
+                                                {isFinalLeg ? 'Mark Gate Arrival' : `Advance to Leg #${leg.sequence + 1}`} <ArrowRight size={12} />
+                                              </button>
+                                            )}
+
+                                            {/* Final Leg Stock Acceptance for Receiver */}
+                                            {isFinalLeg && !isDelivered && isArrived && isReceiver && (
+                                              <button
+                                                disabled={actionLoading}
+                                                onClick={() => handleConfirmDelivery(s.shipment_id)}
+                                                className="btn-primary"
+                                                style={{ padding: '3px 8px', fontSize: '11px', background: '#10B981', borderColor: '#10B981', color: '#fff' }}
+                                              >
+                                                Accept Stock
+                                              </button>
+                                            )}
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
                                   </div>
                                 </div>
-                              </div>
 
                               {/* Downstream Inventory Impact Panel (Receiver) or Outbound Linehaul Dossier (Sender) */}
                               {isReceiver ? (
@@ -669,7 +725,7 @@ export default function Shipments({ company }) {
                                         </div>
                                         <div className="flex-between">
                                           <span style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>Corridor Mode</span>
-                                          <strong>{s.transport_mode} (360 km Highway Route)</strong>
+                                          <strong>{(s.transport_mode || 'ROAD').toUpperCase()} ({s.distance_km != null && s.distance_km > 0 ? `${s.distance_km.toLocaleString()} km` : 'Distance not recorded'})</strong>
                                         </div>
                                         <div className="flex-between">
                                           <span style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>Delivery Status</span>

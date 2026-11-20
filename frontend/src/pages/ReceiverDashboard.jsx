@@ -32,6 +32,7 @@ export default function ReceiverDashboard({ company, user }) {
   const [disruptions, setDisruptions] = useState([]);
 
   // Active Selection & Modals
+  const [selectedProductId, setSelectedProductId] = useState(null);
   const [selectedShipment, setSelectedShipment] = useState(null);
   const selectedShipmentIdRef = useRef(null);
   const [selectedDisruption, setSelectedDisruption] = useState(null);
@@ -127,12 +128,10 @@ export default function ReceiverDashboard({ company, user }) {
         return fallback;
       });
 
-      // Merge backend disruptions with live localStorage events
-      const localDis = JSON.parse(localStorage.getItem('supplyiq_recent_disruptions') || '[]');
-      const combinedDis = [...localDis, ...(resDis || [])];
+      // Pure DB-backed disruptions from backend API
       const uniqueDis = [];
       const seen = new Set();
-      for (const d of combinedDis) {
+      for (const d of (resDis || [])) {
         const key = `${d.external_shipment_id || d.shipment_id}-${d.delay_hours}-${d.disruption_reason}`;
         if (!seen.has(key)) {
           seen.add(key);
@@ -154,34 +153,54 @@ export default function ReceiverDashboard({ company, user }) {
     loadReceiverData();
     const interval = setInterval(loadReceiverData, 3500);
 
-    const handleDisruptionEvent = () => loadReceiverData();
-    window.addEventListener('supplyiq_disruption_reported', handleDisruptionEvent);
-    window.addEventListener('supplyiq_action_approved', handleDisruptionEvent);
+    const handleActionApproved = () => loadReceiverData();
+    window.addEventListener('supplyiq_action_approved', handleActionApproved);
 
     return () => {
       clearInterval(interval);
-      window.removeEventListener('supplyiq_disruption_reported', handleDisruptionEvent);
-      window.removeEventListener('supplyiq_action_approved', handleDisruptionEvent);
+      window.removeEventListener('supplyiq_action_approved', handleActionApproved);
     };
   }, [company?.id]);
 
   // Derived KPI metrics from verified backend responses
   const kpis = useMemo(() => {
-    const item = inventoryData?.items?.[0] || {};
-    const repl = replenishmentData?.recommendations?.[0] || {};
+    const items = inventoryData?.items || [];
+    const item = (selectedProductId ? items.find(i => i.product_id === selectedProductId) : null) || items[0] || null;
+    const recs = replenishmentData?.recommendations || [];
+    const repl = (item ? recs.find(r => r.product_id === item.product_id) : null) || recs[0] || null;
 
-    const onHand = Number(item.inventory_level ?? repl.on_hand ?? 85.0);
-    const physicallyInTransit = Number(item.physically_in_transit_quantity ?? (item.incoming_quantity ?? 100.0));
-    const arrivedPendingInward = Number(item.arrived_quantity ?? 0.0);
-    const awaitingDispatch = Number(item.awaiting_dispatch_quantity ?? 0.0);
-    const totalIncomingPipeline = Number(item.incoming_quantity ?? (physicallyInTransit + arrivedPendingInward + awaitingDispatch));
+    if (!item && !repl) {
+      return {
+        onHand: 0,
+        physicallyInTransit: 0,
+        arrivedPendingInward: 0,
+        awaitingDispatch: 0,
+        totalIncomingPipeline: 0,
+        inTransit: 0,
+        totalExpected: 0,
+        dailyDemand: 0,
+        coverageDays: 0,
+        safetyStock: 0,
+        reorderPoint: 0,
+        stockoutProb: 0,
+        recommendedOrderQty: 0,
+        productName: 'No Active Inventory SKUs',
+        sku: '—'
+      };
+    }
+
+    const onHand = Number(item?.inventory_level ?? repl?.on_hand ?? 0.0);
+    const physicallyInTransit = Number(item?.physically_in_transit_quantity ?? (item?.incoming_quantity ?? repl?.incoming_pipeline ?? 0.0));
+    const arrivedPendingInward = Number(item?.arrived_quantity ?? 0.0);
+    const awaitingDispatch = Number(item?.awaiting_dispatch_quantity ?? 0.0);
+    const totalIncomingPipeline = Number(item?.incoming_quantity ?? (physicallyInTransit + arrivedPendingInward + awaitingDispatch));
     const totalExpected = onHand + totalIncomingPipeline;
-    const dailyDemand = Number(item.daily_demand ?? repl.daily_demand ?? 50.0);
-    const coverageDays = Number(item.inventory_coverage_days ?? (dailyDemand > 0 ? (onHand / dailyDemand).toFixed(1) : 0));
-    const safetyStock = Number(item.safety_stock ?? repl.safety_stock ?? 8.88);
-    const reorderPoint = Number(item.reorder_point ?? repl.reorder_point ?? 708.88);
-    const stockoutProb = Number(item.stockout_probability ?? 0.9947);
-    const recommendedOrderQty = Number(repl.suggested_order_qty ?? item.recommended_order_quantity ?? 1424);
+    const dailyDemand = Number(item?.daily_demand ?? repl?.daily_demand ?? 0.0);
+    const coverageDays = Number(item?.inventory_coverage_days ?? (dailyDemand > 0 ? (onHand / dailyDemand).toFixed(1) : 0));
+    const safetyStock = Number(item?.safety_stock ?? repl?.safety_stock ?? 0.0);
+    const reorderPoint = Number(item?.reorder_point ?? repl?.reorder_point ?? 0.0);
+    const stockoutProb = Number(item?.stockout_probability ?? (repl?.stockout_risk === 'CRITICAL' ? 0.95 : repl?.stockout_risk === 'HIGH' ? 0.8 : 0.05));
+    const recommendedOrderQty = Number(repl?.suggested_order_qty ?? item?.recommended_order_quantity ?? 0);
 
     return {
       onHand,
@@ -197,10 +216,10 @@ export default function ReceiverDashboard({ company, user }) {
       reorderPoint,
       stockoutProb,
       recommendedOrderQty,
-      productName: item.product_name || repl.name || 'Industrial IoT Telematics Controller',
-      sku: item.external_product_id || repl.sku || 'SKU-BLR-101'
+      productName: item?.product_name || repl?.name || (items.length === 0 ? 'No Products Registered' : 'Selected SKU'),
+      sku: item?.external_product_id || repl?.sku || '—'
     };
-  }, [inventoryData, replenishmentData]);
+  }, [inventoryData, replenishmentData, selectedProductId]);
 
   // Handle Goods Inward Delivery Confirmation exclusively for Receiver
   const handleConfirmDelivery = async (shipment) => {
@@ -401,10 +420,34 @@ export default function ReceiverDashboard({ company, user }) {
               SECTION A • REAL-TIME INVENTORY COCKPIT
             </span>
             <h2 style={{ fontSize: '16px', fontWeight: 700, margin: '2px 0 0 0', color: 'var(--text-primary)' }}>
-              {kpis.productName} ({kpis.sku}) — Chennai Central DC
+              {kpis.productName} ({kpis.sku}) — {company?.name || 'Destination DC'}
             </h2>
           </div>
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            {inventoryData?.items?.length > 1 && (
+              <select
+                aria-label="Select Target SKU"
+                value={selectedProductId || inventoryData.items[0]?.product_id || ''}
+                onChange={e => setSelectedProductId(Number(e.target.value))}
+                style={{
+                  background: 'var(--bg-surface-2)',
+                  color: 'var(--text-primary)',
+                  border: '1px solid var(--border-default)',
+                  borderRadius: 'var(--r-md)',
+                  padding: '5px 10px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  maxWidth: '260px'
+                }}
+              >
+                {inventoryData.items.map(it => (
+                  <option key={it.product_id} value={it.product_id}>
+                    {it.external_product_id} — {it.product_name}
+                  </option>
+                ))}
+              </select>
+            )}
             <span style={{
               fontSize: '11px',
               fontWeight: 700,
@@ -445,7 +488,7 @@ export default function ReceiverDashboard({ company, user }) {
               +{kpis.physicallyInTransit.toFixed(1)} <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-tertiary)' }}>units</span>
             </div>
             <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <Clock size={12} /> {kpis.arrivedPendingInward > 0 ? `${kpis.arrivedPendingInward.toFixed(0)} at dock • ` : ''}Highway corridor NH-48 en route
+              <Clock size={12} /> {kpis.arrivedPendingInward > 0 ? `${kpis.arrivedPendingInward.toFixed(0)} at dock • ` : ''}Active transit corridor en route
             </div>
           </div>
 
@@ -519,6 +562,110 @@ export default function ReceiverDashboard({ company, user }) {
             </div>
             <div style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>30-day economic batch target</div>
           </div>
+        </div>
+
+        {/* Multi-SKU Facility Inventory Register */}
+        <div style={{ marginTop: '20px', borderTop: '1px solid var(--border-subtle, #26313D)', paddingTop: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+            <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              Facility SKU Inventory Register ({inventoryData?.items?.length || 0} SKUs tracked)
+            </span>
+            <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
+              Click any SKU row to focus Cockpit analytics
+            </span>
+          </div>
+
+          {(!inventoryData?.items || inventoryData.items.length === 0) ? (
+            <div style={{ textAlign: 'center', padding: '24px', color: 'var(--text-tertiary)', fontSize: '13px' }}>
+              No inventory records registered for this facility.
+            </div>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid var(--border-subtle, #26313D)', textAlign: 'left', color: 'var(--text-tertiary)' }}>
+                    <th style={{ padding: '8px 12px' }}>Product SKU</th>
+                    <th style={{ padding: '8px 12px' }}>Product Name</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'right' }}>On-Hand</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'right' }}>In-Transit</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'right' }}>Expected Total</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'right' }}>Daily Run-Rate</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'right' }}>Coverage</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'right' }}>Safety Stock</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'right' }}>ROP</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'center' }}>Stockout Tier</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {inventoryData.items.map(it => {
+                    const isSelected = (selectedProductId ? it.product_id === selectedProductId : it === inventoryData.items[0]);
+                    const onH = Number(it.inventory_level ?? 0);
+                    const inT = Number(it.physically_in_transit_quantity ?? (it.incoming_quantity ?? 0));
+                    const expT = onH + inT;
+                    const dDem = Number(it.daily_demand ?? 0);
+                    const cov = Number(it.inventory_coverage_days ?? (dDem > 0 ? (onH / dDem).toFixed(1) : 0));
+                    const ss = Number(it.safety_stock ?? 0);
+                    const rop = Number(it.reorder_point ?? 0);
+                    const isCrit = it.stockout_risk === 'CRITICAL' || onH <= ss;
+
+                    return (
+                      <tr
+                        key={it.product_id}
+                        onClick={() => setSelectedProductId(it.product_id)}
+                        style={{
+                          borderBottom: '1px solid var(--border-subtle, #26313D)',
+                          background: isSelected ? 'rgba(56, 189, 248, 0.08)' : 'transparent',
+                          cursor: 'pointer',
+                          transition: 'background 0.15s'
+                        }}
+                      >
+                        <td style={{ padding: '10px 12px', fontWeight: 700, color: isSelected ? '#38BDF8' : 'var(--text-primary)' }}>
+                          {it.external_product_id}
+                        </td>
+                        <td style={{ padding: '10px 12px', color: 'var(--text-primary)' }}>
+                          {it.product_name}
+                        </td>
+                        <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700, color: onH <= ss ? '#FF5A6B' : 'var(--text-primary)' }}>
+                          {onH.toFixed(1)} u
+                        </td>
+                        <td style={{ padding: '10px 12px', textAlign: 'right', color: '#38E5A3' }}>
+                          +{inT.toFixed(1)} u
+                        </td>
+                        <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 600, color: 'var(--text-primary)' }}>
+                          {expT.toFixed(1)} u
+                        </td>
+                        <td style={{ padding: '10px 12px', textAlign: 'right', color: 'var(--text-secondary)' }}>
+                          {dDem.toFixed(1)} u/d
+                        </td>
+                        <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 600, color: cov < 2 ? '#FF5A6B' : 'var(--text-primary)' }}>
+                          {cov.toFixed(1)} d
+                        </td>
+                        <td style={{ padding: '10px 12px', textAlign: 'right', color: 'var(--text-secondary)' }}>
+                          {ss.toFixed(1)} u
+                        </td>
+                        <td style={{ padding: '10px 12px', textAlign: 'right', color: 'var(--text-secondary)' }}>
+                          {rop.toFixed(1)} u
+                        </td>
+                        <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                          <span style={{
+                            padding: '2px 8px',
+                            borderRadius: '4px',
+                            fontSize: '10px',
+                            fontWeight: 700,
+                            background: isCrit ? 'rgba(239, 68, 68, 0.15)' : 'rgba(56, 229, 163, 0.15)',
+                            color: isCrit ? '#FF5A6B' : '#38E5A3',
+                            border: `1px solid ${isCrit ? 'rgba(239, 68, 68, 0.3)' : 'rgba(56, 229, 163, 0.3)'}`
+                          }}>
+                            {it.stockout_risk || (isCrit ? 'CRITICAL' : 'OPTIMAL')}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
 
@@ -869,7 +1016,7 @@ export default function ReceiverDashboard({ company, user }) {
                           {s.carrier || 'Karnataka-Tamil Nadu Express Logistics'}
                         </div>
                         <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
-                          {s.transport_mode || 'ROAD'} • NH-48 Express Linehaul
+                          {(s.transport_mode || 'ROAD').toUpperCase()} • {s.distance_km != null && s.distance_km > 0 ? `${s.distance_km.toLocaleString()} km` : 'Linehaul transit'}
                         </div>
                       </td>
 

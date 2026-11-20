@@ -12,7 +12,14 @@ const getStoredToken = () => {
 };
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => {
+    try {
+      const stored = sessionStorage.getItem('user') || localStorage.getItem('user');
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
   const [token, setToken] = useState(getStoredToken());
   const [loading, setLoading] = useState(true);
 

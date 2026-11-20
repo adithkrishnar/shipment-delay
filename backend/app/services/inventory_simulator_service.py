@@ -87,12 +87,23 @@ def run_delay_simulation(
     scenario_daily_demand = base_daily_demand * demand_multiplier
 
     # Safety stock and reorder point parameters
+    related_product_ids = [product_id]
+    if product.external_product_id:
+        matching_prods = db.query(Product.id).filter(Product.external_product_id == product.external_product_id).all()
+        related_product_ids = list({p[0] for p in matching_prods})
+
     supplier = (
         db.query(Supplier)
         .join(Shipment, Shipment.supplier_id == Supplier.id)
-        .filter(Shipment.company_id == company_id, Shipment.product_id == product_id)
+        .filter(
+            ((Shipment.company_id == company_id) | (Shipment.receiver_company_id == company_id)),
+            Shipment.product_id.in_(related_product_ids)
+        )
         .first()
     )
+    if not supplier:
+        supplier = db.query(Supplier).filter(Supplier.company_id == company_id).first()
+
     from app.services.inventory_intelligence import calculate_safety_stock, get_supplier_lead_time_stats
     nominal_lead = float(supplier.lead_time_days) if supplier and supplier.lead_time_days else 14.0
     lead_mean, lead_std, _ = get_supplier_lead_time_stats(
@@ -108,13 +119,14 @@ def run_delay_simulation(
     )
     reorder_point = float(round((base_daily_demand * lead_mean) + safety_stock, 2))
 
-    # 4. Fetch incoming open orders / shipments
+    # 4. Fetch incoming open orders / shipments (both directly owned and incoming receiver fulfillment)
     shipments_query = (
         db.query(Shipment)
         .filter(
-            Shipment.company_id == company_id,
-            Shipment.product_id == product_id,
+            ((Shipment.company_id == company_id) | (Shipment.receiver_company_id == company_id)),
+            Shipment.product_id.in_(related_product_ids),
             Shipment.actual_delivery.is_(None),
+            Shipment.assignment_status.notin_(["DELIVERED", "CANCELLED", "REVOKED"]),
         )
     )
     open_shipments = shipments_query.all()
@@ -143,7 +155,7 @@ def run_delay_simulation(
         default_arrival = max(5, int(lead_time // 2))
         incoming_orders.append({
             "id": 999999,
-            "order_number": "PO-SCHEDULED-1",
+            "order_number": "SIM-PLANNED-REPLENISHMENT",
             "quantity": max(50.0, round(base_daily_demand * lead_time)),
             "baseline_day": default_arrival,
             "carrier": "Standard Replenishment",

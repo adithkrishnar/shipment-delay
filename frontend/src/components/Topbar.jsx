@@ -68,9 +68,33 @@ export default function Topbar({ company, companies, onCompany }) {
             <span style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-tertiary)', letterSpacing: '0.05em' }}>
               Tenant Scope:
             </span>
-            <span style={{ color: 'var(--accent-primary)', fontWeight: 700 }}>
-              {company.name}
-            </span>
+            {user?.is_superuser && companies && companies.length > 1 ? (
+              <select
+                aria-label="Select Tenant Scope"
+                value={company.id}
+                onChange={e => onCompany && onCompany(Number(e.target.value))}
+                style={{
+                  background: 'transparent',
+                  color: 'var(--accent-primary)',
+                  border: 'none',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  outline: 'none',
+                  paddingRight: '4px'
+                }}
+              >
+                {companies.map(c => (
+                  <option key={c.id} value={c.id} style={{ background: '#1A232E', color: '#F3F6FA' }}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <span style={{ color: 'var(--accent-primary)', fontWeight: 700 }}>
+                {company.name}
+              </span>
+            )}
           </div>
         )}
 

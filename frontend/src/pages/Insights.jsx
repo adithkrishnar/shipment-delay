@@ -41,6 +41,7 @@ export default function Insights({ company }) {
   const summary = abcData?.summary || {};
   const agingBuckets = agingData?.aging_buckets || {};
   const slowMoving = agingData?.slow_moving_skus || [];
+  const currSym = company?.default_currency === 'INR' || company?.currency === 'INR' ? '₹' : (company?.default_currency === 'EUR' || company?.currency === 'EUR' ? '€' : (company?.default_currency === 'GBP' || company?.currency === 'GBP' ? '£' : '$'));
 
   const agingChartData = Object.entries(agingBuckets).map(([bucket, val]) => ({
     bucket: bucket.replace(/ \(.*\)/, ''),
@@ -105,7 +106,7 @@ export default function Insights({ company }) {
         <div className="sim-kpi-card">
           <span className="kpi-label">Slow & Non-Moving Capital</span>
           <div className="kpi-value" style={{ color: 'var(--status-healthy)' }}>
-            ${typeof agingData?.total_at_risk_capital === 'number' ? agingData.total_at_risk_capital.toLocaleString() : '0'}
+            {currSym}{typeof agingData?.total_at_risk_capital === 'number' ? agingData.total_at_risk_capital.toLocaleString() : '0'}
           </div>
           <span className="kpi-sub">
             {slowMoving.length === 0 ? 'Optimal turnover (0 SKUs > 90d inactive)' : `${slowMoving.length} SKUs > 90d inactive`}
@@ -133,10 +134,10 @@ export default function Insights({ company }) {
           </div>
           <div>
             <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
-              Network Inventory Reconciliation: {summary.total_products || 8} SKUs • 2,003.5 Total Units • ${summary.total_stock_value?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '337,198.56'} Valuation
+              Network Inventory Reconciliation: {summary.total_products || 8} SKUs • 2,003.5 Total Units • {currSym}{summary.total_stock_value?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '337,198.56'} Valuation
             </div>
             <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: '2px' }}>
-              Class A items represent ${(summary.total_stock_value * 0.766).toLocaleString(undefined, { maximumFractionDigits: 0 })} (76.6% of capital). 100% of network stock is active within the past 60 days.
+              Class A items represent {currSym}{(summary.total_stock_value * 0.766).toLocaleString(undefined, { maximumFractionDigits: 0 })} (76.6% of capital). 100% of network stock is active within the past 60 days.
             </div>
           </div>
         </div>
@@ -147,7 +148,7 @@ export default function Insights({ company }) {
           </div>
           <div style={{ textAlign: 'right' }}>
             <div style={{ color: 'var(--text-tertiary)' }}>Consumption Base</div>
-            <strong style={{ color: 'var(--text-primary)' }}>${summary.total_annual_consumption_value ? (summary.total_annual_consumption_value / 1e6).toFixed(2) + 'M' : '$1.99M'} Annualized</strong>
+            <strong style={{ color: 'var(--text-primary)' }}>{currSym}{summary.total_annual_consumption_value ? (summary.total_annual_consumption_value / 1e6).toFixed(2) + 'M' : '1.99M'} Annualized</strong>
           </div>
         </div>
       </div>
@@ -203,7 +204,7 @@ export default function Insights({ company }) {
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-secondary)', marginTop: '8px' }}>
                   <span>Stock: {cell.total_stock} units</span>
-                  <span>Value: ${cell.total_value.toLocaleString()}</span>
+                  <span>Value: {currSym}{cell.total_value.toLocaleString()}</span>
                 </div>
               </div>
             );
@@ -263,7 +264,7 @@ export default function Insights({ company }) {
                     </div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontWeight: 600, color: 'var(--status-watch)' }}>${item.stock_value.toLocaleString()}</div>
+                    <div style={{ fontWeight: 600, color: 'var(--status-watch)' }}>{currSym}{item.stock_value.toLocaleString()}</div>
                     <div style={{ color: 'var(--text-tertiary)', fontSize: '11px' }}>{item.stock_on_hand} units</div>
                   </div>
                 </div>
@@ -309,12 +310,12 @@ export default function Insights({ company }) {
                     <span className={`abc-tag ${p.abc_class}`}>{p.abc_class}</span>
                     <span style={{ marginLeft: '4px', fontWeight: 600 }} className={`xyz-tag ${p.xyz_class}`}>{p.xyz_class}</span>
                   </td>
-                  <td style={{ padding: '10px 16px' }}>${p.annual_consumption_value.toLocaleString()}</td>
+                  <td style={{ padding: '10px 16px' }}>{currSym}{p.annual_consumption_value.toLocaleString()}</td>
                   <td style={{ padding: '10px 16px', color: p.cv < 0.5 ? 'var(--status-healthy)' : p.cv <= 1.0 ? 'var(--status-watch)' : 'var(--status-critical)' }}>
                     {p.cv}
                   </td>
                   <td style={{ padding: '10px 16px' }}>{p.current_stock} units</td>
-                  <td style={{ padding: '10px 16px', fontWeight: 600, color: 'var(--text-primary)' }}>${p.stock_value.toLocaleString()}</td>
+                  <td style={{ padding: '10px 16px', fontWeight: 600, color: 'var(--text-primary)' }}>{currSym}{p.stock_value.toLocaleString()}</td>
                 </tr>
               ))}
             </tbody>

@@ -2,6 +2,7 @@ import secrets
 from typing import List, Optional
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -178,16 +179,22 @@ def get_assigned_shipments(
         )
 
     # Authoritative assignment filter
-    q = db.query(Shipment)
+    q = db.query(Shipment).distinct()
     if not current_user.is_superuser:
+        from app.models.shipment_leg import ShipmentLeg
+        conditions = []
         if current_user.transporter_org_id:
-            # Authorized by organization ID or carrier name matching
-            q = q.filter(
-                (Shipment.transporter_org_id == current_user.transporter_org_id) |
-                (Shipment.carrier == current_user.carrier_name)
-            )
-        elif current_user.carrier_name:
-            q = q.filter(Shipment.carrier == current_user.carrier_name)
+            conditions.append(Shipment.transporter_org_id == current_user.transporter_org_id)
+        if current_user.carrier_name:
+            c_name = current_user.carrier_name.strip().lower()
+            conditions.append(func.lower(Shipment.carrier) == c_name)
+            conditions.append(Shipment.legs.any(func.lower(ShipmentLeg.carrier_name) == c_name))
+        if current_user.transporter_org and current_user.transporter_org.name:
+            org_name = current_user.transporter_org.name.strip().lower()
+            conditions.append(Shipment.legs.any(func.lower(ShipmentLeg.carrier_name) == org_name))
+
+        if conditions:
+            q = q.filter(or_(*conditions))
         else:
             return []
 
@@ -250,14 +257,21 @@ def get_shipment_legs_endpoint(
 
     if not current_user.is_superuser:
         if current_user.role == "transporter":
+            legs_check = ensure_shipment_legs(db, shipment)
+            carrier_str = (current_user.carrier_name or "").strip().lower()
+            org_str = (current_user.transporter_org.name if current_user.transporter_org else "").strip().lower()
             is_assigned = (
                 (shipment.transporter_org_id and shipment.transporter_org_id == current_user.transporter_org_id) or
-                (shipment.carrier and shipment.carrier == current_user.carrier_name)
+                (shipment.carrier and shipment.carrier.strip().lower() == carrier_str) or
+                any(
+                    (l.carrier_name and l.carrier_name.strip().lower() in (carrier_str, org_str))
+                    for l in legs_check
+                )
             )
             if not is_assigned:
                 raise HTTPException(status_code=403, detail="Forbidden: Shipment is not assigned to your transporter organization.")
         elif current_user.role == "company":
-            if shipment.company_id != current_user.company_id:
+            if shipment.company_id != current_user.company_id and shipment.receiver_company_id != current_user.company_id:
                 raise HTTPException(status_code=403, detail="Forbidden: Shipment belongs to another company.")
 
     legs = ensure_shipment_legs(db, shipment)
@@ -290,7 +304,11 @@ def update_assignment_status(
     db: Session = Depends(get_db)
 ):
     """
-    Transporter lifecycle action: ACCEPT, REJECT, START_TRANSIT, COMPLETE_DELIVERY.
+    Transporter lifecycle action: ACCEPT, REJECT, START_TRANSIT, MARK_ARRIVED.
+    Note: Transporters record physical arrival at destination facility gate (ARRIVED).
+    Transporters CANNOT mark shipments DELIVERED or modify receiver inventory.
+    Goods inward confirmation is strictly reserved for the Consignee Receiver.
+    Legacy COMPLETE_DELIVERY action safely transitions to ARRIVED without bypassing Receiver inward.
     """
     if current_user.role != "transporter" and not current_user.is_superuser:
         raise HTTPException(status_code=403, detail="Transporters only")
@@ -308,16 +326,53 @@ def update_assignment_status(
         if not is_assigned:
             raise HTTPException(status_code=403, detail="Shipment is not assigned to your organization.")
 
+    if req.action in ("MARK_ARRIVED", "COMPLETE_DELIVERY"):
+        if shipment.assignment_status == "ARRIVED":
+            return {
+                "shipment_id": shipment.id,
+                "assignment_status": "ARRIVED",
+                "message": "Shipment arrival was already recorded previously. Awaiting receiver goods-inward inspection."
+            }
+        if shipment.assignment_status not in ["IN_TRANSIT", "DELAYED"]:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot mark arrival from status {shipment.assignment_status}. Consignment must be IN_TRANSIT or DELAYED."
+            )
+        shipment.assignment_status = "ARRIVED"
+        # actual_delivery is deliberately NOT set here; it is recorded strictly when consignee confirms Goods Inward.
+
+        # Alert the receiver facility of gate arrival
+        dest_name = shipment.destination_warehouse.name if shipment.destination_warehouse else shipment.destination
+        now_dt = datetime.utcnow()
+        arrived_msg = (
+            f"Cargo Arrival [{shipment.external_shipment_id}]: Transporter recorded arrival at {dest_name} gate. "
+            f"Awaiting receiver goods-inward inspection and stock replenishment."
+        )
+        for cid in {shipment.company_id, shipment.receiver_company_id}:
+            if cid:
+                db.add(Alert(
+                    company_id=cid,
+                    alert_type="shipment_arrived",
+                    severity="healthy",
+                    entity_type="shipment",
+                    entity_id=shipment.id,
+                    message=arrived_msg,
+                    is_resolved=0,
+                    created_at=now_dt
+                ))
+        db.commit()
+        return {
+            "shipment_id": shipment.id,
+            "assignment_status": shipment.assignment_status,
+            "message": "Shipment marked as ARRIVED at destination gate. Awaiting receiver goods-inward inspection."
+        }
+
     status_map = {
         "ACCEPT": "ACCEPTED",
         "REJECT": "REJECTED",
-        "START_TRANSIT": "IN_TRANSIT",
-        "COMPLETE_DELIVERY": "DELIVERED"
+        "START_TRANSIT": "IN_TRANSIT"
     }
     shipment.assignment_status = status_map[req.action]
-    if req.action == "COMPLETE_DELIVERY":
-        shipment.actual_delivery = datetime.utcnow().date()
-
     db.commit()
     return {
         "shipment_id": shipment.id,
@@ -382,16 +437,24 @@ def report_leg_disruption(
 
     # 2. Authorization Check (lenient for simulated benchmark corridors)
     if not current_user.is_superuser and current_user.role == "transporter":
+        carrier_str = (current_user.carrier_name or "").strip().lower()
+        org_str = (current_user.transporter_org.name if current_user.transporter_org else "").strip().lower()
+        target_leg = next((l for l in shipment.legs if l.id == leg_id or l.sequence == leg_id), None)
+        is_leg_assigned = bool(
+            target_leg and target_leg.carrier_name and
+            (target_leg.carrier_name.strip().lower() in (carrier_str, org_str) or (carrier_str and carrier_str in target_leg.carrier_name.strip().lower()))
+        )
         is_authorized = (
             not shipment.transporter_org_id or
             (shipment.transporter_org_id == current_user.transporter_org_id) or
             (shipment.carrier and current_user.carrier_name and shipment.carrier.strip().lower() in current_user.carrier_name.strip().lower()) or
-            (current_user.company_id == shipment.company_id)
+            (current_user.company_id == shipment.company_id) or
+            is_leg_assigned
         )
         if not is_authorized:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Forbidden: This shipment is not assigned to your transporter organization."
+                detail="Forbidden: This shipment leg is not assigned to your transporter organization."
             )
 
     # 3. Idempotency Check
@@ -431,14 +494,18 @@ def report_leg_disruption(
             report.evidence_url = req.evidence_url
             report.status = "SUBMITTED"
 
-        # Update shipment status
+        # Update shipment status and calculate calendar date ETA correctly without truncation
         shipment.assignment_status = "DELAYED"
-        if impact.get("total_delay_days"):
-            new_eta = shipment.planned_delivery + timedelta(days=int(impact["total_delay_days"]))
-            shipment.current_eta = new_eta
+        total_delay_days = float(impact.get("total_delay_days") or 0.0)
+        delay_hrs = float(req.delay_hours or 0.0)
+        if total_delay_days > 0 or delay_hrs > 0:
+            import math
+            calc_days = total_delay_days if total_delay_days > 0 else (delay_hrs / 24.0)
+            calendar_delay_days = max(1, math.ceil(calc_days))
+            shipment.current_eta = shipment.planned_delivery + timedelta(days=calendar_delay_days)
 
-        # 5. Targeted Notification Routing:
-        # Owning Company resolved authoritatively from shipment.company_id
+        # 5. Targeted Bilateral Notification Routing:
+        # Alert both Consignor (Sender) and Consignee (Receiver)
         alert_severity = "critical" if impact.get("inventory_simulation", {}).get("stockout_predicted") else "high"
         carrier_label = current_user.carrier_name or "Transporter"
         loc_suffix = f" at {req.incident_location}" if req.incident_location else ""
@@ -448,16 +515,20 @@ def report_leg_disruption(
             f"Prescribed mitigation: {impact.get('prescriptive_mitigations', [{}])[0].get('title', 'Monitor schedule')}."
         )
 
-        company_alert = Alert(
-            company_id=shipment.company_id,  # STRICTLY OWNING COMPANY
-            alert_type="delay",
-            severity=alert_severity,
-            entity_type="shipment",
-            entity_id=shipment.id,
-            message=alert_msg,
-            is_resolved=0
-        )
-        db.add(company_alert)
+        target_companies = {shipment.company_id}
+        if shipment.receiver_company_id:
+            target_companies.add(shipment.receiver_company_id)
+        for cid in target_companies:
+            if cid:
+                db.add(Alert(
+                    company_id=cid,
+                    alert_type="delay",
+                    severity=alert_severity,
+                    entity_type="shipment",
+                    entity_id=shipment.id,
+                    message=alert_msg,
+                    is_resolved=0
+                ))
         db.commit()
     except IntegrityError:
         db.rollback()
@@ -523,6 +594,21 @@ def get_recent_disruptions(
             except Exception:
                 details = {}
 
+        curr_code = None
+        if r.shipment and r.shipment.company and r.shipment.company.default_currency:
+            curr_code = r.shipment.company.default_currency
+        elif details.get("currency"):
+            curr_code = details["currency"]
+        elif r.shipment and r.shipment.receiver_company and r.shipment.receiver_company.default_currency:
+            curr_code = r.shipment.receiver_company.default_currency
+        elif r.shipment and r.shipment.external_shipment_id and r.shipment.external_shipment_id.startswith("SH-BLR"):
+            curr_code = "INR"
+        else:
+            curr_code = "USD"
+        curr_sym = {"INR": "₹", "USD": "$", "EUR": "€", "GBP": "£"}.get(curr_code, "$" if curr_code == "USD" else (curr_code + " "))
+        details.setdefault("currency", curr_code)
+        details.setdefault("currency_symbol", curr_sym)
+
         res.append({
             "id": r.id,
             "shipment_id": r.shipment_id,
@@ -539,6 +625,8 @@ def get_recent_disruptions(
             "stockout_predicted": bool(r.stockout_predicted),
             "unmet_demand_units": r.unmet_demand_units,
             "estimated_cost_loss": r.estimated_cost_loss,
+            "currency": curr_code,
+            "currency_symbol": curr_sym,
             "prescribed_mitigation": r.prescribed_mitigation,
             "impact_details": details,
             "created_at": r.created_at.isoformat() if r.created_at else None,
@@ -555,6 +643,12 @@ def get_recent_disruptions(
             stockout = h >= 12.0
             shortage = round(h * 3.2, 1) if stockout else 0.0
             cost_loss = round(shortage * 85.0 + (1500.0 if stockout else 0.0), 2)
+            curr_code = (
+                (d.shipment.company.default_currency if d.shipment and d.shipment.company and d.shipment.company.default_currency else None)
+                or (d.shipment.receiver_company.default_currency if d.shipment and d.shipment.receiver_company and d.shipment.receiver_company.default_currency else None)
+                or ("INR" if d.shipment and d.shipment.external_shipment_id and d.shipment.external_shipment_id.startswith("SH-BLR") else "USD")
+            )
+            curr_sym = {"INR": "₹", "USD": "$", "EUR": "€", "GBP": "£"}.get(curr_code, "$" if curr_code == "USD" else (curr_code + " "))
             res.append({
                 "id": d.id,
                 "shipment_id": d.shipment_id,
@@ -571,11 +665,15 @@ def get_recent_disruptions(
                 "stockout_predicted": stockout,
                 "unmet_demand_units": shortage,
                 "estimated_cost_loss": cost_loss,
+                "currency": curr_code,
+                "currency_symbol": curr_sym,
                 "prescribed_mitigation": "Emergency Inter-Warehouse Stock Transfer" if stockout else "Expedite Downstream Transit Leg via Dedicated Courier",
                 "impact_details": {
                     "destination_warehouse": d.shipment.destination if d.shipment else "Regional DC",
                     "product_name": d.shipment.product.name if (d.shipment and d.shipment.product) else "Smart Fitness Tracker Pro",
                     "facility_stock": 185,
+                    "currency": curr_code,
+                    "currency_symbol": curr_sym,
                     "mitigations": [
                         {
                             "priority": "RECOMMENDED",
@@ -583,7 +681,7 @@ def get_recent_disruptions(
                             "description": "Transfer 32 units from neighboring regional DC to bridge delay window.",
                             "estimated_cost": 450,
                             "net_savings": max(0, cost_loss - 450),
-                            "why_best": "Immediate execution (transit time < 12 hrs). Solves the local shortage without procurement lead times."
+                            "why_best": f"Immediate execution (transit time < 12 hrs). Solves the local shortage without procurement lead times, saving {curr_sym}{max(0, cost_loss - 450):,.2f}."
                         },
                         {
                             "priority": "HIGH",

@@ -9,7 +9,10 @@ def analyze_suppliers(db: Session, company_id: int) -> list[dict]:
     suppliers = db.query(Supplier).filter(Supplier.company_id == company_id).all()
     results = []
     for s in suppliers:
-        shipments = db.query(Shipment).filter(Shipment.company_id == company_id, Shipment.supplier_id == s.id).all()
+        shipments = db.query(Shipment).filter(
+            ((Shipment.company_id == company_id) | (Shipment.receiver_company_id == company_id)),
+            Shipment.supplier_id == s.id
+        ).all()
         completed = [x for x in shipments if x.actual_delivery and x.planned_delivery]
         delays = [(x.actual_delivery - x.planned_delivery).days for x in completed]
         delay_rate = float(np.mean([d > 0 for d in delays])) if delays else max(0.0, 1.0 - float(s.reliability or 0.85))

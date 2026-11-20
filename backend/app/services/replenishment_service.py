@@ -11,15 +11,13 @@ import numpy as np
 from sqlalchemy.orm import Session
 
 from app.models import Company, Product, InventoryRecord, Sale, Warehouse, Supplier, Shipment
-from app.services.inventory_intelligence import calculate_safety_stock, get_supplier_lead_time_stats, _latest_inventory
-
-
-SERVICE_LEVEL_Z_FACTORS = {
-    0.90: 1.28,
-    0.95: 1.65,
-    0.98: 2.05,
-    0.99: 2.33,
-}
+from app.services.inventory_intelligence import (
+    calculate_safety_stock,
+    get_supplier_lead_time_stats,
+    _latest_inventory,
+    SERVICE_LEVEL_Z_FACTORS,
+    get_z_factor,
+)
 
 
 def compute_replenishment_plan(
@@ -33,7 +31,7 @@ def compute_replenishment_plan(
     Computes reorder requirements, safety stock targets, and purchase order suggestions
     across all products for the authenticated company.
     """
-    z_factor = SERVICE_LEVEL_Z_FACTORS.get(round(service_level, 2), 1.65)
+    z_factor = get_z_factor(service_level)
     products = db.query(Product).filter(Product.company_id == company_id).all()
 
     # Fetch latest canonical inventory per product across all facilities

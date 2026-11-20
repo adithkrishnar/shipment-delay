@@ -78,23 +78,10 @@ export default function Recommendations({ company }) {
       // 2. Fetch backend disruptions
       const backendDisruptions = await getRecentDisruptions().catch(() => []);
 
-      // 3. Read persistent browser disruptions from Transporter Portal
-      let localDisruptions = [];
-      try {
-        localDisruptions = JSON.parse(localStorage.getItem('supplyiq_recent_disruptions') || '[]');
-      } catch (e) {
-        localDisruptions = [];
-      }
-
-      // 4. Combine and deduplicate disruptions
-      const combinedDisruptions = [
-        ...localDisruptions,
-        ...(Array.isArray(backendDisruptions) ? backendDisruptions : [])
-      ];
-
+      // 3. Use authoritative DB-backed disruptions from backend
       const seenDisruptions = new Set();
       const uniqueDisruptions = [];
-      for (const d of combinedDisruptions) {
+      for (const d of (Array.isArray(backendDisruptions) ? backendDisruptions : [])) {
         const key = `${d.external_shipment_id || d.shipment_id}-${d.delay_hours || d.total_impact_delay_days}`;
         if (!seenDisruptions.has(key)) {
           seenDisruptions.add(key);

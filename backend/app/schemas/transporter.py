@@ -35,7 +35,7 @@ class ShipmentCreateRequest(BaseModel):
     transporter_org_id: Optional[int] = None
 
 class AssignmentActionRequest(BaseModel):
-    action: str = Field(..., pattern="^(ACCEPT|REJECT|START_TRANSIT|COMPLETE_DELIVERY)$")
+    action: str = Field(..., pattern="^(ACCEPT|REJECT|START_TRANSIT|MARK_ARRIVED|COMPLETE_DELIVERY)$")
     notes: Optional[str] = None
 
 class ShipmentLegResponse(BaseModel):

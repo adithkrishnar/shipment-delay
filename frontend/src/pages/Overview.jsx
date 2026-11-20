@@ -26,6 +26,23 @@ function ReceiverOverview({ company }) {
   const [warehouses, setWarehouses] = useState([]);
   const [disruptions, setDisruptions] = useState([]);
   const [selectedDisruption, setSelectedDisruption] = useState(null);
+
+  const getCurrencySymbol = (currencyCode) => {
+    const code = currencyCode || company?.default_currency || company?.currency;
+    if (!code) return '$';
+    switch (String(code).toUpperCase()) {
+      case 'INR': return '₹';
+      case 'EUR': return '€';
+      case 'GBP': return '£';
+      case 'USD': default: return '$';
+    }
+  };
+
+  const formatCurrency = (val, currencyCode) => {
+    const sym = getCurrencySymbol(currencyCode);
+    const num = typeof val === 'number' ? val : (Number(val) || 0);
+    return `${sym}${num.toLocaleString()}`;
+  };
   const [approvedDisruptionIds, setApprovedDisruptionIds] = useState(() => {
     try {
       const stored = JSON.parse(localStorage.getItem('supplyiq_approved_actions') || '[]');
@@ -79,12 +96,10 @@ function ReceiverOverview({ company }) {
         setData(overviewData);
         setWarehouses(whData || []);
         
-        // Merge backend disruptions with real-time persistent carrier dispatches
-        const localDisruptions = JSON.parse(localStorage.getItem('supplyiq_recent_disruptions') || '[]');
-        const combined = [...localDisruptions, ...(disData || [])];
+        // DB-backed disruptions from backend API
         const unique = [];
         const seen = new Set();
-        for (const item of combined) {
+        for (const item of (disData || [])) {
           const key = `${item.external_shipment_id || item.shipment_id}-${item.delay_hours}-${item.disruption_reason}`;
           if (!seen.has(key)) {
             seen.add(key);
@@ -98,35 +113,9 @@ function ReceiverOverview({ company }) {
       .finally(() => setLoading(false));
   }, [company?.id]);
 
-  // Real-time listener for transporter exception broadcasts across tabs/windows
+  // Listener for action approvals across components
   useEffect(() => {
-    const handleLiveDisruption = (e) => {
-      const newD = e.detail;
-      if (!newD) return;
-      setDisruptions(prev => {
-        const next = [newD, ...prev.filter(x => x.id !== newD.id)];
-        return next;
-      });
-    };
-
     const handleStorageUpdate = (e) => {
-      if (e.key === 'supplyiq_recent_disruptions') {
-        const stored = JSON.parse(e.newValue || '[]');
-        setDisruptions(prev => {
-          const merged = [...stored, ...prev];
-          const unique = [];
-          const seen = new Set();
-          for (const item of merged) {
-            const key = `${item.external_shipment_id || item.shipment_id}-${item.delay_hours}-${item.disruption_reason}`;
-            if (!seen.has(key)) {
-              seen.add(key);
-              unique.push(item);
-            }
-          }
-          return unique;
-        });
-      }
-
       if (e.key === 'supplyiq_approved_actions') {
         const stored = JSON.parse(e.newValue || '[]');
         setApprovedDisruptionIds(new Set(stored));
@@ -140,11 +129,9 @@ function ReceiverOverview({ company }) {
       }
     };
 
-    window.addEventListener('supplyiq_disruption_reported', handleLiveDisruption);
     window.addEventListener('supplyiq_action_approved', handleActionApproved);
     window.addEventListener('storage', handleStorageUpdate);
     return () => {
-      window.removeEventListener('supplyiq_disruption_reported', handleLiveDisruption);
       window.removeEventListener('supplyiq_action_approved', handleActionApproved);
       window.removeEventListener('storage', handleStorageUpdate);
     };
@@ -174,7 +161,7 @@ function ReceiverOverview({ company }) {
           if (newlyDiscovered) {
             triggerAlert({
               title: "Live Carrier Exception Received",
-              message: `Carrier exception on ${newlyDiscovered.external_shipment_id || '#' + newlyDiscovered.shipment_id} (+${newlyDiscovered.delay_hours}h ${newlyDiscovered.disruption_reason}). Downstream risk: $${newlyDiscovered.estimated_cost_loss?.toLocaleString() || '4,730'}.`,
+              message: `Carrier exception on ${newlyDiscovered.external_shipment_id || '#' + newlyDiscovered.shipment_id} (+${newlyDiscovered.delay_hours}h ${newlyDiscovered.disruption_reason}). Downstream risk: ${formatCurrency(newlyDiscovered.estimated_cost_loss || 4730, newlyDiscovered.currency || newlyDiscovered.impact_details?.currency || company?.default_currency)}.`,
               severity: newlyDiscovered.delay_hours >= 12 ? 'critical' : 'warning'
             });
 
@@ -321,7 +308,7 @@ function ReceiverOverview({ company }) {
             Total Inventory Valuation
           </div>
           <div className="kpi-value" style={{ color: 'var(--status-healthy)' }}>
-            ${data.total_valuation?.toLocaleString()}
+            {formatCurrency(data.total_valuation, company?.default_currency || company?.currency)}
           </div>
           <div className="kpi-sub">Cost-weighted asset balance</div>
         </div>
@@ -420,7 +407,7 @@ function ReceiverOverview({ company }) {
                   <div style={{ textAlign: 'right' }}>
                     <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>Estimated Loss</div>
                     <div style={{ fontSize: '16px', fontWeight: 700, color: d.estimated_cost_loss > 0 ? '#ef4444' : 'var(--status-healthy)' }}>
-                      {(company?.default_currency === 'INR' || d.currency === 'INR' || true) ? '₹' : '$'}{d.estimated_cost_loss?.toLocaleString() || '0'}
+                      {formatCurrency(d.estimated_cost_loss || 0, d.currency || d.impact_details?.currency || company?.default_currency)}
                     </div>
                   </div>
 
@@ -585,7 +572,7 @@ function ReceiverOverview({ company }) {
               <div style={{ background: 'var(--bg-surface-2)', padding: '12px 14px', borderRadius: '10px', border: '1px solid var(--border-subtle)' }}>
                 <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 600 }}>TOTAL FINANCIAL LOSS</div>
                 <div style={{ fontSize: '18px', fontWeight: 700, color: '#ef4444', marginTop: '4px' }}>
-                  ${(selectedDisruption.estimated_cost_loss || 20710).toLocaleString()}
+                  {formatCurrency(selectedDisruption.estimated_cost_loss || 20710, selectedDisruption.currency || selectedDisruption.impact_details?.currency || company?.default_currency)}
                 </div>
                 <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
                   Includes SLA penalties
@@ -607,7 +594,7 @@ function ReceiverOverview({ company }) {
               <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.6 }}>
                 The carrier reported <strong>{selectedDisruption.disruption_reason || 'traffic congestion'}</strong>, delaying this shipment by <strong>{selectedDisruption.delay_hours >= 24 ? `${(selectedDisruption.delay_hours/24).toFixed(1)} days (${selectedDisruption.delay_hours} hrs)` : `${selectedDisruption.delay_hours} hours`}</strong>. 
                 {selectedDisruption.unmet_demand_units > 0 || selectedDisruption.delay_hours >= 12 ? (
-                  <> The warehouse at <strong>{selectedDisruption.impact_details?.destination_warehouse || 'DataCo USCA DC (Joliet, IL)'}</strong> does not have enough buffer stock to cover this delay window. Without action, warehouse will run out of stock by <strong>{selectedDisruption.unmet_demand_units || 226} units</strong> of <em>{selectedDisruption.impact_details?.product_name || 'Smart Fitness Tracker Pro (SKU-1004)'}</em>, causing an estimated financial loss of <strong>${(selectedDisruption.estimated_cost_loss || 20710).toLocaleString()}</strong> in lost sales and delay penalties.</>
+                  <> The warehouse at <strong>{selectedDisruption.impact_details?.destination_warehouse || 'DataCo USCA DC (Joliet, IL)'}</strong> does not have enough buffer stock to cover this delay window. Without action, warehouse will run out of stock by <strong>{selectedDisruption.unmet_demand_units || 226} units</strong> of <em>{selectedDisruption.impact_details?.product_name || 'Smart Fitness Tracker Pro (SKU-1004)'}</em>, causing an estimated financial loss of <strong>{formatCurrency(selectedDisruption.estimated_cost_loss || 20710, selectedDisruption.currency || selectedDisruption.impact_details?.currency || company?.default_currency)}</strong> in lost sales and delay penalties.</>
                 ) : (
                   <> Destination safety stock and warehouse buffers absorb the delay hours without immediate risk of running out of stock.</>
                 )}
@@ -620,80 +607,85 @@ function ReceiverOverview({ company }) {
             </h3>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '24px' }}>
-              {(selectedDisruption.impact_details?.mitigations || [
-                {
-                  priority: 'RECOMMENDED',
-                  title: 'Emergency Stock Transfer',
-                  description: 'Transfer 32 units from DataCo Pacific Asia DC to DataCo USCA DC to avoid running out of stock.',
-                  estimated_cost: 450,
-                  net_savings: Math.max(0, (selectedDisruption.estimated_cost_loss || 20710) - 450),
-                  why_best: 'Arrives in under 12 hours from a nearby warehouse. Stops the stockout right away without waiting weeks for new supplier orders, saving $' + Math.max(0, (selectedDisruption.estimated_cost_loss || 20710) - 450).toLocaleString() + '.'
-                },
-                {
-                  priority: 'HIGH',
-                  title: 'Expedite Downstream Transit Leg via Dedicated Courier',
-                  description: 'Charter dedicated express freight for remaining transport leg.',
-                  estimated_cost: 1200,
-                  net_savings: Math.max(0, (selectedDisruption.estimated_cost_loss || 20710) - 1200),
-                  why_best: 'Bypasses multi-stop freight consolidation, recovering 2 full days of transit time directly.'
-                }
-              ]).map((m, idx) => (
-                <div
-                  key={idx}
-                  style={{
-                    background: 'var(--bg-surface-2)',
-                    border: m.priority === 'RECOMMENDED' ? '2px solid var(--accent-primary)' : '1px solid var(--border-subtle)',
-                    borderRadius: '10px',
-                    padding: '16px',
-                    position: 'relative'
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{
-                        fontSize: '10px',
-                        fontWeight: 700,
-                        padding: '2px 8px',
-                        borderRadius: '4px',
-                        background: m.priority === 'RECOMMENDED' ? 'var(--accent-primary)' : 'var(--bg-surface)',
-                        color: m.priority === 'RECOMMENDED' ? '#fff' : 'var(--text-secondary)'
-                      }}>
-                        {m.priority}
-                      </span>
-                      <strong style={{ fontSize: '15px', color: 'var(--text-primary)' }}>{m.title}</strong>
-                    </div>
-
-                    <div style={{ textAlign: 'right' }}>
-                      <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                        Cost: ${m.estimated_cost}
-                      </span>
-                      {m.net_savings > 0 && (
-                        <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--status-healthy)', marginLeft: '10px' }}>
-                          (Net Saves: +${m.net_savings?.toLocaleString()})
+              {(() => {
+                const modalCurrency = selectedDisruption.currency || selectedDisruption.impact_details?.currency || company?.default_currency || company?.currency;
+                const modalSym = getCurrencySymbol(modalCurrency);
+                const mitigationList = selectedDisruption.impact_details?.mitigations || [
+                  {
+                    priority: 'RECOMMENDED',
+                    title: 'Emergency Stock Transfer',
+                    description: 'Transfer 32 units from neighboring regional DC to bridge delay window.',
+                    estimated_cost: 450,
+                    net_savings: Math.max(0, (selectedDisruption.estimated_cost_loss || 20710) - 450),
+                    why_best: `Arrives in under 12 hours from a nearby warehouse. Stops the stockout right away without waiting weeks for new supplier orders, saving ${modalSym}` + Math.max(0, (selectedDisruption.estimated_cost_loss || 20710) - 450).toLocaleString() + '.'
+                  },
+                  {
+                    priority: 'HIGH',
+                    title: 'Expedite Downstream Transit Leg via Dedicated Courier',
+                    description: 'Charter dedicated express freight for remaining transport leg.',
+                    estimated_cost: 1200,
+                    net_savings: Math.max(0, (selectedDisruption.estimated_cost_loss || 20710) - 1200),
+                    why_best: 'Bypasses multi-stop freight consolidation, recovering 2 full days of transit time directly.'
+                  }
+                ];
+                return mitigationList.map((m, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      background: 'var(--bg-surface-2)',
+                      border: m.priority === 'RECOMMENDED' ? '2px solid var(--accent-primary)' : '1px solid var(--border-subtle)',
+                      borderRadius: '10px',
+                      padding: '16px',
+                      position: 'relative'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{
+                          fontSize: '10px',
+                          fontWeight: 700,
+                          padding: '2px 8px',
+                          borderRadius: '4px',
+                          background: m.priority === 'RECOMMENDED' ? 'var(--accent-primary)' : 'var(--bg-surface)',
+                          color: m.priority === 'RECOMMENDED' ? '#fff' : 'var(--text-secondary)'
+                        }}>
+                          {m.priority}
                         </span>
-                      )}
+                        <strong style={{ fontSize: '15px', color: 'var(--text-primary)' }}>{m.title}</strong>
+                      </div>
+
+                      <div style={{ textAlign: 'right' }}>
+                        <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                          Cost: {formatCurrency(m.estimated_cost, modalCurrency)}
+                        </span>
+                        {m.net_savings > 0 && (
+                          <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--status-healthy)', marginLeft: '10px' }}>
+                            (Net Saves: +{formatCurrency(m.net_savings, modalCurrency)})
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '0 0 10px 0' }}>
+                      {m.description}
+                    </p>
+
+                    {/* Why is this the best step callout */}
+                    <div style={{ 
+                      background: 'var(--bg-base)', 
+                      borderRadius: '6px', 
+                      padding: '10px 12px', 
+                      fontSize: '12px',
+                      borderLeft: '3px solid var(--accent-primary)'
+                    }}>
+                      <strong style={{ color: 'var(--accent-primary)', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Why this is the best choice: </strong>
+                      <span style={{ color: 'var(--text-secondary)' }}>
+                        {m.why_best ? m.why_best.replace('$', modalSym) : `Arrives in under 12 hours from a nearby warehouse. Stops the stockout right away without waiting weeks for new supplier orders, saving ${modalSym}` + (m.net_savings?.toLocaleString() || '20,260') + '.'}
+                      </span>
                     </div>
                   </div>
-
-                  <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '0 0 10px 0' }}>
-                    {m.description}
-                  </p>
-
-                  {/* Why is this the best step callout */}
-                  <div style={{ 
-                    background: 'var(--bg-base)', 
-                    borderRadius: '6px', 
-                    padding: '10px 12px', 
-                    fontSize: '12px',
-                    borderLeft: '3px solid var(--accent-primary)'
-                  }}>
-                    <strong style={{ color: 'var(--accent-primary)', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Why this is the best choice: </strong>
-                    <span style={{ color: 'var(--text-secondary)' }}>
-                      {m.why_best || 'Arrives in under 12 hours from a nearby warehouse. Stops the stockout right away without waiting weeks for new supplier orders, saving $' + (m.net_savings?.toLocaleString() || '20,260') + '.'}
-                    </span>
-                  </div>
-                </div>
-              ))}
+                ));
+              })()}
             </div>
 
             {/* Modal Action Buttons */}

@@ -21,9 +21,9 @@ export default function TransporterPortal() {
   const carrierName = user?.carrier_name || MOCK_CARRIER_NAME;
   const companyName = user?.company?.name || "DataCo Global Supply Chain";
 
-  // Shipments state seeded from high-fidelity multi-modal sample dataset
-  const [shipments, setShipments] = useState<Shipment[]>(MOCK_SHIPMENTS);
-  const [selectedShipmentId, setSelectedShipmentId] = useState<string>(MOCK_SHIPMENTS[0]?.id || "");
+  // Shipments state strictly loaded from live authenticated backend
+  const [shipments, setShipments] = useState<Shipment[]>([]);
+  const [selectedShipmentId, setSelectedShipmentId] = useState<string>("");
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
 
   // Disruption modal state
@@ -86,59 +86,63 @@ export default function TransporterPortal() {
     const fetchLive = async () => {
       try {
         const live = await getAssignedShipments();
-        if (live && live.length > 0 && active) {
-          const adapted: Shipment[] = live.map((s: any) => {
-            const hasDelayedLeg = s.legs?.some((l: any) => (l.delay_hours || 0) > 0);
-            const isPending = s.assignment_status === "PENDING";
-            const isDelivered = s.assignment_status === "DELIVERED";
-            return {
-              id: String(s.id),
-              reference: s.external_shipment_id || `SH-${s.id}`,
-              origin: s.origin,
-              destination: s.destination,
-              destinationFacility: s.destination || "Destination Facility",
-              carrierId: "CARRIER-B",
-              carrierName: s.carrier || carrierName,
-              customer: s.company_name,
-              serviceLevel: "express" as const,
-              transportModes: [s.transport_mode?.toLowerCase() || "road"],
-              plannedDelivery: s.planned_delivery,
-              currentEta: s.current_eta || s.planned_delivery,
-              status: isPending ? ("at_risk" as const) :
-                      (hasDelayedLeg || s.assignment_status === "DELAYED") ? ("delayed" as const) :
-                      isDelivered ? ("on_schedule" as const) : ("on_schedule" as const),
-              assignmentStatus: s.assignment_status || "ACCEPTED",
-              inventoryRisk: (hasDelayedLeg || s.assignment_status === "DELAYED") ? ("critical" as const) : ("low" as const),
-              requiresCarrierAction: isPending || hasDelayedLeg,
-              legs: (s.legs || []).map((l: any) => {
-                const isLegAssigned = l.is_assigned_to_caller !== undefined
-                  ? Boolean(l.is_assigned_to_caller)
-                  : (!l.carrier_name || l.carrier_name.toLowerCase().trim() === carrierName.toLowerCase().trim() || Boolean(user?.is_superuser));
-                return {
-                  id: String(l.id),
-                  sequence: l.sequence,
-                  mode: (l.mode?.toLowerCase() || "road") as any,
-                  carrierId: isLegAssigned ? "CARRIER-B" : "CARRIER-PARTNER",
-                  carrierName: l.carrier_name || carrierName,
-                  origin: l.origin,
-                  destination: l.destination,
-                  plannedDeparture: s.order_date || s.planned_delivery,
-                  plannedArrival: s.planned_delivery,
-                  status: l.status === "COMPLETED" ? ("on_schedule" as const) :
-                          l.status === "IN_TRANSIT" ? ("on_schedule" as const) :
-                          l.status === "DELAYED" ? ("delayed" as const) : ("monitoring" as const),
-                  delayHours: l.delay_hours || 0,
-                  isCarrierAssigned: isLegAssigned
-                };
-              }),
-              exceptions: [],
-              notifications: []
-            };
-          });
-          setShipments(adapted);
+        if (active) {
+          if (Array.isArray(live)) {
+            const adapted: Shipment[] = live.map((s: any) => {
+              const hasDelayedLeg = s.legs?.some((l: any) => (l.delay_hours || 0) > 0);
+              const isPending = s.assignment_status === "PENDING";
+              const isDelivered = s.assignment_status === "DELIVERED";
+              return {
+                id: String(s.id),
+                reference: s.external_shipment_id || `SH-${s.id}`,
+                origin: s.origin,
+                destination: s.destination,
+                destinationFacility: s.destination || "Destination Facility",
+                carrierId: "CARRIER-B",
+                carrierName: s.carrier || carrierName,
+                customer: s.company_name,
+                serviceLevel: "express" as const,
+                transportModes: [s.transport_mode?.toLowerCase() || "road"],
+                plannedDelivery: s.planned_delivery,
+                currentEta: s.current_eta || s.planned_delivery,
+                status: isPending ? ("at_risk" as const) :
+                        (hasDelayedLeg || s.assignment_status === "DELAYED") ? ("delayed" as const) :
+                        isDelivered ? ("on_schedule" as const) : ("on_schedule" as const),
+                assignmentStatus: s.assignment_status || "ACCEPTED",
+                inventoryRisk: (hasDelayedLeg || s.assignment_status === "DELAYED") ? ("critical" as const) : ("low" as const),
+                requiresCarrierAction: isPending || hasDelayedLeg,
+                legs: (s.legs || []).map((l: any) => {
+                  const isLegAssigned = l.is_assigned_to_caller !== undefined
+                    ? Boolean(l.is_assigned_to_caller)
+                    : (!l.carrier_name || l.carrier_name.toLowerCase().trim() === carrierName.toLowerCase().trim() || Boolean(user?.is_superuser));
+                  return {
+                    id: String(l.id),
+                    sequence: l.sequence,
+                    mode: (l.mode?.toLowerCase() || "road") as any,
+                    carrierId: isLegAssigned ? "CARRIER-B" : "CARRIER-PARTNER",
+                    carrierName: l.carrier_name || carrierName,
+                    origin: l.origin,
+                    destination: l.destination,
+                    plannedDeparture: s.order_date || s.planned_delivery,
+                    plannedArrival: s.planned_delivery,
+                    status: l.status === "COMPLETED" ? ("on_schedule" as const) :
+                            l.status === "IN_TRANSIT" ? ("on_schedule" as const) :
+                            l.status === "DELAYED" ? ("delayed" as const) : ("monitoring" as const),
+                    delayHours: l.delay_hours || 0,
+                    isCarrierAssigned: isLegAssigned
+                  };
+                }),
+                exceptions: [],
+                notifications: []
+              };
+            });
+            setShipments(adapted);
+          } else {
+            setShipments([]);
+          }
         }
       } catch (e) {
-        // Fallback to baseline shipments if unauthenticated or offline
+        console.warn("Could not fetch assigned shipments from backend:", e);
       }
     };
     fetchLive();
@@ -265,78 +269,6 @@ export default function TransporterPortal() {
     setIsDelayModalOpen(true);
   };
 
-  // Synchronizes carrier disruptions to persistent storage and dispatches live events to the company dashboard
-  const broadcastDisruptionToCompany = (disruption: {
-    shipmentId: string;
-    reference: string;
-    legSequence?: number;
-    legMode?: string;
-    delayHours: number;
-    reason: string;
-    notes?: string;
-    location?: string;
-  }) => {
-    const isStockout = disruption.delayHours >= 12;
-    const shortageUnits = isStockout ? Math.round(disruption.delayHours * 3.2) : 0;
-    const estimatedCostLoss = isStockout ? Math.round(shortageUnits * 85 + 1500) : 0;
-    const days = (disruption.delayHours / 24).toFixed(1);
-
-    const payload = {
-      id: `local-dis-${Date.now()}`,
-      shipment_id: disruption.shipmentId,
-      external_shipment_id: disruption.reference || disruption.shipmentId,
-      leg_sequence: disruption.legSequence || 2,
-      leg_mode: disruption.legMode || "ROAD",
-      delay_hours: disruption.delayHours,
-      disruption_reason: disruption.reason,
-      incident_location: disruption.location || "Corridor Transit Hub",
-      notes: disruption.notes || "Carrier field report logged via Transporter Portal.",
-      total_impact_delay_days: days,
-      stockout_predicted: isStockout,
-      unmet_demand_units: shortageUnits,
-      estimated_cost_loss: estimatedCostLoss,
-      prescribed_mitigation: isStockout
-        ? "Emergency Stock Transfer"
-        : "Expedite Downstream Transit Leg via Dedicated Courier",
-      impact_details: {
-        destination_warehouse: "DataCo USCA DC (Joliet, IL)",
-        product_name: "Smart Fitness Tracker Pro (SKU-1004)",
-        facility_stock: 185,
-        mitigations: [
-          {
-            priority: "RECOMMENDED",
-            title: "Emergency Stock Transfer",
-            description: "Transfer 32 units from DataCo Pacific Asia DC to DataCo USCA DC to avoid running out of stock.",
-            estimated_cost: 450,
-            net_savings: Math.max(0, estimatedCostLoss - 450),
-            why_best:
-              "Fast delivery (under 12 hours) from a nearby warehouse. Stops the stockout right away without waiting weeks for new supplier orders, saving $" + Math.max(0, estimatedCostLoss - 450).toLocaleString() + ".",
-          },
-          {
-            priority: "HIGH",
-            title: "Expedite Downstream Transit Leg via Dedicated Courier",
-            description: "Charter dedicated express freight for remaining transport leg.",
-            estimated_cost: 1200,
-            net_savings: Math.max(0, estimatedCostLoss - 1200),
-            why_best: "Bypasses multi-stop freight consolidation, recovering 2 full days of transit time directly.",
-          },
-        ],
-      },
-      created_at: new Date().toISOString(),
-    };
-
-    try {
-      const existing = JSON.parse(localStorage.getItem("supplyiq_recent_disruptions") || "[]");
-      const updated = [payload, ...existing.filter((x: any) => x.id !== payload.id)].slice(0, 20);
-      localStorage.setItem("supplyiq_recent_disruptions", JSON.stringify(updated));
-      window.dispatchEvent(new CustomEvent("supplyiq_disruption_reported", { detail: payload }));
-    } catch (err) {
-      console.warn("LocalStorage disruption sync notice:", err);
-    }
-
-    return payload;
-  };
-
   const handleDelayReported = (data: {
     shipmentId: string;
     newEta: string;
@@ -347,16 +279,6 @@ export default function TransporterPortal() {
     reportedAt: string;
   }) => {
     const targetShipment = shipments.find((s) => s.id === data.shipmentId) || selectedShipment;
-    broadcastDisruptionToCompany({
-      shipmentId: data.shipmentId,
-      reference: targetShipment?.reference || data.shipmentId,
-      legSequence: 2,
-      legMode: "ROAD",
-      delayHours: data.delayHours,
-      reason: data.reason.replace(/_/g, " "),
-      notes: data.notes,
-      location: targetShipment?.currentCheckpoint || "Transit Route",
-    });
 
     // Real cloud synchronization for cross-laptop multi-device alerts
     (async () => {
@@ -514,19 +436,8 @@ export default function TransporterPortal() {
       console.log("Telemetry cloud sync notice:", e);
     }
 
-    // Broadcast disruption to company control tower
     const curShipment = shipments.find((s) => s.id === shipmentId) || selectedShipment;
     const curLeg = curShipment?.legs?.find((l) => l.id === legId);
-    broadcastDisruptionToCompany({
-      shipmentId,
-      reference: curShipment?.reference || shipmentId,
-      legSequence: curLeg?.sequence || 2,
-      legMode: curLeg?.mode || "SEA",
-      delayHours: reportedDelayHours,
-      reason: details.disruptionType || details.reason || "Field Disruption",
-      notes: details.notes,
-      location: details.location || curShipment?.currentCheckpoint || "En Route",
-    });
 
     triggerAlert({
       title: "Control Tower Disruption Broadcasted",

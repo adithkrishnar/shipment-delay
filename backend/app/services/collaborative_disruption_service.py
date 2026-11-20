@@ -271,7 +271,13 @@ def simulate_downstream_impact(
 
     # 5. Formulate Prescriptive AI Mitigations
     target_comp = db.query(Company).filter(Company.id == target_company_id).first()
-    curr_sym = "₹" if (target_comp and target_comp.default_currency == "INR") else ("₹" if (shipment.company and shipment.company.default_currency == "INR") else "$")
+    curr_code = (
+        (target_comp.default_currency if target_comp and target_comp.default_currency else None)
+        or (shipment.company.default_currency if shipment and shipment.company and shipment.company.default_currency else None)
+        or ("INR" if (shipment and ((shipment.external_shipment_id and shipment.external_shipment_id.startswith("SH-BLR")) or (shipment.origin and ("Bengaluru" in shipment.origin or "Chennai" in shipment.origin)))) else "USD")
+    )
+    curr_sym_map = {"INR": "₹", "USD": "$", "EUR": "€", "GBP": "£"}
+    curr_sym = curr_sym_map.get(curr_code, "$" if curr_code == "USD" else (curr_code + " "))
     mitigations = []
     if not inventory_assessment_available:
         mitigations.append({
@@ -334,6 +340,8 @@ def simulate_downstream_impact(
         "sla_penalty": sla_penalty,
         "daily_demand": daily_facility_demand,
         "missed_connections": missed_connection_notes,
+        "currency": curr_code,
+        "currency_symbol": curr_sym,
         "mitigations": mitigations
     }
 
@@ -356,7 +364,7 @@ def simulate_downstream_impact(
 
     # Broadcast Alerts to both Consignor (Company A) and Consignee (Company C)
     alert_severity = "critical" if (stockout_predicted or total_delay_days >= 1.0) else "warning"
-    shortage_str = f" Predicted stockout shortage: {expected_shortage_units:.0f} units (Risk: ${total_cost_loss:,.2f})." if stockout_predicted else ""
+    shortage_str = f" Predicted stockout shortage: {expected_shortage_units:.0f} units (Risk: {curr_sym}{total_cost_loss:,.2f})." if stockout_predicted else ""
     alert_text = (
         f"Transit Disruption Alert: Shipment {shipment.external_shipment_id} reported +{reported_delay_hrs:.0f}h delay "
         f"on Leg #{target_leg.sequence} due to {reason}.{shortage_str} Recommended Action: {report.prescribed_mitigation}."
@@ -421,7 +429,9 @@ def simulate_downstream_impact(
             "unit_price": unit_price,
             "revenue_loss": revenue_loss,
             "sla_penalty": sla_penalty,
-            "total_cost_loss": total_cost_loss
+            "total_cost_loss": total_cost_loss,
+            "currency": curr_code,
+            "currency_symbol": curr_sym
         },
         "prescriptive_mitigations": mitigations
     }

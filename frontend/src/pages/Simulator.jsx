@@ -8,8 +8,17 @@ import {
   CartesianGrid, ReferenceLine, Legend, Area, ComposedChart
 } from 'recharts';
 import { getInventoryExplorer, simulateDelay } from '../services/api';
+import { useAuth } from '../auth/AuthContext';
+import { Navigate } from 'react-router-dom';
 
 export default function Simulator({ company }) {
+  const { user } = useAuth();
+  const isSender = (user?.participant_role === 'sender' || user?.role === 'sender') && !user?.is_superuser;
+
+  if (isSender) {
+    return <Navigate to="/shipments" replace />;
+  }
+
   const [products, setProducts] = useState([]);
   const [selectedProductId, setSelectedProductId] = useState(null);
   const [delayDays, setDelayDays] = useState(7);
@@ -22,6 +31,8 @@ export default function Simulator({ company }) {
   const [simulating, setSimulating] = useState(false);
   const [simData, setSimData] = useState(null);
   const [error, setError] = useState(null);
+
+  const currSym = company?.default_currency === 'INR' || company?.currency === 'INR' ? '₹' : (company?.default_currency === 'EUR' || company?.currency === 'EUR' ? '€' : (company?.default_currency === 'GBP' || company?.currency === 'GBP' ? '£' : '$'));
 
   // Load products for dropdown
   useEffect(() => {
@@ -189,10 +200,10 @@ export default function Simulator({ company }) {
             Inventory Value at Risk
           </div>
           <div className="kpi-value">
-            {summary.value_at_risk != null ? `$${Number(summary.value_at_risk).toLocaleString()}` : 'N/A'}
+            {summary.value_at_risk != null ? `${currSym}${Number(summary.value_at_risk).toLocaleString()}` : 'N/A'}
           </div>
           <div className="kpi-sub">
-            {summary.has_cost_data ? `Unit Cost: $${summary.unit_cost?.toFixed(2)}` : 'Unit cost data unmapped'}
+            {summary.has_cost_data ? `Unit Cost: ${currSym}${summary.unit_cost?.toFixed(2)}` : 'Unit cost data unmapped'}
           </div>
         </div>
 

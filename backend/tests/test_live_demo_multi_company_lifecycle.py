@@ -55,9 +55,19 @@ def run_e2e_lifecycle_test():
     print("  SUPPLYIQ - END-TO-END MULTI-COMPANY TRANSPORTATION & INVENTORY LIFECYCLE")
     print("=" * 75)
 
-    # 1. Database Initialization & Demo Seeding
-    init_db()
-    db: Session = SessionLocal()
+    import tempfile, shutil
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+
+    temp_dir = tempfile.mkdtemp(prefix="supplyiq_e2e_")
+    src_db = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "supplyiq.db")
+    isolated_db_path = os.path.join(temp_dir, "isolated_supplyiq.db")
+    shutil.copy2(src_db, isolated_db_path)
+
+    engine = create_engine(f"sqlite:///{isolated_db_path}", connect_args={"check_same_thread": False})
+    IsolatedSession = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    db: Session = IsolatedSession()
+
     seed_res = ensure_demo_accounts_seeded(db)
     reset_res = reset_benchmark_corridor(db)
     print(f"[INIT] Master database & demo entities seeded: {seed_res['status']}")
@@ -339,6 +349,8 @@ def run_e2e_lifecycle_test():
     print(f"  [✓] Leg Completion Idempotency Enforced: {adv_new_dup['message']}")
 
     db.close()
+    engine.dispose()
+    shutil.rmtree(temp_dir, ignore_errors=True)
     print("\n" + "=" * 75)
     print("  ALL 12 END-TO-END VERIFICATION PHASES PASSED WITH 100% SUCCESS!")
     print("=" * 75)

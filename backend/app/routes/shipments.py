@@ -532,6 +532,43 @@ def create_shipment(
     }
 
 
+@router.get("/{shipment_id}/legs")
+def get_shipment_legs(
+    shipment_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_or_demo)
+):
+    """
+    Returns dynamically resolved transportation legs for any shipment.
+    Used by frontend tracking and handover panels to eliminate hardcoded leg IDs.
+    """
+    shipment = db.query(Shipment).filter(
+        (Shipment.id == shipment_id) | (Shipment.external_shipment_id == str(shipment_id))
+    ).first()
+    if not shipment:
+        raise HTTPException(404, "Shipment not found")
+
+    legs = ensure_shipment_legs(db, shipment)
+    return [
+        {
+            "id": l.id,
+            "shipment_id": l.shipment_id,
+            "sequence": l.sequence,
+            "mode": l.mode,
+            "origin": l.origin,
+            "destination": l.destination,
+            "carrier_name": l.carrier_name,
+            "distance_km": float(l.distance_km or 0.0),
+            "expected_duration_hrs": float(l.expected_duration_hrs or 0.0),
+            "delay_hours": float(l.delay_hours or 0.0),
+            "status": l.status,
+            "scheduled_departure": l.scheduled_departure.isoformat() if l.scheduled_departure else None,
+            "scheduled_arrival": l.scheduled_arrival.isoformat() if l.scheduled_arrival else None
+        }
+        for l in legs
+    ]
+
+
 @router.post("/{shipment_id}/legs/{leg_id}/complete")
 @router.post("/{shipment_id}/legs/{leg_id}/advance")
 def complete_shipment_leg(
@@ -546,6 +583,7 @@ def complete_shipment_leg(
     - Marks Leg N as COMPLETED.
     - Idempotently activates Leg N+1 to IN_TRANSIT.
     - If Leg N was the final leg, transitions shipment to ARRIVED awaiting receiver delivery confirmation.
+    - Subcontracted carriers are strictly authorized only on their assigned legs.
     """
     shipment = db.query(Shipment).filter(
         (Shipment.id == shipment_id) | (Shipment.external_shipment_id == str(shipment_id))
@@ -553,27 +591,30 @@ def complete_shipment_leg(
     if not shipment:
         raise HTTPException(404, "Shipment not found")
 
+    legs = db.query(ShipmentLeg).filter(ShipmentLeg.shipment_id == shipment.id).order_by(ShipmentLeg.sequence).all()
+    target_leg = next((l for l in legs if l.id == leg_id or l.sequence == leg_id), None)
+    if not target_leg:
+        raise HTTPException(404, "Specified leg does not belong to this shipment")
+
     if not current_user.is_superuser:
         if current_user.role == "transporter":
-            is_assigned = (
-                not shipment.transporter_org_id or
+            is_prime = (
+                (not shipment.transporter_org_id) or
                 (shipment.transporter_org_id == current_user.transporter_org_id) or
-                (shipment.carrier and current_user.carrier_name and shipment.carrier.strip().lower() in current_user.carrier_name.strip().lower()) or
-                (current_user.company_id == shipment.company_id)
+                (shipment.carrier and current_user.carrier_name and shipment.carrier.strip().lower() in current_user.carrier_name.strip().lower())
             )
-            if not is_assigned:
-                raise HTTPException(403, "Forbidden: Shipment is not assigned to your transporter fleet.")
+            is_leg_assigned = (
+                (target_leg.carrier_name and current_user.carrier_name and target_leg.carrier_name.strip().lower() in current_user.carrier_name.strip().lower()) or
+                (current_user.transporter_org and target_leg.carrier_name and target_leg.carrier_name.strip().lower() in current_user.transporter_org.name.strip().lower())
+            )
+            if not is_prime and not is_leg_assigned:
+                raise HTTPException(403, "Forbidden: This specific transportation leg is not assigned to your carrier fleet.")
         elif current_user.role == "company":
             if current_user.company_id != shipment.company_id:
                 raise HTTPException(403, "Forbidden: Only consignor dispatcher or assigned transporter can complete legs.")
 
     if shipment.assignment_status in ("DELIVERED", "CANCELLED", "REVOKED"):
         raise HTTPException(400, f"Cannot advance legs on a shipment with status '{shipment.assignment_status}'.")
-
-    legs = db.query(ShipmentLeg).filter(ShipmentLeg.shipment_id == shipment.id).order_by(ShipmentLeg.sequence).all()
-    target_leg = next((l for l in legs if l.id == leg_id or l.sequence == leg_id), None)
-    if not target_leg:
-        raise HTTPException(404, "Specified leg does not belong to this shipment")
 
     # Idempotent check: if leg already completed, return immediately without re-triggering transitions
     if target_leg.status == "COMPLETED":
@@ -719,135 +760,166 @@ def confirm_shipment_delivery(
             "message": "Shipment delivery was already confirmed previously."
         }
 
-    now_dt = datetime.utcnow()
-    today_date = now_dt.date()
-
-    # Mark shipment DELIVERED
-    shipment.assignment_status = "DELIVERED"
-    shipment.actual_delivery = today_date
-
-    # Resolve destination warehouse
-    wh = None
-    if shipment.destination_warehouse_id:
-        wh = db.query(Warehouse).filter(Warehouse.id == shipment.destination_warehouse_id).first()
-    if not wh and shipment.destination:
-        wh = db.query(Warehouse).filter(
-            Warehouse.company_id == target_company_id,
-            Warehouse.name.ilike(f"%{shipment.destination}%")
-        ).first()
-    if not wh:
-        wh = db.query(Warehouse).filter(Warehouse.company_id == target_company_id).first()
-
-    # Increment inventory at destination warehouse
-    received_qty = float((payload or {}).get("received_quantity") or shipment.quantity or 100.0)
-    new_inv_level = received_qty
-
-    # Resolve product matching for destination company with strict unambiguous validation
-    if not shipment.product_id:
+    # Strict lifecycle guard: Consignment must be physically ARRIVED at destination gate
+    if shipment.assignment_status != "ARRIVED":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Cannot confirm delivery: Shipment has no assigned product."
+            detail=f"Cannot confirm delivery: Consignment has not arrived at destination gate (current status: {shipment.assignment_status}). Gate arrival is required before goods-inward inspection."
         )
 
-    source_prod = db.query(Product).filter(Product.id == shipment.product_id).first()
-    if not source_prod:
+    # Strict leg verification: All transit legs must be COMPLETED
+    incomplete_legs = db.query(ShipmentLeg).filter(
+        ShipmentLeg.shipment_id == shipment.id,
+        ShipmentLeg.status != "COMPLETED"
+    ).all()
+    if incomplete_legs:
+        leg_seqs = ", ".join(f"#{l.sequence} ({l.status})" for l in incomplete_legs)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Cannot confirm delivery: Source product ID {shipment.product_id} not found."
+            detail=f"Cannot confirm delivery: Shipment has incomplete transportation legs: {leg_seqs}. All legs must be COMPLETED before goods-inward inspection."
         )
 
-    target_product_id = None
-    if source_prod.company_id == target_company_id:
-        # Same company shipment (internal warehouse movement)
-        target_product_id = source_prod.id
-    elif source_prod.external_product_id and source_prod.external_product_id.strip():
-        # Priority 5 Rule 1 & 2: Match by external product ID first.
-        # Do NOT fall back to name when external product ID exists but has no matching Receiver product.
-        sku = source_prod.external_product_id.strip()
-        matched_skus = db.query(Product).filter(
-            Product.company_id == target_company_id,
-            Product.external_product_id == sku
-        ).all()
-        if len(matched_skus) == 1:
-            target_product_id = matched_skus[0].id
-        elif len(matched_skus) > 1:
+    # Wrap in transaction to guarantee atomicity: inventory increment and delivery status update commit together
+    try:
+        now_dt = datetime.utcnow()
+        today_date = now_dt.date()
+
+        # Mark shipment DELIVERED
+        shipment.assignment_status = "DELIVERED"
+        shipment.actual_delivery = today_date
+
+        # Resolve destination warehouse
+        wh = None
+        if shipment.destination_warehouse_id:
+            wh = db.query(Warehouse).filter(Warehouse.id == shipment.destination_warehouse_id).first()
+        if not wh and shipment.destination:
+            wh = db.query(Warehouse).filter(
+                Warehouse.company_id == target_company_id,
+                Warehouse.name.ilike(f"%{shipment.destination}%")
+            ).first()
+        if not wh:
+            wh = db.query(Warehouse).filter(Warehouse.company_id == target_company_id).first()
+
+        # Increment inventory at destination warehouse
+        received_qty = float((payload or {}).get("received_quantity") or shipment.quantity or 100.0)
+        new_inv_level = received_qty
+
+        # Resolve product matching for destination company with strict unambiguous validation
+        if not shipment.product_id:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Cannot confirm delivery: Ambiguous SKU '{sku}' ({len(matched_skus)} matching products found in receiver catalog)."
+                detail="Cannot confirm delivery: Shipment has no assigned product."
             )
+
+        source_prod = db.query(Product).filter(Product.id == shipment.product_id).first()
+        if not source_prod:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Cannot confirm delivery: Source product ID {shipment.product_id} not found."
+            )
+
+        target_product_id = None
+        if source_prod.company_id == target_company_id:
+            # Same company shipment (internal warehouse movement)
+            target_product_id = source_prod.id
+        elif source_prod.external_product_id and source_prod.external_product_id.strip():
+            # Priority 5 Rule 1 & 2: Match by external product ID first.
+            # Do NOT fall back to name when external product ID exists but has no matching Receiver product.
+            sku = source_prod.external_product_id.strip()
+            matched_skus = db.query(Product).filter(
+                Product.company_id == target_company_id,
+                Product.external_product_id == sku
+            ).all()
+            if len(matched_skus) == 1:
+                target_product_id = matched_skus[0].id
+            elif len(matched_skus) > 1:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Cannot confirm delivery: Ambiguous SKU '{sku}' ({len(matched_skus)} matching products found in receiver catalog)."
+                )
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Cannot confirm delivery: SKU '{sku}' is not registered in the destination company's product catalog."
+                )
         else:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Cannot confirm delivery: SKU '{sku}' is not registered in the destination company's product catalog."
-            )
-    else:
-        # Priority 5 Rule 3 & 4: Source external product ID is missing; name-based matching permitted ONLY if exactly one matches
-        name_matches = db.query(Product).filter(
-            Product.company_id == target_company_id,
-            Product.name == source_prod.name
-        ).all()
-        if len(name_matches) == 1:
-            target_product_id = name_matches[0].id
-        elif len(name_matches) > 1:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Cannot confirm delivery: Product name '{source_prod.name}' is ambiguous ({len(name_matches)} matching products found in receiver catalog)."
-            )
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Cannot confirm delivery: Product name '{source_prod.name}' not found in destination company's product catalog."
-            )
+            # Priority 5 Rule 3 & 4: Source external product ID is missing; name-based matching permitted ONLY if exactly one matches
+            name_matches = db.query(Product).filter(
+                Product.company_id == target_company_id,
+                Product.name == source_prod.name
+            ).all()
+            if len(name_matches) == 1:
+                target_product_id = name_matches[0].id
+            elif len(name_matches) > 1:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Cannot confirm delivery: Product name '{source_prod.name}' is ambiguous ({len(name_matches)} matching products found in receiver catalog)."
+                )
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Cannot confirm delivery: Product name '{source_prod.name}' not found in destination company's product catalog."
+                )
 
-    if wh:
-        # Match inventory strictly by resolved target_product_id at this destination warehouse
-        inv_rec = db.query(InventoryRecord).filter(
-            InventoryRecord.company_id == target_company_id,
-            InventoryRecord.warehouse_id == wh.id,
-            InventoryRecord.product_id == target_product_id
-        ).order_by(InventoryRecord.date.desc()).first()
+        if wh:
+            # Match inventory strictly by resolved target_product_id at this destination warehouse
+            inv_rec = db.query(InventoryRecord).filter(
+                InventoryRecord.company_id == target_company_id,
+                InventoryRecord.warehouse_id == wh.id,
+                InventoryRecord.product_id == target_product_id
+            ).order_by(InventoryRecord.date.desc()).first()
 
-        if inv_rec:
-            inv_rec.inventory_level = (inv_rec.inventory_level or 0.0) + received_qty
-            inv_rec.date = today_date
-            new_inv_level = inv_rec.inventory_level
-        else:
-            inv_rec = InventoryRecord(
-                company_id=target_company_id,
-                warehouse_id=wh.id,
-                product_id=target_product_id,
-                date=today_date,
-                inventory_level=received_qty
-            )
-            db.add(inv_rec)
+            if inv_rec:
+                inv_rec.inventory_level = (inv_rec.inventory_level or 0.0) + received_qty
+                inv_rec.date = today_date
+                new_inv_level = inv_rec.inventory_level
+            else:
+                inv_rec = InventoryRecord(
+                    company_id=target_company_id,
+                    warehouse_id=wh.id,
+                    product_id=target_product_id,
+                    date=today_date,
+                    inventory_level=received_qty
+                )
+                db.add(inv_rec)
 
-    # Resolve prior delay alerts for this shipment
-    db.query(Alert).filter(
-        Alert.entity_id == shipment.id,
-        Alert.alert_type == "delay"
-    ).update({"is_resolved": 1})
+        # Resolve prior delay alerts for this shipment
+        db.query(Alert).filter(
+            Alert.entity_id == shipment.id,
+            Alert.alert_type == "delay"
+        ).update({"is_resolved": 1})
 
-    # Create delivery confirmation alerts for Sender & Receiver
-    wh_name = wh.name if wh else (shipment.destination or "Destination Warehouse")
-    conf_msg = (
-        f"Delivery Receipt Confirmed [{shipment.external_shipment_id}]: Cargo successfully received "
-        f"and inspected at {wh_name}. Inventory replenished by +{received_qty:.0f} units "
-        f"(Current on-hand: {new_inv_level:.0f} units)."
-    )
-    for cid in {shipment.company_id, shipment.receiver_company_id}:
-        if cid:
-            db.add(Alert(
-                company_id=cid,
-                alert_type="delivery_confirmed",
-                severity="healthy",
-                entity_type="shipment",
-                entity_id=shipment.id,
-                message=conf_msg,
-                is_resolved=1,
-                created_at=now_dt
-            ))
+        # Create delivery confirmation alerts for Sender & Receiver
+        wh_name = wh.name if wh else (shipment.destination or "Destination Warehouse")
+        conf_msg = (
+            f"Delivery Receipt Confirmed [{shipment.external_shipment_id}]: Cargo successfully received "
+            f"and inspected at {wh_name}. Inventory replenished by +{received_qty:.0f} units "
+            f"(Current on-hand: {new_inv_level:.0f} units)."
+        )
+        for cid in {shipment.company_id, shipment.receiver_company_id}:
+            if cid:
+                db.add(Alert(
+                    company_id=cid,
+                    alert_type="delivery_confirmed",
+                    severity="healthy",
+                    entity_type="shipment",
+                    entity_id=shipment.id,
+                    message=conf_msg,
+                    is_resolved=1,
+                    created_at=now_dt
+                ))
 
-    db.commit()
+        db.commit()
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to confirm delivery and record inventory receipt.")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Delivery confirmation failed during transaction: {str(exc)}"
+        )
     return {
         "shipment_id": shipment.id,
         "external_shipment_id": shipment.external_shipment_id,

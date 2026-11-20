@@ -95,6 +95,8 @@ export const getAssignedShipments = () =>
   api.get('/v1/transporter/assigned-shipments').then(r => r.data);
 export const getShipmentLegs = (shipmentId) =>
   api.get(`/v1/transporter/shipments/${shipmentId}/legs`).then(r => r.data);
+export const getConsignorShipmentLegs = (shipmentId) =>
+  api.get(`/shipments/${shipmentId}/legs`).then(r => r.data);
 export const reportLegDisruption = (shipmentId, legId, payload) =>
   api.post(`/v1/transporter/shipments/${shipmentId}/legs/${legId}/report-disruption`, payload).then(r => r.data);
 export const getRecentDisruptions = () =>

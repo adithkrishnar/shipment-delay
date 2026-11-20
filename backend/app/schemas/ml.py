@@ -127,6 +127,7 @@ class ShipmentRiskOut(BaseModel):
     weight_kg: float | None = None
     product_name: str | None = None
     destination_warehouse: str | None = None
+    legs: list[dict] | None = None
 
 
 class ShipmentListResponse(BaseModel):

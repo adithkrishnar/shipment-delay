@@ -62,12 +62,10 @@ export default function SenderDashboard({ company, user }) {
       const outgoing = list.filter(s => s.company_id === company.id || !s.company_id);
       setShipmentsData(outgoing);
 
-      // Merge backend disruptions with local stored reports
-      const localDisruptions = JSON.parse(localStorage.getItem('supplyiq_recent_disruptions') || '[]');
-      const combinedDisruptions = [...localDisruptions, ...(resDisruptions || [])];
+      // Pure DB-backed disruptions from backend API
       const uniqueDisruptions = [];
       const seen = new Set();
-      for (const d of combinedDisruptions) {
+      for (const d of (resDisruptions || [])) {
         const key = `${d.external_shipment_id || d.shipment_id}-${d.delay_hours}-${d.disruption_reason}`;
         if (!seen.has(key)) {
           seen.add(key);
@@ -148,12 +146,8 @@ export default function SenderDashboard({ company, user }) {
       loadDashboardData();
     }, 3500);
 
-    const handleDisruptionReported = () => loadDashboardData();
-    window.addEventListener('supplyiq_disruption_reported', handleDisruptionReported);
-
     return () => {
       clearInterval(interval);
-      window.removeEventListener('supplyiq_disruption_reported', handleDisruptionReported);
     };
   }, [company?.id]);
 
@@ -246,7 +240,7 @@ export default function SenderDashboard({ company, user }) {
           events: [],
           totalDelayHours: 0,
           primaryReason: d.disruption_reason || d.reason || 'Transit Congestion',
-          location: d.incident_location || d.location || 'NH-48 Intermodal Corridor',
+          location: d.incident_location || d.location || 'Active Transit Corridor',
           revisedEta: d.revised_eta || d.new_eta
         };
       }
@@ -420,7 +414,7 @@ export default function SenderDashboard({ company, user }) {
                           background: 'rgba(255, 90, 107, 0.1)', 
                           padding: '2px 6px', borderRadius: '4px' 
                         }}>
-                          CORRIDOR DELAY • NH-48 Express
+                          CORRIDOR DELAY • {g.location || 'Transit Corridor'}
                         </span>
                         <strong style={{ fontSize: '13px', color: 'var(--text-primary)' }}>
                           Shipment {g.reference}
@@ -558,7 +552,7 @@ export default function SenderDashboard({ company, user }) {
             {kpis.primaryCarrier}
           </div>
           <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-            Corridor: Bengaluru ⇄ Chennai NH-48
+            Corridor: {shipmentsData[0]?.origin ? `${shipmentsData[0].origin} ⇄ ${shipmentsData[0].destination || 'Consignee DC'}` : 'Dedicated Dispatch Corridor'}
           </div>
         </div>
       </div>
@@ -711,7 +705,7 @@ export default function SenderDashboard({ company, user }) {
                           {s.carrier || 'Karnataka-Tamil Nadu Express Logistics'}
                         </div>
                         <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
-                          {s.transport_mode || 'ROAD'} • NH-48 (360 km)
+                          {(s.transport_mode || 'ROAD').toUpperCase()} • {s.distance_km != null && s.distance_km > 0 ? `${s.distance_km.toLocaleString()} km` : 'Distance not recorded'}
                         </div>
                       </td>
 
@@ -732,7 +726,8 @@ export default function SenderDashboard({ company, user }) {
                             {(() => {
                               const match = groupedSenderDelays.find(g => g.reference === s.external_shipment_id || g.shipment_id === s.shipment_id);
                               const h = match?.totalDelayHours || s.delay_hours || 16;
-                              return `+${h}h Highway Delay`;
+                              const mode = (s.transport_mode || 'Transit').toUpperCase();
+                              return `+${h}h ${mode} Delay`;
                             })()}
                           </div>
                         )}

@@ -18,7 +18,13 @@ from app.models import Company, Product, InventoryRecord, Sale, Warehouse
 from app.models.warehouse_transfer import WarehouseTransfer
 from app.models.scenario import SavedScenario
 from app.models.user import User
-from app.services.inventory_intelligence import company_inventory, inventory_summary, analyze_product
+from app.services.inventory_intelligence import (
+    company_inventory,
+    inventory_summary,
+    analyze_product,
+    get_z_factor,
+    calculate_safety_stock,
+)
 from app.services.inventory_simulator_service import run_delay_simulation
 from app.services.inventory_analytics_service import (
     get_abc_xyz_analysis,
@@ -265,11 +271,10 @@ def simulate_what_if(
     _verify_company_access(req.company_id, current_user, db)
 
     base = analyze_product(db, req.company_id, req.product_id)
-    z_factor = 1.65 if req.service_level_target == 0.95 else 2.33 if req.service_level_target >= 0.99 else 1.28
+    z_factor = get_z_factor(req.service_level_target)
 
     sim_daily_demand = base["daily_demand"] * req.demand_multiplier
     sim_lead_time = max(1.0, base["lead_time_days"] + req.lead_time_delta)
-    from app.services.inventory_intelligence import calculate_safety_stock
     sim_safety_stock = calculate_safety_stock(
         daily_demand_mean=sim_daily_demand,
         daily_demand_std=base["demand_std"],

@@ -147,6 +147,35 @@ def _risk_tier(prob: float) -> str:
     return "LOW"
 
 
+SERVICE_LEVEL_Z_FACTORS: dict[float, float] = {
+    0.90: 1.28,
+    0.95: 1.65,
+    0.98: 2.05,
+    0.99: 2.33,
+}
+
+
+def get_z_factor(service_level: float) -> float:
+    """
+    Returns standard normal quantile (Z-factor) for cycle service level.
+      - 0.90 -> 1.28 (90% service level)
+      - 0.95 -> 1.65 (95% service level)
+      - 0.98 -> 2.05 (98% service level)
+      - 0.99 -> 2.33 (99% service level)
+    Guaranteed monotonically strictly increasing with service level.
+    """
+    sl = round(float(service_level), 2)
+    if sl in SERVICE_LEVEL_Z_FACTORS:
+        return SERVICE_LEVEL_Z_FACTORS[sl]
+    if sl >= 0.99:
+        return 2.33
+    if sl >= 0.98:
+        return 2.05
+    if sl >= 0.95:
+        return 1.65
+    return 1.28
+
+
 def calculate_safety_stock(
     daily_demand_mean: float,
     daily_demand_std: float,

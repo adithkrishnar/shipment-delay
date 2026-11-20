@@ -13,8 +13,17 @@ import {
   getSavedScenarios,
   deleteSavedScenario
 } from '../services/api';
+import { useAuth } from '../auth/AuthContext';
+import { Navigate } from 'react-router-dom';
 
 export default function WhatIfLab({ company }) {
+  const { user } = useAuth();
+  const isSender = (user?.participant_role === 'sender' || user?.role === 'sender') && !user?.is_superuser;
+
+  if (isSender) {
+    return <Navigate to="/shipments" replace />;
+  }
+
   const [products, setProducts] = useState([]);
   const [selectedProductId, setSelectedProductId] = useState(null);
   const [demandMultiplier, setDemandMultiplier] = useState(1.2);

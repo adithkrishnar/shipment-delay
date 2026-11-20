@@ -148,7 +148,7 @@ function MainApp() {
         {showTopbar && (
           <Topbar
             company={company}
-            companies={[company]}
+            companies={companies}
             onCompany={changeCompany}
           />
         )}
